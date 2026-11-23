@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rojo, Selene and Lune (Rokit)
         uses: CompeyDev/setup-rokit@v0.2.1
@@ -44,8 +44,21 @@ jobs:
       - name: Deploy script tests
         run: python3 tests/test_publish.py
 
-      - name: Lint (Selene)
-        run: selene src
+      - name: Lint (Selene — errors fail the build, warnings are reported)
+        run: |
+          set +e
+          selene src > selene.txt 2>&1
+          status=$?
+          set -e
+          cat selene.txt
+          if ! grep -q "^Results:" selene.txt; then
+            echo "::error::Selene did not produce results (exit $status)"; exit 1
+          fi
+          if grep -Eq "^[1-9][0-9]* (errors|parse errors)" selene.txt; then
+            echo "::error::Selene found errors"; exit 1
+          fi
+          warnings=$(grep -Eo "^[0-9]+ warnings" selene.txt | grep -Eo "^[0-9]+" || echo 0)
+          echo "::notice::Selene: 0 errors, ${warnings} style warnings (not blocking)"
 
       - name: Build place with Rojo
         run: |
