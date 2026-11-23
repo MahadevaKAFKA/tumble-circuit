@@ -1,0 +1,6 @@
+# Toolchain pinned for CI (installed by the setup-rokit GitHub Action).
+# Nothing here needs installing on your PC.
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
+selene = "Kampfkarren/selene@0.32.0"
+lune = "lune-org/lune@0.10.5"

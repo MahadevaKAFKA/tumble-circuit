@@ -1,0 +1,44 @@
+{
+  "instances": [
+    { "path": "ReplicatedStorage/Shared", "class": "Folder" },
+    { "path": "ReplicatedStorage/Shared/Config", "class": "ModuleScript" },
+    { "path": "ReplicatedStorage/Shared/CourseData", "class": "ModuleScript" },
+    { "path": "ReplicatedStorage/Shared/CourseLayout", "class": "ModuleScript" },
+    { "path": "ReplicatedStorage/Remotes", "class": "Folder" },
+    { "path": "ReplicatedStorage/Remotes/RestartRun", "class": "RemoteEvent" },
+    { "path": "ServerScriptService/Server", "class": "Script" },
+    { "path": "ServerScriptService/Server/CourseBuilder", "class": "ModuleScript" },
+    { "path": "ServerScriptService/Server/CheckpointService", "class": "ModuleScript" },
+    { "path": "ServerScriptService/Server/MarbleService", "class": "ModuleScript" },
+    { "path": "StarterPlayer/StarterPlayerScripts", "class": "StarterPlayerScripts" },
+    { "path": "StarterPlayer/StarterPlayerScripts/Client", "class": "LocalScript" },
+    { "path": "StarterPlayer/StarterPlayerScripts/Client/MarbleController", "class": "ModuleScript" },
+    { "path": "StarterPlayer/StarterPlayerScripts/Client/Hud", "class": "ModuleScript" },
+    { "path": "StarterPlayer/StarterPlayerScripts/Client/TouchFallback", "class": "ModuleScript" },
+    { "path": "Workspace/StartSpawn", "class": "SpawnLocation" },
+    { "path": "Players", "class": "Players" },
+    { "path": "Lighting", "class": "Lighting" }
+  ],
+  "properties": [
+    { "path": "Players", "name": "CharacterAutoLoads", "value": false },
+    { "path": "Workspace", "name": "StreamingEnabled", "value": false },
+    { "path": "Workspace/StartSpawn", "name": "Anchored", "value": true }
+  ],
+  "runtimeNames": [
+    "Humanoid",
+    "HumanoidRootPart",
+    "MarbleRef",
+    "DriveForce",
+    "MarbleUpright",
+    "PlayerScripts",
+    "PlayerModule",
+    "PlayerGui",
+    "Course",
+    "Markers",
+    "TouchGui",
+    "TouchControlFrame",
+    "DynamicThumbstickFrame",
+    "ThumbstickFrame",
+    "JumpButton"
+  ]
+}

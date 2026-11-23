@@ -1,0 +1,59 @@
+name: Deploy to Roblox (private playtest)
+
+# Manually triggered: Actions tab -> "Deploy to Roblox (private playtest)" -> Run workflow.
+# Builds the place, then publishes it to your existing experience with Open Cloud.
+# It refuses to publish if the experience is PUBLIC, unless you tick allow_public.
+# Nothing here changes the experience's privacy settings.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: "Published = playable now in your private experience. Saved = upload without making it live."
+        type: choice
+        options:
+          - Published
+          - Saved
+        default: Published
+      allow_public:
+        description: "Allow publishing even if the experience is PUBLIC (leave unticked for private playtests)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: roblox-deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  deploy:
+    name: Publish via Open Cloud
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Download built place
+        uses: actions/download-artifact@v4
+        with:
+          name: TumbleCircuit-place
+          path: build
+
+      - name: Publish
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
+          ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
+          VERSION_TYPE: ${{ inputs.version_type }}
+          ALLOW_PUBLIC: ${{ inputs.allow_public }}
+        run: |
+          extra=""
+          if [ "$ALLOW_PUBLIC" = "true" ]; then extra="--allow-public"; fi
+          python3 scripts/publish.py --place-file build/TumbleCircuit.rbxl --version-type "$VERSION_TYPE" $extra

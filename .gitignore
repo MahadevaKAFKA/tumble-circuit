@@ -1,0 +1,11 @@
+# Build output (CI uploads it as an artifact; a copy is attached to releases by hand)
+build/
+*.rbxl.lock
+*.rbxlx.lock
+roblox.yml
+roblox.toml
+sourcemap.json
+__pycache__/
+*.pyc
+.env
+.DS_Store

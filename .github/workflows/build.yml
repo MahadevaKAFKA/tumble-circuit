@@ -1,0 +1,66 @@
+name: Build
+
+# Validates the project and builds the Roblox place file in GitHub's cloud.
+# Runs on every push/PR, can be started by hand, and is reused by deploy.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Validate and build place
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install Rojo, Selene and Lune (Rokit)
+        uses: CompeyDev/setup-rokit@v0.2.1
+
+      - name: Make sure tools are installed
+        run: |
+          if ! command -v rojo >/dev/null 2>&1; then rokit install --no-trust-check; fi
+          rojo --version
+          selene --version
+          lune --version
+
+      - name: Luau syntax, globals and module references
+        run: python3 tools/luau_check.py src
+
+      - name: Course layout checks
+        run: python3 tests/test_course_layout.py
+
+      - name: Deploy script tests
+        run: python3 tests/test_publish.py
+
+      - name: Lint (Selene)
+        run: selene src
+
+      - name: Build place with Rojo
+        run: |
+          mkdir -p build
+          rojo build default.project.json --output build/TumbleCircuit.rbxl
+          rojo build default.project.json --output build/TumbleCircuit.rbxlx
+          ls -l build
+
+      - name: Verify built place (Lune)
+        run: lune run tests/verify_place.luau build/TumbleCircuit.rbxl
+
+      - name: Verify XML place
+        run: python3 tests/verify_place.py build/TumbleCircuit.rbxlx
+
+      - name: Upload place file
+        uses: actions/upload-artifact@v4
+        with:
+          name: TumbleCircuit-place
+          path: build/
+          if-no-files-found: error
+          retention-days: 30
