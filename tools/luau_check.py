@@ -713,10 +713,7 @@ REQUIRE_CHAIN_RE = re.compile(
 RETURN_RE = re.compile(r"^return\s+(\w+)\s*$", re.M)
 
 # Values passed between modules under a different local name.
-ALIASES = {
-    "MarbleService.luau": {"checkpoints": "CheckpointService", "checkpointService": "CheckpointService"},
-    "TouchFallback.luau": {"controller": "MarbleController"},
-}
+ALIASES: dict[str, dict[str, str]] = {}
 
 
 def module_fields(path: str) -> tuple[str | None, set[str]]:
@@ -745,8 +742,34 @@ def strip_comments_and_strings(src: str) -> str:
     return out
 
 
+def project_renames(project_path: str = "default.project.json") -> dict[str, str]:
+    """Module names the Rojo project gives to single files under a different name."""
+    renames: dict[str, str] = {}
+    if not os.path.isfile(project_path):
+        return renames
+    with open(project_path, encoding="utf-8") as f:
+        tree = json.load(f).get("tree", {})
+
+    def walk(node):
+        for key, child in node.items():
+            if key.startswith("$") or not isinstance(child, dict):
+                continue
+            target = child.get("$path")
+            if isinstance(target, str) and os.path.isfile(target):
+                renames[key] = target
+            walk(child)
+
+    walk(tree)
+    return renames
+
+
 def cross_reference(files: list[str]) -> dict[str, list[str]]:
     modules: dict[str, set[str]] = {}
+    for name, target in project_renames().items():
+        if target.endswith(".json"):
+            modules[name] = json_module_fields(target)
+        else:
+            modules[name] = module_fields(target)[1]
     for path in files:
         base = os.path.basename(path)
         name = re.sub(r"(\.server|\.client)?\.(luau|lua|json)$", "", base)
@@ -784,41 +807,52 @@ def cross_reference(files: list[str]) -> dict[str, list[str]]:
 
 
 # --------------------------------------------------------------------------
-# Config key check: Config.Section.Key and `local M = Config.Section` aliases
+# Config key check: <XConfig>.Section.Key, and `local a = XConfig.Section` aliases
+# (applies to every module whose file name ends in "Config", e.g. GameConfig.lua)
 # --------------------------------------------------------------------------
 
-def config_keys(config_path: str) -> dict[str, set[str]]:
+def config_keys(config_path: str, name: str) -> dict[str, set[str]]:
     with open(config_path, encoding="utf-8") as f:
         src = f.read()
     sections: dict[str, set[str]] = {}
-    for m in re.finditer(r"Config\.(\w+)\s*=\s*\{(.*?)\n\}", src, flags=re.S):
+    for m in re.finditer(rf"{name}\.(\w+)\s*=\s*\{{(.*?)\n\}}", src, flags=re.S):
         sections[m.group(1)] = set(re.findall(r"(?m)^\s*(\w+)\s*=", m.group(2)))
-    for m in re.finditer(r"Config\.(\w+)\s*=\s*[^{\s]", src):
+    for m in re.finditer(rf"{name}\.(\w+)\s*=\s*[^{{\s]", src):
         sections.setdefault(m.group(1), set())
     return sections
 
 
-def config_check(files: list[str], config_path: str) -> dict[str, list[str]]:
-    sections = config_keys(config_path)
+def config_check(files: list[str], config_paths: list[str]) -> dict[str, list[str]]:
     problems: dict[str, list[str]] = {}
-    for path in files:
-        if not path.endswith((".luau", ".lua")):
-            continue
-        with open(path, encoding="utf-8") as f:
-            code = strip_comments_and_strings(f.read())
-        for section, key in re.findall(r"\bConfig\.(\w+)\.(\w+)", code):
-            if section not in sections:
-                problems.setdefault(path, []).append(f"Config.{section} does not exist")
-            elif key not in sections[section]:
-                problems.setdefault(path, []).append(f"Config.{section}.{key} does not exist")
-        for section in re.findall(r"\bConfig\.(\w+)\b(?!\s*=)", code):
-            if section not in sections:
-                problems.setdefault(path, []).append(f"Config.{section} does not exist")
-        for alias, section in re.findall(r"local\s+(\w+)\s*=\s*Config\.(\w+)\s*$", code, flags=re.M):
-            keys = sections.get(section, set())
-            for key in set(re.findall(rf"(?<![\w.]){re.escape(alias)}\.(\w+)", code)):
-                if key not in keys:
-                    problems.setdefault(path, []).append(f"{alias}.{key} (Config.{section}.{key}) does not exist")
+    for config_path in config_paths:
+        name = re.sub(r"\.(luau|lua)$", "", os.path.basename(config_path))
+        sections = config_keys(config_path, name)
+        for path in files:
+            if not path.endswith((".luau", ".lua")):
+                continue
+            with open(path, encoding="utf-8") as f:
+                code = strip_comments_and_strings(f.read())
+            if not re.search(rf"\b{name}\b", code):
+                continue
+            for section, key in re.findall(rf"\b{name}\.(\w+)\.(\w+)", code):
+                if section not in sections:
+                    problems.setdefault(path, []).append(f"{name}.{section} does not exist")
+                elif key not in sections[section]:
+                    problems.setdefault(path, []).append(f"{name}.{section}.{key} does not exist")
+            for section in re.findall(rf"\b{name}\.(\w+)\b(?!\s*=)", code):
+                if section not in sections:
+                    problems.setdefault(path, []).append(f"{name}.{section} does not exist")
+            # aliases: the same local name may be bound to different sections in different
+            # functions, so accept a key that exists in any section bound to that alias
+            alias_sections: dict[str, set[str]] = {}
+            for alias, section in re.findall(rf"local\s+(\w+)\s*=\s*{name}\.(\w+)\s*$", code, flags=re.M):
+                alias_sections.setdefault(alias, set()).add(section)
+            for alias, bound in alias_sections.items():
+                keys = set().union(*(sections.get(sec, set()) for sec in bound))
+                for key in set(re.findall(rf"(?<![\w.:]){re.escape(alias)}\.(\w+)", code)):
+                    if key not in keys:
+                        problems.setdefault(path, []).append(
+                            f"{alias}.{key} ({name}.{'/'.join(sorted(bound))}.{key}) does not exist")
     return problems
 
 
@@ -881,9 +915,9 @@ def main(argv: list[str]) -> int:
             print(f"ERROR {path}: {issue}")
             total_errors += 1
 
-    config_path = next((f for f in files if os.path.basename(f) == "Config.luau"), None)
-    if config_path:
-        for path, issues in config_check(files, config_path).items():
+    config_paths = [f for f in files if re.search(r"Config\.(luau|lua)$", os.path.basename(f))]
+    if config_paths:
+        for path, issues in config_check(files, config_paths).items():
             for issue in sorted(set(issues)):
                 print(f"ERROR {path}: {issue}")
                 total_errors += 1

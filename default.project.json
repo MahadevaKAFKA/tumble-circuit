@@ -2,57 +2,45 @@
   "name": "TumbleCircuit",
   "tree": {
     "$className": "DataModel",
+
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "Shared": {
-        "$path": "src/shared"
-      },
-      "Remotes": {
-        "$className": "Folder",
-        "RestartRun": {
-          "$className": "RemoteEvent"
-        }
+        "$path": "src/ReplicatedStorage/Shared",
+        "PlaceholderIds": { "$path": "PLACEHOLDER_IDS.lua" }
       }
     },
+
     "ServerScriptService": {
       "$className": "ServerScriptService",
-      "Server": {
-        "$path": "src/server"
-      }
+      "ServerBootstrap": { "$path": "src/ServerScriptService/ServerBootstrap.server.lua" },
+      "Services": { "$path": "src/ServerScriptService/Services" },
+      "Tests": { "$path": "src/Tests" }
     },
+
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "ProceduralBuilders": { "$path": "src/ServerStorage/ProceduralBuilders" }
+    },
+
     "StarterPlayer": {
       "$className": "StarterPlayer",
+      "$properties": { "EnableMouseLockOption": false },
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
-        "Client": {
-          "$path": "src/client"
-        }
+        "ClientBootstrap": { "$path": "src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua" },
+        "Controllers": { "$path": "src/StarterPlayer/StarterPlayerScripts/Controllers" }
       }
     },
+
     "Players": {
       "$className": "Players",
-      "$properties": {
-        "CharacterAutoLoads": false
-      }
+      "$properties": { "CharacterAutoLoads": false }
     },
+
     "Workspace": {
       "$className": "Workspace",
-      "$properties": {
-        "StreamingEnabled": false
-      },
-      "StartSpawn": {
-        "$className": "SpawnLocation",
-        "$properties": {
-          "Anchored": true,
-          "Neutral": true,
-          "Duration": 0,
-          "CanCollide": false,
-          "Transparency": 1
-        }
-      }
-    },
-    "Lighting": {
-      "$className": "Lighting"
+      "$properties": { "StreamingEnabled": false }
     }
   }
 }

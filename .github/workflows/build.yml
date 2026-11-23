@@ -32,11 +32,14 @@ jobs:
           selene --version
           lune --version
 
-      - name: Luau syntax, globals and module references
-        run: python3 tools/luau_check.py src
+      - name: Luau syntax, globals, module and config references
+        run: python3 tools/luau_check.py src PLACEHOLDER_IDS.lua
 
-      - name: Course layout checks
-        run: python3 tests/test_course_layout.py
+      - name: A1 pure specs (the project's own offline harness, Lua 5.3)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.3 lua-filesystem
+          lua5.3 -e 'lfs = require("lfs")' tools/offline/run_tests.lua .
 
       - name: Deploy script tests
         run: python3 tests/test_publish.py

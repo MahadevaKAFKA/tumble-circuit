@@ -1,0 +1,94 @@
+== Syntax (Lua 5.3 parser over Lua-5.1-subset Luau) ==
+ok    PLACEHOLDER_IDS.lua
+ok    src/ReplicatedStorage/Shared/GameConfig.lua
+ok    src/ReplicatedStorage/Shared/PhysicsConfig.lua
+ok    src/ReplicatedStorage/Shared/Protocol.lua
+ok    src/ReplicatedStorage/Shared/RouteTracker.lua
+ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
+ok    src/ReplicatedStorage/Shared/Utility.lua
+ok    src/ServerScriptService/ServerBootstrap.server.lua
+ok    src/ServerScriptService/Services/MarbleCharacterService.lua
+ok    src/ServerScriptService/Services/PracticeRunService.lua
+ok    src/ServerScriptService/Services/RacePhysicsService.lua
+ok    src/ServerScriptService/Services/TrainingTrackService.lua
+ok    src/ServerStorage/ProceduralBuilders/TrainingTrackBuilder.lua
+ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MarbleMotorController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SoundController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/TouchControls.lua
+ok    src/Tests/A1PureSpecs.lua
+ok    src/Tests/TestRunner.server.lua
+ok    tools/offline/harness.lua
+ok    tools/offline/roblox_shim.lua
+ok    tools/offline/run_tests.lua
+
+== A1 pure specs ==
+WARN	[TumbleCircuit] signal handler error: ./src/Tests/A1PureSpecs.lua:112: deliberate test error (expected warning)
+PASS  ball is a 4-stud diameter sphere (radius 2)
+PASS  ball density within Roblox range
+PASS  ball friction/elasticity in [0,2]/[0,1]
+PASS  along-track accel positive and bounded
+PASS  lateral cap below terminal speed
+PASS  throttle target below terminal speed
+PASS  air control within [0,1]
+PASS  brake target multiplier within (0,1)
+PASS  steer deadzone within [0,0.5)
+PASS  rolling inertia compensation within [1,1.4]
+PASS  gravity multiplier within spec window
+PASS  terminal drag can beat a 30-degree slope
+PASS  controller gains stable down to 15 FPS (k*dt < 1)
+PASS  chase distance within 18-26
+PASS  wide distance within 18-26
+PASS  default FOV is 70
+PASS  camera pitch cap far from vertical (< 75 deg)
+PASS  camera min distance clears the marble
+PASS  recover hold is 1 second
+PASS  touch buttons >= 44 px at minimum UI scale
+PASS  palette has Navy
+PASS  palette has Cyan
+PASS  palette has Coral
+PASS  palette has Yellow
+PASS  palette has Violet
+PASS  palette has Mint
+PASS  placeholder sound ids are nil or well-formed (none invented)
+PASS  A1 exposes exactly one remote (RequestReset)
+PASS  attribute names unique and <= 50 chars
+PASS  exponential smoothing is frame-rate independent
+PASS  deadzone zeroes small input
+PASS  deadzone rescales full deflection to 1
+PASS  formatTime
+PASS  turnToward handles opposite vectors without NaN or flip
+PASS  signal isolates handler errors and disconnects
+PASS  rate limiter enforces the reset cooldown
+PASS  training course validates
+PASS  4-6 hand-built segments
+PASS  deterministic generation
+PASS  route continuous (no gap > step + slack)
+PASS  route distance strictly increasing
+PASS  curves subdivided (<= MaxYawStep per section)
+PASS  spawn sits on the practice pad
+PASS  spawn clearance: marble bottom above floor
+PASS  spawn has room each side
+PASS  steering frame defined along the whole route (no vertical shaft flip)
+PASS  steering frame never jumps > 10 deg per 2 studs
+PASS  route tracker progress monotonic along the course
+PASS  route tracker re-acquires after respawn jump
+PASS  route tracker finish beyond start
+PASS  floor ribbon: wedge/box top faces match the track surface exactly
+PASS  all part sizes finite and positive
+PASS  guardrails at least one ball diameter tall
+PASS  part budget under 1500
+PASS  exactly one gentle bumper hazard
+PASS  pulse bumper cycles Idle -> Telegraph -> Active -> Idle
+PASS  hazard telegraph lasts 0.5-1.0 s before activating
+
+info  tunables: accel 35, lateral cap 22, terminal 80, air 40%, brake x0.65, deadzone 0.12 (spec hypotheses 35/22/80/40%/0.65/0.12)
+info  floor: 19 flat quads as boxes, 252 wedges for curved/banked quads
+info  course parts: 701 total, 438 collidable
+info  route 947 studs; 1-D MODEL (full throttle, no braking/steering losses) clean run ~17.9 s, end speed 60 -- not a measurement
+
+57 passed, 0 failed (+ 0 syntax failures)

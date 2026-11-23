@@ -1,55 +1,37 @@
-# Tumble Circuit: Chaos Drop — Phase A1 (mobile playtest build)
+# Tumble Circuit: Chaos Drop — Phase A1
 
-A marble-racing Roblox game, built as a Rojo/Luau project and assembled entirely in
-GitHub's cloud — no Roblox Studio or tools on your PC.
+A marble-racing Roblox game, built as a Rojo/Luau project. Phase A1 — "the marble must feel
+great": one marble, steering, braking, a chase camera and a short training course
+(start pad → straight ramp → banked S-turn → pulse bumper → 90° banked drop → finish basin).
 
-**Phase A1 scope:** one physics marble, the default Roblox camera, and a compact
-practice course (start pad, bumpers, ramp, corner, spinning sweeper, jump gap, finish)
-with checkpoints, respawning, a run timer and a best time.
+Two ways to work with it:
 
-## Play it on your phone
+| You want to… | Use |
+| --- | --- |
+| Play it on your **phone**, no Studio, no PC tools | GitHub Actions builds and publishes it → [docs/SETUP.md](docs/SETUP.md), then [docs/ANDROID_PLAYTEST.md](docs/ANDROID_PLAYTEST.md) |
+| Open it in **Roblox Studio** | [README_INSTALL.md](README_INSTALL.md) |
 
-1. One-time setup (≈10 min, all from your phone): [docs/SETUP.md](docs/SETUP.md)
-2. Deploy: **Actions → Deploy to Roblox (private playtest) → Run workflow**
-3. Play: [docs/ANDROID_PLAYTEST.md](docs/ANDROID_PLAYTEST.md) — Chrome **Play in Browser**
-   first, the Roblox app as the fallback.
+Status, decisions and the honest test ledger: [BUILD_STATUS.md](BUILD_STATUS.md).
+Manual playtest checklist: [TEST_PLAN.md](TEST_PLAN.md).
 
-The experience stays **private**: the deploy refuses to publish if the experience is
-public unless you explicitly tick `allow_public`.
+## The cloud pipeline
 
-## Controls
+- **Build** (`.github/workflows/build.yml`) — runs on every push. Checks every script
+  (syntax, globals, module/config references), runs the project's own 57 offline specs,
+  lints with Selene, builds the place with **Rojo**, verifies the built place with **Lune**,
+  and attaches `TumbleCircuit.rbxl` / `.rbxlx` as a downloadable artifact. Publishes nothing.
+- **Deploy to Roblox (private playtest)** (`.github/workflows/deploy.yml`) — started by hand
+  from the Actions tab. Builds, then publishes to your existing experience with Roblox Open
+  Cloud, waiting until Roblox confirms. It **refuses to publish if the experience is public**
+  unless you tick `allow_public`, and never changes privacy settings.
 
-| Action | Phone (touch) | Keyboard | Gamepad |
-| --- | --- | --- | --- |
-| Roll | Thumbstick (left side) | WASD / arrows | Left stick |
-| Jump | Jump button (bottom right) | Space | A |
-| Look around | Drag on the right side | Right-mouse drag | Right stick |
-| Back to last checkpoint | **RESPAWN** button | R | Y |
-| Restart the run | **RESTART** button | T | Select |
-
-Falling off the course puts you back at your last checkpoint automatically.
-
-## What's in the repo
-
-```
-default.project.json       Rojo project (what goes where in the place)
-src/shared/                Config (all tuning numbers), CourseLayout.json, CourseData
-src/server/                CourseBuilder, MarbleService, CheckpointService
-src/client/                MarbleController (input + physics), Hud, TouchFallback
-tests/                     Layout checks, deploy-script tests, place verifiers
-tools/                     Offline Luau checker and place builder
-scripts/publish.py         Open Cloud publisher used by the deploy workflow
-.github/workflows/         build.yml (every push) and deploy.yml (manual)
-docs/                      Setup, Android playtest, test report
-```
+Credentials live only in GitHub Secrets/Variables (`ROBLOX_API_KEY`, `ROBLOX_UNIVERSE_ID`,
+`ROBLOX_PLACE_ID`) — never in the code, the artifacts or the logs.
 
 ## Tuning
 
-Everything that affects feel is in `src/shared/Config.luau` (speed, acceleration,
-jump height, camera zoom). The course is in `src/shared/CourseLayout.json`. Edit
-either on GitHub (pencil icon), commit, then run the deploy workflow again.
+- Marble feel: `src/ReplicatedStorage/Shared/PhysicsConfig.lua`
+- Camera, UI sizes, timings: `src/ReplicatedStorage/Shared/GameConfig.lua`
+- Course layout: `src/ReplicatedStorage/Shared/TrackDefinitions.lua`
 
-## Status
-
-See [docs/TEST_REPORT.md](docs/TEST_REPORT.md) for exactly what has been verified
-automatically and what still needs a real playtest.
+Edit on GitHub (pencil icon) → commit → run **Deploy** again.
