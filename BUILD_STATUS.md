@@ -128,10 +128,12 @@ tricks, slipstream, persistence, coins, XP, cosmetics, shop, lobby, spectating.
 | 2026-11-19 | `python3 tools/build_rbxlx.py . TumbleCircuit.rbxlx` + XML parse + source diff | Python 3.13 | well-formed; 23/23 scripts identical; service properties present |
 | 2026-11-19 | Camera line-of-sight over start wall (offline calc) | texlua | Chase +2.46, Wide +4.11 studs clearance |
 | — | Studio Play Solo / TestRunner | **not available** | **pending owner** |
-| — | FPS 30/60/120, low-FPS, mobile device | **not available** | **pending owner** |
+| — | FPS 30/60/120, low-FPS | **not available** | pending (mobile device: see 2026-11-23 playtest row) |
 | 2026-11-23 | `python3 tools/luau_check.py src PLACEHOLDER_IDS.lua` | Linux, Python 3.13 | 23 files: 0 errors, 0 warnings; injected typos caught |
 | 2026-11-23 | Offline place build (Rojo-compatible) + `tests/verify_place.py` | Python 3.13 | 35 instances, 23 scripts, all references resolve |
 | 2026-11-23 | `python3 tests/test_publish.py` | Python 3.13 | 10 passed, 0 failed |
 | 2026-11-23 | GitHub Actions **Build** run 45146791501 (`rojo build`, Selene 0.32.0, Lune 0.10.5, Lua 5.3 specs) | GitHub cloud, ubuntu-latest | **success**: 57 specs passed; Selene 0 errors / 6 style warnings; Rojo built .rbxl (80 KB) + .rbxlx; Lune: 35 instances, 23 scripts, all references resolve |
-| — | Deploy + Web Play / Android app playtest | owner's phone | **pending owner** |
+| 2026-11-23 | GitHub Actions **Deploy** run 45160813071 (`scripts/publish.py`, Open Cloud Assets API) | GitHub cloud | **success**: version 4 published; privacy guard read visibility PRIVATE |
+| 2026-11-23 | First real runtime playtest of A1 (owner) | Samsung Galaxy S25 Ultra, private experience | **owner reports it works well** (no detailed checklist results recorded yet) |
+| — | Detailed A1 checklist (docs/ANDROID_PLAYTEST.md), FPS 30/60/120, Studio TestRunner | — | pending |
 
