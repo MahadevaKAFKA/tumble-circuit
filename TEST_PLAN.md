@@ -110,7 +110,7 @@ Arrange the two client windows side by side. Expected server log order per round
 - [ ] Let one player not finish: race ends at 180 s, that player shows DNF.
 - [ ] Mid-race: close one client. The other keeps racing; if they were the last racer, the round goes to Cleanup/Intermission cleanly.
 - [ ] Non-racer during a race: SPECTATE, then < / > (or Q/E, LB/RB) cycle racers; EXIT returns to your marble.
-- [ ] SIT OUT on results → next round runs without you; JOIN/PLAY AGAIN → you are back in.
+- [ ] SIT OUT on results → panel closes, next round runs without you; the hub button then reads JOIN RACE → tap it → "You're in the next race" and the button reads SIT OUT. PLAY AGAIN → panel closes, you race next round.
 - [ ] Run 3 rounds in a row: no duplicate marbles in Workspace.TumbleMarbles, gate closed again at each Intermission, camera never lost.
 - [ ] Output during all of this: no red errors. `[RacePhysics] movement rejected` should not appear in normal play (if it does, note when).
 

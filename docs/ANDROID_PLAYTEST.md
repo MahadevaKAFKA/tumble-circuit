@@ -33,7 +33,11 @@ to the hub so you can roll while you wait. Every round runs on its own, and one 
    coral gate opens.
 3. Race the training course: three checkpoints flash as you pass them, with your place on screen.
    Falling off or holding RESET puts you back at your last checkpoint.
-4. **RACE RESULTS** for 12 s, with **PLAY AGAIN** / **SIT OUT**, then back to the hub.
+4. **RACE RESULTS** for 12 s, with **PLAY AGAIN** / **SIT OUT** (either one closes the panel), then
+   back to the hub. The next race starts about 15 s later.
+
+You're in every race unless you choose to sit out. The button at the top right always says what a
+tap does: **SIT OUT** while you're in, **JOIN RACE** while you're sitting out.
 
 Extra touch control in A2: **LIST** (above RESET) shows or hides the standings. When you sit out,
 the **SPECTATE** and **< >** buttons let you watch someone else's marble.
@@ -46,7 +50,9 @@ hitch, send a screenshot.
 - [ ] Grid → 3-2-1 → GO: you can't move before GO and can move right after it.
 - [ ] Each checkpoint flashes once, in order; the finish shows your time and place.
 - [ ] Fall off / hold RESET mid-race → back at your last checkpoint (not the start).
-- [ ] Results screen: PLAY AGAIN and SIT OUT both work; three rounds in a row with no stuck state.
+- [ ] Right after GO the marble moves at once, with no reset needed.
+- [ ] Results screen: PLAY AGAIN and SIT OUT each close the panel with a message; three rounds in a row with no stuck state.
+- [ ] Hub: SIT OUT → button becomes JOIN RACE → tap → you race in the next round.
 - [ ] LIST button shows the standings during a race.
 - [ ] **Errors:** type `/console` in chat, open **Log**, and check **Client** and **Server**
       (you see the server log because you own the game). Screenshot any red lines.

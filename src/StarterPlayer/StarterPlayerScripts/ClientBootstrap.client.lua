@@ -482,6 +482,8 @@ end
 
 local function requestJoin(wants)
 	remote.RequestJoinRace:FireServer(wants == true)
+	sound:Play("UIClick")
+	hud:Toast(wants and "You're in the next race" or "You'll sit out the next race", 1.5)
 end
 
 maid:Give(hud.PlayPressed:Connect(startPlaying))
@@ -493,6 +495,7 @@ maid:Give(input.PrimaryActionRequested:Connect(function()
 		startPlaying()
 	elseif matchUi:IsResultsOpen() then
 		requestJoin(true)
+		matchUi:DismissResults()
 	end
 end))
 maid:Give(input.RecoverTriggered:Connect(requestRecover))

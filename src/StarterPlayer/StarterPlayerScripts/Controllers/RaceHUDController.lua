@@ -179,7 +179,7 @@ function RaceHUD:Update(ctx)
 		status, sub = "WAITING FOR RACERS", "Roll down the practice chute"
 	elseif snap.state == S.Intermission then
 		status = "NEXT RACE  " .. Utility.formatTime(left or 0):gsub("%.%d+$", "")
-		sub = ctx.queued and "You're in the next race" or "Sitting out - press JOIN to race"
+		sub = ctx.queued and "You're in the next race" or "Sitting out - tap JOIN RACE to race"
 	elseif snap.state == S.Preparing then
 		status, sub = "GET READY", me and "To the start grid!" or "Racers to the grid"
 	elseif snap.state == S.Countdown then

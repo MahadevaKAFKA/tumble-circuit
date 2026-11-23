@@ -246,9 +246,12 @@ function RoundService:_enterRacing()
 	local starts = {}
 	for _, racer in ipairs(self.racers) do
 		starts[racer.player] = layout.GridSlots[((racer.slot - 1) % #layout.GridSlots) + 1].Frame.S
+	end
+	-- Checkpoint records first: Release respawns each racer, and the spawn resolver reads them.
+	self.checkpoints:BeginRound(starts, self.raceStartClock)
+	for _, racer in ipairs(self.racers) do
 		self.marbles:Release(racer.player)
 	end
-	self.checkpoints:BeginRound(starts, self.raceStartClock)
 	self:_setTimer(T.MaxRaceSeconds)
 end
 

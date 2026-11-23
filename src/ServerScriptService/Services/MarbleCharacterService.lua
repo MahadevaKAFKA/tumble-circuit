@@ -259,23 +259,18 @@ function MarbleCharacterService:_scheduleProtectionEnd(player, ball, seconds)
 	end)
 end
 
--- GO: unanchor a frozen grid ball and give it to its player.
+-- GO: replace the frozen grid ball with a free one on the same slot, owned by its player from
+-- the moment it exists (the spawn resolver returns the grid slot, unfrozen, once Racing).
+-- Owner playtest 2026-11-23 (Roblox Android app): unanchoring the grid ball in place left the
+-- marble unable to move until a manual reset, and a reset (a fresh, never-anchored ball on the
+-- same slot) always worked. So GO now takes the reset path. Spawn protection applies as before.
 function MarbleCharacterService:Release(player)
 	local state = self.players[player]
 	local ball = state and state.ball
 	if not ball or not ball.Parent or not ball.Anchored then
 		return false
 	end
-	ball.Anchored = false
-	ball:SetAttribute(BALL.Frozen, false)
-	local ok, err = pcall(function()
-		ball:SetNetworkOwner(player)
-	end)
-	if not ok then
-		warn("[Marble] SetNetworkOwner at release failed for " .. player.Name .. ": " .. tostring(err))
-	end
-	self:_scheduleProtectionEnd(player, ball, RaceConfig.Recovery.ProtectionSeconds)
-	return true
+	return self:SpawnMarble(player, Protocol.SpawnReasons.Go) ~= nil
 end
 
 function MarbleCharacterService:ScheduleRespawn(player, reason, delaySeconds)

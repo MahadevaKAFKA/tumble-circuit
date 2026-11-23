@@ -2,7 +2,12 @@
 	MatchUIController — A2 round UI outside the live race readouts:
 	  * Results overlay (top three + your place, server times / DNF) with PLAY AGAIN and SIT OUT
 	    (both are RequestJoinRace(bool); the fixed round timer is never affected)
-	  * queue chip: IN NEXT RACE / SITTING OUT toggle while you are not racing
+	  * queue button while you are not racing. It is labelled with what tapping it does: SIT OUT
+    while you are queued, JOIN RACE while you are sitting out (owner playtest 2026-11-23: a chip
+    that showed the current state read as "tap to join" and sat the player out instead).
+    Taps update the button at once; the next snapshot confirms.
+  * PLAY AGAIN / SIT OUT on the results panel also close the panel (the round timer is fixed,
+    so the buttons only choose the next race; closing shows they worked)
 	  * spectate controls when a race is running and you are not (or no longer) racing
 	  * the hub's holographic board (updated locally from the snapshot; no server writes)
 	No reward/currency placeholders (economy arrives in A5).
@@ -28,6 +33,8 @@ function MatchUI.new()
 	self.snapshot = nil
 	self.localUserId = nil
 	self.queued = true
+	self.pendingQueue = nil -- { value, untilClock }: a tap the server has not confirmed yet
+	self.dismissedRound = nil -- results panel closed by the player for this round id
 	self.JoinRequested = Utility.Signal.new() -- (wantsToRace)
 	self.SpectateToggled = Utility.Signal.new()
 	self.SpectateCycle = Utility.Signal.new() -- (direction)
@@ -38,10 +45,10 @@ function MatchUI.new()
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -14, 0, 112),
 		Size = UDim2.fromOffset(190, 44),
-		Text = "IN NEXT RACE",
-	}, palette.Mint)
+		Text = "SIT OUT",
+	}, palette.White)
 	maid:Give(self.queueButton.Activated:Connect(function()
-		self.JoinRequested:Fire(not self.queued)
+		self:_requestQueue(not self.queued)
 	end))
 
 	-- Spectate controls (bottom centre, above the speed readout)
@@ -103,10 +110,12 @@ function MatchUI.new()
 		Text = "SIT OUT",
 	}, palette.White)
 	maid:Give(self.playAgain.Activated:Connect(function()
-		self.JoinRequested:Fire(true)
+		self:_requestQueue(true)
+		self:DismissResults()
 	end))
 	maid:Give(self.sitOut.Activated:Connect(function()
-		self.JoinRequested:Fire(false)
+		self:_requestQueue(false)
+		self:DismissResults()
 	end))
 	self.results = results
 	return self
@@ -120,16 +129,39 @@ function MatchUI:IsResultsOpen()
 	return self.results.Visible
 end
 
+-- Ask to race (true) or sit out (false) in the next round. Shown immediately; the server's
+-- snapshot confirms (or, after 2 s without confirmation, wins).
+function MatchUI:_requestQueue(wants)
+	self.queued = wants
+	self.pendingQueue = { value = wants, untilClock = os.clock() + 2 }
+	self.JoinRequested:Fire(wants)
+end
+
+-- Close the results panel for the current round (it opens again for the next round's results).
+function MatchUI:DismissResults()
+	if self.snapshot then
+		self.dismissedRound = self.snapshot.roundId
+	end
+	self.results.Visible = false
+end
+
 function MatchUI:ApplySnapshot(snapshot, localUserId)
 	self.snapshot = snapshot
 	self.localUserId = localUserId
-	self.queued = snapshot.queued and snapshot.queued[tostring(localUserId)] == true or false
+	local serverQueued = snapshot.queued and snapshot.queued[tostring(localUserId)] == true or false
+	local pending = self.pendingQueue
+	if pending and os.clock() < pending.untilClock and serverQueued ~= pending.value then
+		self.queued = pending.value -- this snapshot predates the tap; keep showing the tap
+	else
+		self.pendingQueue = nil
+		self.queued = serverQueued
+	end
 	self:_renderResults()
 end
 
 function MatchUI:_renderResults()
 	local snap = self.snapshot
-	local show = snap ~= nil and snap.state == S.Results
+	local show = snap ~= nil and snap.state == S.Results and snap.roundId ~= self.dismissedRound
 	self.results.Visible = show
 	if not show then
 		return
@@ -159,7 +191,6 @@ function MatchUI:_renderResults()
 	if #(snap.racers or {}) == 0 then
 		self.resultRows[1].Text = "No racers finished this round"
 	end
-	self.playAgain.Text = self.queued and "IN NEXT RACE" or "PLAY AGAIN"
 end
 
 -- ctx = { now, racing (local player racing and not finished), raceRunning, spectating }
@@ -170,8 +201,9 @@ function MatchUI:Update(ctx)
 	end
 	-- queue chip: only meaningful while you are not on the grid / racing
 	self.queueButton.Visible = not ctx.racing and snap.state ~= S.Results
-	UIKit.setText(self.queueButton, self.queued and "IN NEXT RACE" or "SITTING OUT")
-	self.queueButton.TextColor3 = self.queued and palette.Mint or palette.Coral
+	-- Labelled with the action a tap performs, not the current state.
+	UIKit.setText(self.queueButton, self.queued and "SIT OUT" or "JOIN RACE")
+	self.queueButton.TextColor3 = self.queued and palette.White or palette.Mint
 
 	self.spectateFrame.Visible = ctx.raceRunning and not ctx.racing
 	self.spectatePrev.Visible = ctx.spectating

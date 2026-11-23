@@ -45,6 +45,7 @@ Protocol.SpawnReasons = {
 	Fell = "Fell",
 	Lost = "Lost",
 	Grid = "Grid", -- placed on the start grid for a round
+	Go = "Go", -- GO: the frozen grid marble is swapped for a free one on the same slot
 	ToHub = "ToHub", -- round over / practice chute loop
 	Movement = "Movement", -- server rejected implausible movement
 }
