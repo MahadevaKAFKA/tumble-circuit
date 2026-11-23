@@ -75,11 +75,17 @@ TrackDefinitions.Training = {
 	Spawn = { Piece = "StartPad", At = 14 },
 	StartLine = { Piece = "StartPad", At = 36 },
 	FinishLine = { Piece = "FinishStraight", At = 40 },
-	-- Ordered marks a run must pass before the finish counts (cheap anti-shortcut for A1).
-	Marks = {
-		{ Name = "Bumper", Piece = "BumperZone", At = 0 },
-		{ Name = "BankedDrop", Piece = "BankedDropMid", At = 0 },
+	-- A2: ordered server-observed checkpoints (also the safe respawn points).
+	Checkpoints = {
+		{ Name = "S-Turn Exit", Piece = "BumperApproach", At = 2 },
+		{ Name = "Bumper Exit", Piece = "BumperExit", At = 12 },
+		{ Name = "Drop Exit", Piece = "RunOut", At = 6 },
 	},
+	-- A2: 16 start slots on the pad (4 x 4), front row first. Rows are piece-relative distances,
+	-- columns lateral offsets. Validator checks spacing and rail clearance.
+	Grid = { Piece = "StartPad", Rows = { 26, 20, 14, 8 }, Columns = { -9, -3, 3, 9 } },
+	StartGate = { Piece = "StartPad", At = 33, Height = 5 },
+	Validation = { MinSegments = 4, MaxSegments = 6, MinLength = 500, MaxLength = 2000 },
 
 	Hazards = {
 		-- Gentle, telegraphed: cyan = idle (plain bounce), yellow ramp = warning, coral = kicks.
@@ -101,6 +107,50 @@ TrackDefinitions.Training = {
 		{ Kind = "Finish", Piece = "FinishStraight", At = 40, Text = "FINISH" },
 	},
 	ArrowSpacing = 16,
+}
+
+---------------------------------------------------------------------------------------------
+-- A2: Practice Chute — the short free-roll lane off the Orbital Garage hub. Late joiners and
+-- waiting players roll here; reaching its basin returns them to the hub automatically.
+---------------------------------------------------------------------------------------------
+TrackDefinitions.Hub = {
+	Center = Vector3.new(0, 300, 320), -- platform top surface centre
+	Radius = 40,
+	FloorThickness = 2,
+	RimHeight = 5,
+	SpawnRingRadius = 16, -- 16 spots: chord 6.2 studs (>= 1.5 marble widths)
+	SpawnSlots = 16,
+	ChuteHeadingDeg = 90, -- chute leaves the platform toward +X
+}
+
+TrackDefinitions.PracticeChute = {
+	Id = "PracticeChute_A2",
+	DisplayName = "Practice Chute",
+	LayoutVersion = 1,
+	Origin = Vector3.new(38, 300, 320), -- 2 studs inside the hub edge so the floors overlap flush
+	StartHeadingDeg = 90,
+	FloorThickness = 1.6,
+	RailThickness = 1.2,
+	DefaultRails = { 4.5, 4.5 },
+	MaxStepLength = 24,
+	MaxYawStepDeg = 5,
+	MaxPitchStepDeg = 2,
+	MaxBankStepDeg = 3,
+	Pieces = {
+		{ Name = "ChuteLip", Segment = "Lip", Length = 8, Pitch = { 0, 0 }, Width = { 18, 18 } },
+		{ Name = "ChuteDrop", Segment = "Drop", Length = 50, Pitch = { 0, 6 }, Width = { 18, 18 }, Arrows = true },
+		{ Name = "ChuteBendL", Segment = "Bends", Length = 45, Yaw = -35, Pitch = { 6, 4 }, Width = { 18, 18 }, Rails = { 4.5, 6 } },
+		{ Name = "ChuteBendR", Segment = "Bends", Length = 45, Yaw = 35, Pitch = { 4, 3 }, Width = { 18, 18 }, Rails = { 6, 4.5 } },
+		{ Name = "ChuteBasin", Segment = "Basin", Length = 26, Pitch = { 3, -3 }, Width = { 18, 22 }, Rails = { 6, 6 }, EndCap = true },
+	},
+	Spawn = { Piece = "ChuteLip", At = 2 },
+	StartLine = { Piece = "ChuteLip", At = 8 },
+	FinishLine = { Piece = "ChuteBasin", At = 10 }, -- crossing it returns the marble to the hub
+	Signs = {
+		{ Piece = "ChuteLip", At = 4, Text = "PRACTICE CHUTE", Lift = 9 },
+	},
+	Validation = { MinSegments = 3, MaxSegments = 6, MinLength = 100, MaxLength = 400 },
+	ArrowSpacing = 14,
 }
 
 ---------------------------------------------------------------------------------------------
@@ -266,11 +316,26 @@ function TrackDefinitions.Generate(def, ballRadius)
 	layout.StartLineS = layout.StartLineFrame and layout.StartLineFrame.S
 	layout.FinishLineS = layout.FinishLineFrame and layout.FinishLineFrame.S
 
-	layout.Marks = {}
-	for i, mark in ipairs(def.Marks or {}) do
-		local frame = resolve(mark)
-		layout.Marks[i] = { Name = mark.Name, S = frame and frame.S, Frame = frame }
+	layout.Checkpoints = {}
+	for i, cp in ipairs(def.Checkpoints or {}) do
+		local frame = resolve(cp)
+		local respawn = frame and TrackDefinitions.SampleAtH(layout, frame.H + 6)
+		layout.Checkpoints[i] = { Index = i, Name = cp.Name, S = frame and frame.S, Frame = frame, RespawnFrame = respawn }
 	end
+
+	layout.GridSlots = {}
+	if def.Grid then
+		local rec = pieceByName[def.Grid.Piece]
+		if rec then
+			for _, row in ipairs(def.Grid.Rows) do
+				local frame = TrackDefinitions.SampleAtH(layout, rec.StartH + row)
+				for _, offset in ipairs(def.Grid.Columns) do
+					layout.GridSlots[#layout.GridSlots + 1] = { Frame = frame, Offset = offset }
+				end
+			end
+		end
+	end
+	layout.StartGateFrame = def.StartGate and resolve(def.StartGate)
 
 	layout.Hazards = {}
 	for i, hz in ipairs(def.Hazards or {}) do
@@ -285,6 +350,9 @@ function TrackDefinitions.Generate(def, ballRadius)
 	layout.Gates = {}
 	for i, gate in ipairs(def.Gates or {}) do
 		layout.Gates[i] = { Kind = gate.Kind, Text = gate.Text, Frame = resolve(gate) }
+	end
+	for i, cp in ipairs(layout.Checkpoints) do
+		layout.Gates[#layout.Gates + 1] = { Kind = "Checkpoint", Text = "CHECKPOINT " .. i, Frame = cp.Frame }
 	end
 
 	return layout
@@ -390,8 +458,9 @@ function TrackDefinitions.Validate(def, layout)
 			end
 		end
 	end
-	if #segments < 4 or #segments > 6 then
-		fail("A1 course should have 4-6 segments, has " .. #segments)
+	local limits = def.Validation or { MinSegments = 4, MaxSegments = 6, MinLength = 500, MaxLength = 2000 }
+	if #segments < limits.MinSegments or #segments > limits.MaxSegments then
+		fail(string.format("course should have %d-%d segments, has %d", limits.MinSegments, limits.MaxSegments, #segments))
 	end
 
 	if not layout.SpawnFrame then
@@ -407,17 +476,40 @@ function TrackDefinitions.Validate(def, layout)
 		fail("spawn must be before the start line")
 	end
 	local previous = layout.StartLineS or 0
-	for _, mark in ipairs(layout.Marks) do
-		if not mark.S then
-			fail("mark " .. tostring(mark.Name) .. " does not resolve")
-		elseif mark.S <= previous then
-			fail("marks must be in ascending order after the start line")
+	for _, cp in ipairs(layout.Checkpoints) do
+		if not cp.S or not cp.RespawnFrame then
+			fail("checkpoint " .. tostring(cp.Name) .. " does not resolve")
+		elseif cp.S <= previous + diameter * 5 then
+			fail("checkpoints must be ascending and spaced after the start line")
 		else
-			previous = mark.S
+			previous = cp.S
 		end
 	end
 	if layout.FinishLineS and layout.FinishLineS <= previous then
-		fail("finish line must come after every mark")
+		fail("finish line must come after every checkpoint")
+	end
+
+	-- Start grid: inside the lane, rail clearance, slots never closer than 1.5 ball diameters.
+	local slotPositions = {}
+	for i, slot in ipairs(layout.GridSlots) do
+		local half = slot.Frame.Width / 2
+		if math.abs(slot.Offset) + layout.BallRadius + 1 > half then
+			fail("grid slot " .. i .. " is too close to the rail")
+		end
+		if layout.StartGateFrame and slot.Frame.S >= layout.StartGateFrame.S - diameter then
+			fail("grid slot " .. i .. " is not behind the start gate")
+		end
+		slotPositions[i] = slot.Frame.Position + slot.Frame.Right * slot.Offset
+	end
+	for i = 1, #slotPositions do
+		for j = i + 1, #slotPositions do
+			if (slotPositions[i] - slotPositions[j]).Magnitude < diameter * 1.5 then
+				fail(string.format("grid slots %d and %d overlap", i, j))
+			end
+		end
+	end
+	if layout.StartGateFrame and layout.StartLineS and layout.StartGateFrame.S > layout.StartLineS then
+		fail("start gate must be on or before the start line")
 	end
 	if layout.FinishLineS and layout.FinishLineS >= layout.Route.total - diameter * 2 then
 		fail("finish line needs a run-off area after it")
@@ -463,8 +555,8 @@ function TrackDefinitions.Validate(def, layout)
 	if layout.MinY < 20 then
 		fail("course dips too close to the world floor")
 	end
-	if layout.Route.total < 500 or layout.Route.total > 2000 then
-		fail(string.format("route length %.0f outside the 500-2000 stud A1 envelope", layout.Route.total))
+	if layout.Route.total < limits.MinLength or layout.Route.total > limits.MaxLength then
+		fail(string.format("route length %.0f outside the %d-%d stud envelope", layout.Route.total, limits.MinLength, limits.MaxLength))
 	end
 
 	return errors

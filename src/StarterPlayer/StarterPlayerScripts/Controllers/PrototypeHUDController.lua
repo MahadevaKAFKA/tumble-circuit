@@ -2,7 +2,6 @@
 	PrototypeHUDController — the A1 overlay. Every visible button does something.
 
 	HUD (safe-area, scaled from a 1280x720 reference):
-	  top centre   timer + best / state hint
 	  bottom centre speed (studs/s)
 	  top right    CAM toggle and hold-to-RESET (mouse/keyboard layout only; touch has its own)
 	  bottom left  device-specific control hint (keyboard / gamepad)
@@ -10,8 +9,8 @@
 	  top left     frame-time overlay (FPS, p95, worst frame, memory, ping) + the last hitches
 	               (frames longer than GameConfig.Debug.HitchThresholdSeconds, with where they
 	               happened); F2 toggles it, GameConfig.Debug.PerfOverlayDefault sets the default
-	Overlay (full screen, above everything): title / Play Practice, Finish! / Try Again,
-	loading and fatal-error messages.
+	Overlay (full screen, above everything): title / Play, loading and fatal-error messages.
+	Race timer, placement, countdown and results live in RaceHUDController / MatchUIController (A2).
 ]]
 
 local Players = game:GetService("Players")
@@ -21,13 +20,11 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
-local Protocol = require(Shared:WaitForChild("Protocol"))
 local Utility = require(Shared:WaitForChild("Utility"))
 
 local HUD = {}
 HUD.__index = HUD
 
-local STATES = Protocol.RunStates
 local palette = GameConfig.Palette
 
 local HINTS = {
@@ -104,10 +101,8 @@ function HUD.new(input)
 	self.frameIndex = 0
 	self.perfTimer = 0
 	self.hitches = {}
-	self.lastTimerText = nil
 	self.lastSpeedText = nil
 	self.PlayPressed = Utility.Signal.new()
-	self.TryAgainPressed = Utility.Signal.new()
 	self.TutorialSkipped = Utility.Signal.new()
 	self.CameraPressed = Utility.Signal.new()
 
@@ -129,25 +124,6 @@ function HUD.new(input)
 	local root = new("Frame", { Name = "Root", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) }, hudGui)
 	self.hudRoot = root
 	self.hudScale = new("UIScale", {}, root)
-
-	self.timer = label(root, {
-		Name = "Timer",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 6),
-		Size = UDim2.fromOffset(280, 62),
-		Font = Enum.Font.GothamBlack,
-		Text = "0.00",
-		TextStrokeTransparency = 0.4,
-	})
-	self.timerSub = label(root, {
-		Name = "TimerSub",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 70),
-		Size = UDim2.fromOffset(460, 26),
-		TextColor3 = palette.Cyan,
-		Text = "",
-		TextStrokeTransparency = 0.5,
-	})
 
 	local speedFrame = new("Frame", {
 		Name = "Speed",
@@ -351,37 +327,19 @@ function HUD.new(input)
 	local title = panel("Title", 420)
 	label(title, { Size = UDim2.new(1, 0, 0, 104), Font = Enum.Font.GothamBlack, Text = "TUMBLE CIRCUIT", TextColor3 = palette.Cyan })
 	label(title, { Position = UDim2.fromOffset(0, 104), Size = UDim2.new(1, 0, 0, 52), Font = Enum.Font.GothamBlack, Text = "CHAOS DROP", TextColor3 = palette.Violet })
-	label(title, { Position = UDim2.fromOffset(0, 168), Size = UDim2.new(1, 0, 0, 28), Font = Enum.Font.Gotham, Text = "Training Chute  -  " .. GameConfig.BuildLabel })
+	label(title, { Position = UDim2.fromOffset(0, 168), Size = UDim2.new(1, 0, 0, 28), Font = Enum.Font.Gotham, Text = "Orbital Garage  -  " .. GameConfig.BuildLabel })
 	local play = button(title, {
 		Name = "Play",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 232),
 		Size = UDim2.fromOffset(340, 84),
-		Text = "PLAY PRACTICE",
+		Text = "PLAY",
 	}, palette.Mint)
 	self.maid:Give(play.Activated:Connect(function()
 		self.PlayPressed:Fire()
 	end))
 	self.titleHint = label(title, { Position = UDim2.fromOffset(0, 330), Size = UDim2.new(1, 0, 0, 24), Font = Enum.Font.Gotham, TextTransparency = 0.3 })
 	self.titlePanel = title
-
-	-- Finish
-	local finish = panel("Finish", 420)
-	label(finish, { Size = UDim2.new(1, 0, 0, 96), Font = Enum.Font.GothamBlack, Text = "FINISH!", TextColor3 = palette.Mint })
-	self.finishTime = label(finish, { Position = UDim2.fromOffset(0, 100), Size = UDim2.new(1, 0, 0, 74), Font = Enum.Font.GothamBlack, Text = "0.00" })
-	self.finishBest = label(finish, { Position = UDim2.fromOffset(0, 180), Size = UDim2.new(1, 0, 0, 32), Text = "", TextColor3 = palette.Yellow })
-	local again = button(finish, {
-		Name = "TryAgain",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 240),
-		Size = UDim2.fromOffset(320, 80),
-		Text = "TRY AGAIN",
-	}, palette.Cyan)
-	self.maid:Give(again.Activated:Connect(function()
-		self.TryAgainPressed:Fire()
-	end))
-	self.finishHint = label(finish, { Position = UDim2.fromOffset(0, 334), Size = UDim2.new(1, 0, 0, 24), Font = Enum.Font.Gotham, TextTransparency = 0.3 })
-	self.finishPanel = finish
 
 	-- Loading / error
 	self.message = label(overlayRoot, {
@@ -419,8 +377,6 @@ function HUD:SetDevice(device)
 	self.resetButton.Visible = mouseLayout
 	self.camButton.Visible = mouseLayout
 	self.titleHint.Text = PRIMARY_HINT[device] or ""
-	local finishHint = PRIMARY_HINT[device] or ""
-	self.finishHint.Text = finishHint
 	self.tutorialBody.Text = TUTORIAL_TEXT[device] or TUTORIAL_TEXT.KeyboardMouse
 end
 
@@ -431,7 +387,6 @@ end
 function HUD:_setOverlay(which)
 	self.overlay = which
 	self.titlePanel.Visible = which == "Title"
-	self.finishPanel.Visible = which == "Finish"
 	self.message.Visible = which == "Message"
 	self.dim.Visible = which ~= nil
 	self.overlayGui.Enabled = which ~= nil
@@ -449,18 +404,6 @@ end
 
 function HUD:ShowTitle()
 	self:_setOverlay("Title")
-end
-
-function HUD:ShowFinish(seconds, best, isBest)
-	self.finishTime.Text = Utility.formatTime(seconds)
-	if isBest then
-		self.finishBest.Text = "NEW SESSION BEST!"
-	elseif best then
-		self.finishBest.Text = "Session best  " .. Utility.formatTime(best)
-	else
-		self.finishBest.Text = ""
-	end
-	self:_setOverlay("Finish")
 end
 
 function HUD:HideOverlay()
@@ -554,34 +497,8 @@ function HUD:RecordFrame(dt)
 	self.perfLabel.Text = line1 .. "\n" .. line2
 end
 
--- state = { speed, runState, runStartServerTime, bestSeconds, lastRunSeconds, recoverProgress }
+-- state = { speed, recoverProgress }
 function HUD:Update(state)
-	local timerText
-	if state.runState == STATES.Running and state.runStartServerTime and state.runStartServerTime > 0 then
-		timerText = Utility.formatTime(workspace:GetServerTimeNow() - state.runStartServerTime)
-	elseif state.runState == STATES.Finished and state.lastRunSeconds then
-		timerText = Utility.formatTime(state.lastRunSeconds)
-	else
-		timerText = "0.00"
-	end
-	if timerText ~= self.lastTimerText then
-		self.lastTimerText = timerText
-		self.timer.Text = timerText
-	end
-
-	local sub
-	if state.runState == STATES.Ready then
-		sub = "Roll through START to begin the timer"
-	elseif state.bestSeconds then
-		sub = "Session best  " .. Utility.formatTime(state.bestSeconds)
-	else
-		sub = ""
-	end
-	if sub ~= self.lastSubText then
-		self.lastSubText = sub
-		self.timerSub.Text = sub
-	end
-
 	local speedText = tostring(math.floor((state.speed or 0) + 0.5))
 	if speedText ~= self.lastSpeedText then
 		self.lastSpeedText = speedText

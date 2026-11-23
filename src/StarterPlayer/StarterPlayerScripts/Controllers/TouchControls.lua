@@ -3,7 +3,8 @@
 	floating stick on the left half. The default Roblox touch thumbstick is disabled by
 	ClientBootstrap, so the two can never overlap.
 
-	Right side: BRAKE (hold, large), RESET (hold 1 s, smaller, with fill bar), CAM (tap).
+	Right side: BRAKE (hold, large), RESET (hold 1 s, smaller, with fill bar), CAM (tap),
+	LIST (tap: race standings, A2).
 	Buttons sit inside a UIScale'd frame (>= ~44 px at MinScale). The stick lives in an unscaled
 	frame so touch positions map 1:1 (input positions and AbsolutePosition share one space).
 ]]
@@ -165,6 +166,25 @@ function TouchControls.new(input)
 	new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, cam)
 	self.maid:Give(cam.Activated:Connect(function()
 		self.input.CameraToggleRequested:Fire()
+	end))
+
+	-- Standings (Tab / D-pad up on other devices; phones have no key for it). Sits above RESET.
+	local list = new("TextButton", {
+		Name = "Standings",
+		AnchorPoint = Vector2.new(1, 1),
+		Size = UDim2.fromOffset(small, small * 0.6),
+		Position = UDim2.new(1, -24 - big - 20, 1, -24 - small - 20),
+		BackgroundColor3 = palette.Navy,
+		BackgroundTransparency = 0.2,
+		Text = "LIST",
+		TextColor3 = palette.Cyan,
+		Font = Enum.Font.GothamBold,
+		TextScaled = true,
+	}, buttonRoot)
+	round(list, UDim.new(0.3, 0))
+	new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, list)
+	self.maid:Give(list.Activated:Connect(function()
+		self.input.ScoreboardToggleRequested:Fire()
 	end))
 
 	-- Global touch tracking for the stick and as a release fallback for held buttons

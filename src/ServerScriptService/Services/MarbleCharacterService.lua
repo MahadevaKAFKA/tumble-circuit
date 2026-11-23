@@ -1,19 +1,20 @@
 --[[
-	MarbleCharacterService — the marble/avatar lifecycle (ADR-05). One architecture, decided here:
+	MarbleCharacterService — the marble/avatar lifecycle (ADR-05), A2 edition.
 
-	* No Roblox Character, no Humanoid. Players.CharacterAutoLoads = false and any character that
-	  appears anyway is removed, so there is never a second (invisible) collision body.
-	* The player's only physical body is ONE Ball part, radius 2 ("BallRoot"), named
-	  Marble_<UserId> with attribute OwnerUserId, in Workspace.TumbleMarbles. Cosmetic stripes are
-	  welded, massless and have collision/query/touch disabled — same hitbox and mass always.
-	* Identity = the Player object + that name/attribute. (Nameplates arrive with multiplayer in A2.)
-	* Every spawn creates a FRESH ball at the server-chosen start spawn and destroys the old one.
-	  That makes reset, fall recovery, rejoin and "Try Again" one code path, with no CFrame writes
-	  to a client-owned part and no ownership races. The ball is never moved per frame by scripts.
-	* Network ownership goes to the player (A1 authority decision: conventional client ownership;
-	  see README). The client can only *request* a reset; it never chooses a position.
+	* No Roblox Character / Humanoid. One Ball part (radius 2, "BallRoot") per player named
+	  Marble_<UserId>; welded stripes are massless and non-colliding. Identity = Player + name +
+	  OwnerUserId attribute.
+	* Every spawn creates a FRESH ball. WHERE it spawns is decided by a server-side resolver
+	  (RoundService): hub ring, start grid (frozen), last confirmed checkpoint, or finish basin.
+	  The client can only request recovery; it never supplies a position.
+	* Frozen spawns are Anchored (no ownership, cannot move) until Release() at GO, which unanchors
+	  and hands network ownership to the player.
+	* Every spawn is protected for RaceConfig.Recovery.ProtectionSeconds: collision group
+	  TC_Protected does not collide with marbles (spawn shoving / chain bumps), then TC_Marble.
+	* Network ownership: client (A1/A2 authority decision, see BUILD_STATUS).
 ]]
 
+local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,22 +22,46 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
+local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
 
 local MarbleCharacterService = {}
 MarbleCharacterService.__index = MarbleCharacterService
 
 local ATTR = Protocol.PlayerAttributes
+local BALL = Protocol.BallAttributes
+local GROUPS = RaceConfig.Collisions
+
+function MarbleCharacterService.SetupCollisionGroups()
+	for _, name in ipairs({ GROUPS.MarbleGroup, GROUPS.ProtectedGroup }) do
+		local ok, registered = pcall(function()
+			return PhysicsService:IsCollisionGroupRegistered(name)
+		end)
+		if not (ok and registered) then
+			PhysicsService:RegisterCollisionGroup(name)
+		end
+	end
+	PhysicsService:CollisionGroupSetCollidable(GROUPS.MarbleGroup, GROUPS.MarbleGroup, true)
+	PhysicsService:CollisionGroupSetCollidable(GROUPS.ProtectedGroup, GROUPS.MarbleGroup, false)
+	PhysicsService:CollisionGroupSetCollidable(GROUPS.ProtectedGroup, GROUPS.ProtectedGroup, false)
+end
 
 function MarbleCharacterService.new(trackService)
 	local self = setmetatable({}, MarbleCharacterService)
 	self.track = trackService
 	self.players = {}
 	self.maid = Utility.Maid.new()
-	self.resetLimiter = Utility.RateLimiter.new(GameConfig.Spawn.ResetCooldownSeconds)
-	self.MarbleSpawned = Utility.Signal.new() -- (player, ball, reason)
+	self.resolveSpawn = nil
+	self.MarbleSpawned = Utility.Signal.new() -- (player, ball, reason, zone)
 	self.MarbleRemoved = Utility.Signal.new() -- (player)
+	self.PlayerJoined = Utility.Signal.new() -- (player)
+	self.PlayerLeaving = Utility.Signal.new() -- (player)
 	return self
+end
+
+-- resolver(player, reason) -> { CFrame = CFrame, Zone = string, Frozen = bool }
+function MarbleCharacterService:SetSpawnResolver(resolver)
+	self.resolveSpawn = resolver
 end
 
 local function weldVisual(ball, part)
@@ -54,31 +79,33 @@ local function weldVisual(ball, part)
 	part.Parent = ball
 end
 
-local function createBall(player, cframe)
+local function createBall(player, cframe, zone, frozen)
 	local cfg = PhysicsConfig.Ball
 	local palette = GameConfig.Palette
 	local diameter = cfg.Radius * 2
-
 	local ball = Instance.new("Part")
 	ball.Name = Protocol.MarbleName(player.UserId)
 	ball.Shape = Enum.PartType.Ball
 	ball.Size = Vector3.new(diameter, diameter, diameter)
 	ball.Material = Enum.Material.SmoothPlastic
 	ball.Color = palette.Cyan
-	ball.Reflectance = 0.2 -- glossy
+	ball.Reflectance = 0.2
 	ball.TopSurface = Enum.SurfaceType.Smooth
 	ball.BottomSurface = Enum.SurfaceType.Smooth
 	ball.CustomPhysicalProperties = PhysicalProperties.new(cfg.Density, cfg.Friction, cfg.Elasticity, cfg.FrictionWeight, cfg.ElasticityWeight)
 	ball.CanCollide = true
-	ball.CanTouch = false -- A1 uses no Touched events
+	ball.CanTouch = false
 	ball.CanQuery = true
 	ball.RootPriority = 10
+	ball.Anchored = frozen
+	ball.CollisionGroup = GROUPS.ProtectedGroup
+	ball.Transparency = 0.35 -- protected look; restored when protection ends
 	ball.CFrame = cframe
-	ball:SetAttribute("OwnerUserId", player.UserId)
+	ball:SetAttribute(BALL.OwnerUserId, player.UserId)
+	ball:SetAttribute(BALL.Zone, zone)
+	ball:SetAttribute(BALL.Protected, true)
+	ball:SetAttribute(BALL.Frozen, frozen)
 	ball:SetAttribute("BallRoot", true)
-
-	-- Two thin stripe discs (equator + meridian) poking 0.04 studs out of the surface so the
-	-- roll is readable. A plain sphere spinning looks motionless.
 	for i, axisTurn in ipairs({ CFrame.new(), CFrame.Angles(0, math.pi / 2, 0) }) do
 		local stripe = Instance.new("Part")
 		stripe.Name = "Stripe" .. i
@@ -92,9 +119,9 @@ local function createBall(player, cframe)
 	return ball
 end
 
-function MarbleCharacterService:Start(remotesFolder)
+function MarbleCharacterService:Start()
 	Players.CharacterAutoLoads = false
-
+	MarbleCharacterService.SetupCollisionGroups()
 	local folder = workspace:FindFirstChild(Protocol.MarblesFolderName)
 	if not folder then
 		folder = Instance.new("Folder")
@@ -102,13 +129,6 @@ function MarbleCharacterService:Start(remotesFolder)
 		folder.Parent = workspace
 	end
 	self.folder = folder
-
-	local resetRemote = remotesFolder:WaitForChild(Protocol.Remotes.RequestReset)
-	self.maid:Give(resetRemote.OnServerEvent:Connect(function(player)
-		-- No payload is read: the client cannot choose where it respawns.
-		self:_onResetRequest(player)
-	end))
-
 	self.maid:Give(Players.PlayerAdded:Connect(function(player)
 		self:_onPlayerAdded(player)
 	end))
@@ -126,12 +146,9 @@ function MarbleCharacterService:_onPlayerAdded(player)
 	end
 	local state = { ball = nil, generation = 0, spawnCount = 0, pendingRespawn = false, removed = false, maid = Utility.Maid.new() }
 	self.players[player] = state
-
 	pcall(function()
-		player.DevEnableMouseLock = false -- Shift is Brake, not shift-lock
+		player.DevEnableMouseLock = false
 	end)
-	-- We never use a Character. If one exists or appears (e.g. CharacterAutoLoads was on when
-	-- the player joined, or another script calls LoadCharacter), remove it.
 	local function removeCharacter(character)
 		task.defer(function()
 			if character and character.Parent then
@@ -144,7 +161,7 @@ function MarbleCharacterService:_onPlayerAdded(player)
 		removeCharacter(player.Character)
 	end
 	state.maid:Give(player.CharacterAdded:Connect(removeCharacter))
-
+	self.PlayerJoined:Fire(player)
 	self:SpawnMarble(player, Protocol.SpawnReasons.Join)
 end
 
@@ -153,22 +170,11 @@ function MarbleCharacterService:_onPlayerRemoving(player)
 	if not state then
 		return
 	end
+	self.PlayerLeaving:Fire(player)
 	state.removed = true
 	self:_destroyBall(player, state)
 	state.maid:Cleanup()
 	self.players[player] = nil
-	self.resetLimiter:Forget(player)
-end
-
-function MarbleCharacterService:_onResetRequest(player)
-	local state = self.players[player]
-	if not state or state.removed then
-		return
-	end
-	if not self.resetLimiter:Try(player) then
-		return
-	end
-	self:SpawnMarble(player, Protocol.SpawnReasons.Reset)
 end
 
 function MarbleCharacterService:_destroyBall(player, state)
@@ -184,6 +190,17 @@ function MarbleCharacterService:_destroyBall(player, state)
 	end
 end
 
+function MarbleCharacterService:_resolve(player, reason)
+	if self.resolveSpawn then
+		local ok, result = pcall(self.resolveSpawn, player, reason)
+		if ok and result and result.CFrame then
+			return result
+		end
+		warn("[Marble] spawn resolver failed (" .. tostring(result) .. "); using hub")
+	end
+	return { CFrame = self.track:NextHubSpawnCFrame(), Zone = Protocol.Zones.Hub, Frozen = false }
+end
+
 function MarbleCharacterService:SpawnMarble(player, reason)
 	local state = self.players[player]
 	if not state or state.removed or not player.Parent then
@@ -193,36 +210,74 @@ function MarbleCharacterService:SpawnMarble(player, reason)
 	state.pendingRespawn = false
 	self:_destroyBall(player, state)
 
-	local ball = createBall(player, self.track:GetSpawnCFrame())
+	local spot = self:_resolve(player, reason)
+	local frozen = spot.Frozen == true
+	local ball = createBall(player, spot.CFrame, spot.Zone, frozen)
 	ball.Parent = self.folder
-	local ok, err = pcall(function()
-		ball:SetNetworkOwner(player)
-	end)
-	if not ok then
-		warn("[Marble] SetNetworkOwner failed for " .. player.Name .. ": " .. tostring(err))
+	if not frozen then
+		local ok, err = pcall(function()
+			ball:SetNetworkOwner(player)
+		end)
+		if not ok then
+			warn("[Marble] SetNetworkOwner failed for " .. player.Name .. ": " .. tostring(err))
+		end
 	end
 	pcall(function()
-		player.ReplicationFocus = ball -- keeps streaming centred on the marble if streaming is on
+		player.ReplicationFocus = ball
 	end)
 
 	state.ball = ball
+	state.zone = spot.Zone
 	state.ballConnection = ball.AncestryChanged:Connect(function()
 		if state.ball == ball and not ball:IsDescendantOf(workspace) then
-			-- Removed by something other than us (e.g. FallenPartsDestroyHeight).
 			state.ball = nil
 			self.MarbleRemoved:Fire(player)
-			self:ScheduleRespawn(player, Protocol.SpawnReasons.Lost, GameConfig.Spawn.FallRespawnDelaySeconds)
+			self:ScheduleRespawn(player, Protocol.SpawnReasons.Lost, RaceConfig.Recovery.FallRespawnDelaySeconds)
 		end
 	end)
+
+	-- Spawn protection (frozen grid balls stay protected until shortly after release).
+	if not frozen then
+		self:_scheduleProtectionEnd(player, ball, RaceConfig.Recovery.ProtectionSeconds)
+	end
 
 	state.spawnCount = state.spawnCount + 1
 	player:SetAttribute(ATTR.SpawnCount, state.spawnCount)
 	player:SetAttribute(ATTR.LastSpawnReason, reason)
-	self.MarbleSpawned:Fire(player, ball, reason)
+	self.MarbleSpawned:Fire(player, ball, reason, spot.Zone)
 	return ball
 end
 
--- Delayed respawn that cannot double-fire: superseded by any newer spawn (generation check).
+function MarbleCharacterService:_scheduleProtectionEnd(player, ball, seconds)
+	task.delay(seconds, function()
+		local state = self.players[player]
+		if state and state.ball == ball and ball.Parent then
+			ball.CollisionGroup = GROUPS.MarbleGroup
+			ball.Transparency = 0
+			ball:SetAttribute(BALL.Protected, false)
+		end
+	end)
+end
+
+-- GO: unanchor a frozen grid ball and give it to its player.
+function MarbleCharacterService:Release(player)
+	local state = self.players[player]
+	local ball = state and state.ball
+	if not ball or not ball.Parent or not ball.Anchored then
+		return false
+	end
+	ball.Anchored = false
+	ball:SetAttribute(BALL.Frozen, false)
+	local ok, err = pcall(function()
+		ball:SetNetworkOwner(player)
+	end)
+	if not ok then
+		warn("[Marble] SetNetworkOwner at release failed for " .. player.Name .. ": " .. tostring(err))
+	end
+	self:_scheduleProtectionEnd(player, ball, RaceConfig.Recovery.ProtectionSeconds)
+	return true
+end
+
 function MarbleCharacterService:ScheduleRespawn(player, reason, delaySeconds)
 	local state = self.players[player]
 	if not state or state.removed or state.pendingRespawn then
@@ -243,9 +298,22 @@ function MarbleCharacterService:GetBall(player)
 	return state and state.ball
 end
 
+function MarbleCharacterService:GetZone(player)
+	local state = self.players[player]
+	return state and state.zone
+end
+
 function MarbleCharacterService:IsRespawnPending(player)
 	local state = self.players[player]
 	return state ~= nil and state.pendingRespawn
+end
+
+function MarbleCharacterService:GetPlayers()
+	local out = {}
+	for player in pairs(self.players) do
+		out[#out + 1] = player
+	end
+	return out
 end
 
 function MarbleCharacterService:Destroy()

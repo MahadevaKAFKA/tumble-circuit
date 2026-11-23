@@ -5,8 +5,8 @@
 
 local GameConfig = {}
 
-GameConfig.Version = "A1.0"
-GameConfig.BuildLabel = "A1 prototype - practice course"
+GameConfig.Version = "A2.0"
+GameConfig.BuildLabel = "A2 prototype - multiplayer rounds"
 
 GameConfig.Debug = {
 	RunTestsInStudio = true, -- TestRunner prints PASS/FAIL to Output when playing in Studio

@@ -1,7 +1,7 @@
-# Tumble Circuit: Chaos Drop — A1 prototype (install & play)
+# Tumble Circuit: Chaos Drop — install & play
 
-A1 = one marble, steering, braking, chase camera and a short training course. No rounds, bots,
-abilities, coins or shop (those are later milestones and are deliberately not in this build).
+Current build: **A2** = A1 marble + multiplayer rounds (hub, countdown, checkpoints, results).
+See `BUILD_STATUS.md` for exactly what is verified.
 
 > **Status:** code complete for A1, **not yet run in Roblox Studio** (Studio was not available
 > where it was built). Pure-logic tests pass offline; everything that needs the engine is listed
@@ -21,7 +21,9 @@ abilities, coins or shop (those are later milestones and are deliberately not in
    when the game starts.
 3. Press **Play** (F5). Within a second or two you should see the night-sky course, the title
    screen and your marble on the start pad behind it.
-4. Click **PLAY PRACTICE**, roll forward through the START gate, finish, press **TRY AGAIN**.
+4. Click **PLAY**. You are on the Orbital Garage hub: roll down the practice chute while the board
+   counts down. The next race starts automatically (15 s intermission, 3-2-1-GO). After the race,
+   results appear and the next round follows. For two players use the Test tab (TEST_PLAN §5).
 5. Open **View → Output** to see `[TumbleTests] … passed, … failed` lines from the built-in tests.
 
 `TumbleCircuit.rbxlx` is produced from the Rojo project by `tools/build_rbxlx.py` (a small
@@ -74,6 +76,8 @@ convenience rather than a requirement.
 | Reset to start | Hold **R** 1 s | Hold **Y** 1 s | Hold **RESET** 1 s |
 | Camera Chase / Wide | V | R3 | **CAM** |
 | Menu buttons | Enter / Space / click | A | Tap |
+| Standings | Tab | D-pad up | — |
+| Spectate next / previous | E / Q | RB / LB | < > buttons |
 | Frame-time overlay | F2 | — | — |
 
 The Roblox menu's **Reset Character** also resets the marble.

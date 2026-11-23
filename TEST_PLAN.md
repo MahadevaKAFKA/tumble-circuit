@@ -85,3 +85,38 @@ Do these in order. Tick each, note anything odd.
 8. **Bugs:** Any Output errors (copy the red lines), bumps on the floor seams, getting stuck, falling through?
 9. **Performance:** F2 numbers on your PC (and phone, if tried).
 10. **Go / no-go:** Is the roll + camera + first track fun enough to start A2 (multiplayer rounds)?
+
+## 5. A2 — multiplayer rounds (Studio Test tab)
+
+**Automated:** Output shows `A2 round specs: ... 0 failed`, `Studio integration (round)`, and after
+~2 minutes a `[TumbleTests] timeline` listing transitions with timestamps.
+
+**Two-client run:** Studio → **Test** tab → Clients and Servers → *Local Server*, **2 players** → Start.
+Arrange the two client windows side by side. Expected server log order per round:
+`Intermission -> Preparing (~15 s) -> Countdown (+2 s) -> Racing (+3 s) -> Results -> Cleanup (+12 s) -> Intermission (+1 s)`.
+
+- [ ] Both clients: PLAY → you are on the round glass hub, can roll and use the practice chute; reaching its basin returns you to the hub.
+- [ ] Board above the chute and the top HUD both count down the same "NEXT RACE" number (within ~0.2 s) on both clients.
+- [ ] Start a 3rd client a few seconds late (or stop/start one client): it shows the same countdown immediately (late joiner).
+- [ ] Preparing: both marbles appear on the start grid, slightly transparent, and cannot move (A/D does nothing).
+- [ ] Countdown 3-2-1 then GO! appear at the same moment on both clients; the coral start gate vanishes at GO.
+- [ ] Holding R during the countdown does nothing (cannot start early).
+- [ ] After GO: marbles pass through each other for ~2 s (spawn protection), then bump visibly. A hard bump never launches a marble far.
+- [ ] Each violet CHECKPOINT arch flashes "CHECKPOINT n / 3" only after it is actually passed; placement badge (1ST/2ND) and CP chip update.
+- [ ] Tab shows the same standings order on both clients.
+- [ ] Fall off at the banked drop: back at your last checkpoint after ~1.5 s, transparent briefly; checkpoint count unchanged.
+- [ ] Hold R mid-race: back at last checkpoint (or grid before CP1).
+- [ ] Finish: "FINISHED #n"; the other client toasts "<name> finished #n"; both Results screens list the same order and times.
+- [ ] Let one player not finish: race ends at 180 s, that player shows DNF.
+- [ ] Mid-race: close one client. The other keeps racing; if they were the last racer, the round goes to Cleanup/Intermission cleanly.
+- [ ] Non-racer during a race: SPECTATE, then < / > (or Q/E, LB/RB) cycle racers; EXIT returns to your marble.
+- [ ] SIT OUT on results → next round runs without you; JOIN/PLAY AGAIN → you are back in.
+- [ ] Run 3 rounds in a row: no duplicate marbles in Workspace.TumbleMarbles, gate closed again at each Intermission, camera never lost.
+- [ ] Output during all of this: no red errors. `[RacePhysics] movement rejected` should not appear in normal play (if it does, note when).
+
+**Forged/malformed requests (Command Bar, server context, while playing):** the server only exposes
+`RequestSnapshot`, `RequestRecover`, `RequestJoinRace(boolean)`. Malformed calls are rejected and logged
+once per minute (`[Round] rejected: malformed ...`). A client cannot send checkpoints, times or positions:
+there is no remote for them. (Blocked here: no client exploit harness; verify by reading RoundProtocol.)
+
+**Network latency:** Studio's network simulation settings are a manual QA step (ADR-19); note any desync you see.

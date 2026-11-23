@@ -1,15 +1,32 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** A1 — "The marble must feel great"
-**State:** source complete · offline-verified (pure logic only) · **awaiting first Studio Play Solo
-by the owner** · A2 not started (stop gate).
-**Last updated:** 2026-11-23 (mobile playtest pipeline added — see next section)
+**Active milestone:** A2 — fair multiplayer rounds (owner said "Go A2", 2026-11-21)
+**State:** A1 played on the owner's phone (2026-11-23): **go** on every A1 question. A2 source merged
+with the phone fixes, offline-verified (92 specs), built by Rojo in GitHub Actions and published
+privately — **A2 has not been played in Roblox yet** (first runtime test = owner's next phone session).
+**Last updated:** 2026-11-23
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
-untested** = code exists, needs Roblox Studio to verify · **Not measured** = needs a device /
-profiler · **Out of scope** = later milestone, intentionally absent (no stubs).
+untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
 
-## 2026-11-23 — mobile playtest pipeline (no Studio)
+## 2026-11-23 — A2 merged onto the phone build
+
+A2 (written 2026-11-21 against the original A1 source) was three-way merged with the A1 phone
+changes made since (base = original A1 upload). Clean merge except four regions in
+`ClientBootstrap` and two in `PrototypeHUDController`, resolved by keeping both sides:
+- kept from the phone build: TouchStarted → touch layout; wait for `CurrentCamera`; chord-smoothed
+  camera heading and steering frame (`RouteTracker.SmoothHorizontalTangentAtS`; the steering frame
+  now uses the current zone's route — hub chute or race course); stats overlay + hitch log (hitch
+  label is now `@<zone>/<piece>`).
+- kept from A2: zones, spectating, stuck hint, board updates, round/race UI, everything server-side.
+- one small addition for phones: a **LIST** touch button (above RESET) toggles A2's standings list,
+  which otherwise needs Tab / D-pad up.
+- `tests/place_expectations.json` updated for A2's 34 scripts; every new runtime-created name
+  (`RoundSnapshot`, `CheckpointFeedback`, `FinishNotice`, `Gates`, `StartGate`, `OrbitalGarage`,
+  `PracticeChute`, `TrainingCourse`, `Board`, `NextRaceBoard`, `BoardMain`, `BoardSub`) was checked
+  to be created by server code before being whitelisted.
+
+## 2026-11-23 — mobile playtest pipeline (no Studio, A1)
 
 Goal: play A1 on an Android phone without installing Studio or tools on the PC.
 
@@ -38,104 +55,75 @@ Goal: play A1 on an Android phone without installing Studio or tools on the PC.
 below ("Known issues") still stand. A1 scope is unchanged: no checkpoints beyond the two run
 marks, no abilities, no jump — falls and RESET return to the start pad by design.
 
-## Build environment (inspected 2026-11-19)
-
+## Build environment (inspected 2026-11-19 / 2026-11-21)
 | Tool | Available? | Notes |
 |---|---|---|
-| Roblox Studio | **No** | Linux container. No Play Solo, no engine, no profiler. |
-| Rojo | **No** | Not installed; package installs blocked (no network for installs). `default.project.json` written for Rojo 7; `tools/build_rbxlx.py` builds the place instead. |
-| Luau / luau-analyze / selene / StyLua | **No** | Code written in the Lua 5.1 subset of Luau so it parses under the available Lua. No Luau type checking was possible, so files are non-strict (no `--!strict`). |
-| Lua 5.3 (`texlua`, LuaTeX 1.17) | Yes | Used for syntax checks + pure-module tests with a Roblox datatype shim. |
-| Python 3.13 | Yes | Place builder + XML validation. |
-| Git | Yes | Not used for commits (none requested). |
-| Roblox API docs (web) | Yes | Checked: Server Authority (full release, requirements), Input Action System, `WorldRoot:Spherecast`. |
+| Roblox Studio | **No** | Linux container: no Play Solo, no multi-client Test, no profiler. |
+| Rojo | **In CI** | Rojo 7.7.1 in GitHub Actions builds the published place (local container still has none). |
+| Luau / selene | **Selene in CI** | Selene 0.32 + Lune 0.10.5 run in GitHub Actions; locally `tools/luau_check.py` (parser + scope/reference checks). |
+| Lua 5.3 (`texlua`) | Yes | Syntax checks + pure-module tests with a Roblox datatype shim. |
+| Python 3 | Yes | Place builder + XML validation. |
 
-## A1 decisions
+## Decisions
+| ID | Decision |
+|---|---|
+| ADR-02 authority | Client network ownership of the marble; server spawns, freezes/releases, judges checkpoints/finish/placement from **observed** positions, audits movement. Server Authority (fully released 2026) still untried: needs IAS + `BindToSimulation` + Streaming; revisit when a Studio 2-client test exists. |
+| ADR-05 lifecycle | No Character/Humanoid. One Ball (r=2) per player; every spawn = fresh ball at a **server-resolved** spot (hub ring / frozen grid / last checkpoint / finish basin). `Zone` attribute on the ball tells the client which route to use. |
+| A2 rounds | RoundService state machine with an explicit transition graph (RoundProtocol), os.clock deadlines, server-time timestamps in every snapshot. Everyone autoqueued; RequestJoinRace(bool) = sit out / play again. One human is enough to race. |
+| A2 start | Racers respawned **anchored** on a shuffled 4x4 grid (Park-Miller seed = roundId); GO unanchors, hands ownership, opens a physical coral gate. Recovery refused during Preparing/Countdown. |
+| A2 judging | CheckpointService: crossing must be a continuous sweep inside one 20 Hz sample (jump ≤ envelope), inside the corridor, with a plausible split (≤ 80 × 1.35 studs/s). Time interpolated inside the sample; same-sample finishes ordered by time then join ordinal. Standings: finish order → checkpoint → distance capped at the next checkpoint → DNF → ordinal. |
+| A2 audit | 1 s sliding-window teleport check (moved ≤ 80 × 1.35 × t + 15). Violation: logged + marble returned to last checkpoint. No bans. |
+| A2 collisions | Collision groups TC_Marble / TC_Protected; 2 s ghost after every spawn and after GO. Client bump limiter: one-frame Δv from a marble contact capped at 45 (18 for 1.2 s after a big bump) via counter-impulse. |
+| A2 hub | Orbital Garage minimal: round glass platform, rim, board (client-rendered text), podium blocks, 16 spawn spots, Practice Chute (174 studs) that loops back to the hub. |
+| Protocol | Remotes: RequestSnapshot, RequestRecover, RequestJoinRace(boolean) [client→server, schema-checked, rate-limited]; RoundSnapshot, CheckpointFeedback, FinishNotice [server→client]. No client-sent checkpoint/time/position remote exists. |
 
-| ID | Decision | Why |
-|---|---|---|
-| ADR-02 authority | **Client network ownership** of the marble (`SetNetworkOwner(player)`); server creates/spawns/resets, times runs, logs speed anomalies. | Server Authority is in full release (needs `AuthorityMode=Server`, StreamingEnabled, NextGenerationReplication, Deferred signals, Input Action System + `RunService:BindToSimulation`; prediction centres on the Character, which this game does not have). None of it could be tested here; A1 validates *feel*, where zero-latency local physics is the proven baseline. **Revisit in A2** with the two-client authority test. |
-| ADR-05 lifecycle | No Character / Humanoid (`CharacterAutoLoads=false`, stray characters destroyed). One `Ball` part r=2 per player, named `Marble_<UserId>`, attribute `OwnerUserId`. Visual stripes welded, massless, collision/query/touch off. Every spawn = new ball at the server spawn; old ball destroyed. Reset = server request with no payload, rate-limited 0.75 s. Fall (below course − 40) → respawn after 1.0 s. Unexpected removal → respawn. Leave → ball destroyed, state dropped. | Single code path for join/reset/fall/try-again/rejoin; no second collider; no CFrame writes to a client-owned body; no client-chosen positions. |
-| Input | `UserInputService` polling + one explicit touch stick; default touch controls disabled (`GuiService.TouchControlsEnabled=false` + `PlayerModule:GetControls():Disable()`). | Input Action System could not be verified; polling is deterministic and drops nothing on focus changes. Revisit if Server Authority is adopted (it requires IAS). |
-| Steering frame | Route tangent, gravity-projected, 4 studs ahead, exponentially smoothed. Lateral steering is a one-sided velocity target (cap 22); forward thrust tapers at 44 studs/s. | Cannot flip when the camera pitches into a drop. |
-| Motor | One world-space `VectorForce` at the centre of mass, set every frame; engine integrates at its own rate; no dt clamping; ×1.4 inertia compensation while grounded so configured accelerations are what the rolling sphere gets. | Spec: forces, no per-frame CFrame, no `math.min(dt,1/30)`. |
-| Speed envelope | Rolling resistance 3 + linear drag 0.2/s + smooth terminal drag above 80. | Offline model without them showed every slope saturating at 80 (11 s run). Hypothesis — tune by feel. |
-| Camera | Scriptable, heading from route, pitch adds 85 % of the drop angle ahead (cap 58°), world-up, raycast zoom (ignores rails/decor/hazards/marbles), exponential smoothing, snap on respawn, FOV 70, Chase 20 / Wide 26. | Spec camera contract. |
-| Course | 6 segments, 17 pieces, 947-stud route: start pad (practice + spawn) → straight ramp → banked S-turn → widened bumper lane → 90° banked drop (to 20°) → run-out, finish, uphill basin with end wall. Floor = ribbon of boxes (flat) and WedgePart triangle pairs (curved/banked). 701 parts, 438 collidable. | Spec item 7. |
-| Hazard | One Pulse Bumper: cyan idle bounce → 0.8 s cyan→yellow ramp (no flashing) → coral active kick (24 studs/s outward, capped, 0.5 s cooldown). Phase = function of server time. Yellow floor chevrons + sign before it. | "One gentle bumper" + "one hazard telegraph". |
-
-## A1 ledger
-
+## Ledger
 ### Done (verified by tests that ran here)
-- [x] Project layout, Rojo map, place file; all 23 scripts embedded byte-identical (`build_rbxlx.py` + XML check)
-- [x] Config ranges & spec hypotheses (accel 35, lateral 22, terminal 80, air 40 %, brake ×0.65, deadzone 0.12, camera 18–26, FOV 70, hold 1 s)
-- [x] Frame-rate-independent smoothing (exact exponential), controller gains stable to 15 FPS (k·dt < 1)
-- [x] Course generator deterministic; validator: 6 segments, continuity of pitch/bank/width, lane ≥ 4 ball widths, rails ≥ 1 diameter, ordered start/marks/finish, run-off, no self-overlap, min height
-- [x] Floor geometry: every wedge/box top face lies exactly on the track ribbon, slabs hang below (mutation-tested: two deliberate geometry bugs were both caught); wedge construction matches EgoMoose's known-good formula
-- [x] Steering frame defined along the whole route; never jumps > 10° per 2 studs (no flip in the drop)
-- [x] Route tracker: monotonic progress along the course, re-acquire after respawn jump
-- [x] Spawn on the practice pad with floor clearance; camera sight line clears the back wall (Chase 2.5 studs, Wide 4.1 studs)
-- [x] Hazard cycle Idle → Telegraph (0.8 s) → Active → Idle
-- [x] No invented asset ids; exactly one remote; attribute names valid
-- [x] Every file parses (Lua 5.3 parser over Lua-5.1-subset Luau; Lua-5.3-only syntax scan clean)
+- [x] A1: config ranges, smoothing, course generator/validator, floor geometry exactness (mutation-tested), steering-frame stability, route tracking, spawn clearance, hazard cycle, no invented ids
+- [x] A2: transition graph (reachable, no dead ends, legal full cycle, no shortcuts to Racing)
+- [x] A2: payload validation accepts only exact schemas; every client remote rate limited; no Set* remotes
+- [x] A2: standings order incl. DNF and ordinal ties; near-simultaneous finish ordering; crossing interpolation
+- [x] A2: grid shuffle deterministic permutation, varies per round; 16 grid slots validated (spacing, rails, behind gate)
+- [x] A2: checkpoint judging with simulated samples — ordered CP1→CP3→finish, interpolated finish time, teleport jump rejected, corridor rejected, impossible split rejected, respawn never crosses, progress capped
+- [x] A2: hub spawns spaced/inside rim, chute flush with hub edge, rim gap open, chute validates
+- [x] 37 files parse; place file well-formed (rebuilt each milestone)
 
-### Implemented, untested (needs Studio Play Solo — see TEST_PLAN.md)
-- [ ] Server boot, course build, lighting; Studio TestRunner integration checks
-- [ ] Marble spawn, network ownership, single collider, stripes visible & rolling
-- [ ] Steering/brake/thrust feel; rolling resistance & drag values; bumper bounce & kick
-- [ ] Ground detection via `Spherecast` on wedges and banks
-- [ ] Camera follow, drop pitch adaptation, obstruction zoom, Chase/Wide, snap on respawn
-- [ ] Reset (R / Y / RESET / mouse hold / Roblox menu), fall respawn, Try Again, rejoin
-- [ ] Practice timer start/finish, marks, session best, Finish! overlay
-- [ ] Title / tutorial / HUD / toasts, device hint switching, UI scaling
-- [ ] Touch stick + BRAKE / RESET / CAM on a phone (or Studio device emulator); no double stick
-- [ ] Gamepad LT / Y / R3 / A
-- [ ] Default-controls disabling (`GuiService.TouchControlsEnabled`, PlayerModule) — both wrapped in pcall
-- [ ] WedgePart seams: possible small bumps where triangles meet at speed
+### Implemented, untested (needs Studio — TEST_PLAN sections 3 and 5)
+- [ ] Everything engine-side from A1 (feel, camera, devices, UI)
+- [ ] Round loop timing, snapshots on both clients, late joiner sync, 3 consecutive rounds
+- [ ] Grid freeze/release, gate toggle, protection ghosting, marble bumps + limiter
+- [ ] Checkpoint flashes, placement badge, standings, results, DNF, disconnect handling, spectate cycling
+- [ ] Practice chute loop, hub board text
 
-### Not measured
-- [ ] FPS / frame time: **no measurement exists.** The F2 overlay (avg + p95 over 240 frames) and Studio MicroProfiler procedure are in TEST_PLAN.md.
-- [ ] Clean-run time: a 1-D model (full throttle, no braking) estimates ~18 s; real first attempts unknown. Spec target 35–75 s on first attempts — **likely short**; length is one table in `TrackDefinitions.lua`.
+### Blocked
+- [ ] **2-client network verification** — no Studio here. Steps + expected log order: TEST_PLAN §5.
+- [ ] FPS/frame time — no device. F2 overlay + MicroProfiler procedure in TEST_PLAN §3G.
 
-### Out of scope for A1 (no code, no stubs)
-Rounds/countdown, multiplayer race flow, checkpoints beyond the two run marks, bots, abilities,
-tricks, slipstream, persistence, coins, XP, cosmetics, shop, lobby, spectating.
-
-## Known issues / risks (honest list)
-1. **Never run in Studio.** Expect at least one runtime error on first Play; Output will show it.
-2. Course may be too short for the 35–75 s target (see "Not measured").
-3. Drag 0.2/s + rolling resistance 3 are guesses chosen from a model; the marble may feel "sticky" or still too fast.
-4. Lateral assist (1.0/s) gently aligns velocity with the track when not steering; may feel like auto-steer. Set `LateralAssistDamping = 0` to compare.
-5. WedgePart seams on curves/banks could cause small hops at high speed.
-6. `UserInputService.PreferredInput` is read via pcall and its enum names are matched by text ("Touch"/"Gamepad"); falls back to last input type.
-7. Touch stick coordinate mapping assumes `InputObject.Position` and `AbsolutePosition` share a space (documented behaviour; unverified on device).
-8. The Pulse Bumper kick and all steering forces are client-applied (client ownership). Fine for solo practice; see A2 notes.
-9. Studio TestRunner prints one expected warning ("deliberate test error") from the signal-isolation test.
-
-## A2 security notes (carry forward, not implemented)
-- With client ownership, a modified client can move its marble arbitrarily. A2 must validate on
-  the server: ordered checkpoints with min travel time, speed envelope (already logged), path
-  plausibility between checkpoints, and reject suspicious finishes/rewards — or adopt Server
-  Authority and move the motor into `BindToSimulation`.
-- Keep remotes payload-free or strictly typed; RequestReset already reads no payload.
+## Known risks
+1. Never run in Studio; expect first-run errors (Output will name file and line).
+2. Client-owned marbles colliding is resolved per-client; bumps may look asymmetric under latency.
+3. Course likely short for the 35–75 s target (1-D model ~18 s perfect run).
+4. A cheating client can still drive its own marble anywhere physically plausible (that is the ownership trade-off); impossible movement is rejected and logged.
+5. Same-sample finish ordering assumes Heartbeat samples; extreme server hitches coarsen timing.
 
 ## Test ledger
-
-| Date | Command / action | Environment | Result |
-|---|---|---|---|
-| 2026-11-19 | `texlua tools/offline/run_tests.lua .` | Linux, LuaTeX 1.17 (Lua 5.3) + shim | 26 files parse; **57 passed, 0 failed** |
-| 2026-11-19 | Mutation: slab above surface / mirrored wedge centre | same | both caught by the floor-geometry spec |
-| 2026-11-19 | `python3 tools/build_rbxlx.py . TumbleCircuit.rbxlx` + XML parse + source diff | Python 3.13 | well-formed; 23/23 scripts identical; service properties present |
-| 2026-11-19 | Camera line-of-sight over start wall (offline calc) | texlua | Chase +2.46, Wide +4.11 studs clearance |
-| — | Studio Play Solo / TestRunner | **not available** | **pending owner** |
-| — | FPS 30/60/120, low-FPS | **not available** | pending (mobile device: see 2026-11-23 playtest row) |
-| 2026-11-23 | `python3 tools/luau_check.py src PLACEHOLDER_IDS.lua` | Linux, Python 3.13 | 23 files: 0 errors, 0 warnings; injected typos caught |
-| 2026-11-23 | Offline place build (Rojo-compatible) + `tests/verify_place.py` | Python 3.13 | 35 instances, 23 scripts, all references resolve |
-| 2026-11-23 | `python3 tests/test_publish.py` | Python 3.13 | 10 passed, 0 failed |
-| 2026-11-23 | GitHub Actions **Build** run 45146791501 (`rojo build`, Selene 0.32.0, Lune 0.10.5, Lua 5.3 specs) | GitHub cloud, ubuntu-latest | **success**: 57 specs passed; Selene 0 errors / 6 style warnings; Rojo built .rbxl (80 KB) + .rbxlx; Lune: 35 instances, 23 scripts, all references resolve |
-| 2026-11-23 | GitHub Actions **Deploy** run 45160813071 (`scripts/publish.py`, Open Cloud Assets API) | GitHub cloud | **success**: version 4 published; privacy guard read visibility PRIVATE |
-| 2026-11-23 | First real runtime playtest of A1 (owner) | Samsung Galaxy S25 Ultra, private experience | **owner reports it works well** (no detailed checklist results recorded yet) |
-| 2026-11-23 | Owner feedback: turns "jump"/stutter, marble feels like it has corners → camera heading and steering frame now follow a chord-smoothed route tangent (±10 studs) instead of the 5°-per-vertex polyline (`RouteTracker.SmoothHorizontalTangentAtS`, `GameConfig.Camera.HeadingSmoothingStuds`, `PhysicsConfig.Movement.SteerFrameSmoothingStuds`) | texlua offline specs | **66 passed**; simulated camera turn-rate kick at 35 studs/s, 60 fps: 1.31 °/s per frame (was 19.69); setting smoothing to 0 makes 3 new specs fail |
-| 2026-11-23 | Owner playtest of v5: camera turns now fine; lag at the first S-bend, then a 1–2 s whole-screen freeze at the next bend (same run, Roblox Android app). No cause found by code review (no runtime loops, no sliver floor wedges: thinnest wedge leg 0.79 studs). Added a hitch logger (frames ≥ 0.25 s logged with course piece + run number to the overlay and the dev console) and turned the frame-time overlay on by default for private playtests | texlua offline specs, luau_check | 66 passed; 0 lint errors. Cause **not yet known** — waiting for overlay readings |
-| — | Detailed A1 checklist (docs/ANDROID_PLAYTEST.md), FPS 30/60/120, Studio TestRunner | — | pending |
-
+| Date | Command | Result |
+|---|---|---|
+| 2026-11-19 | `texlua tools/offline/run_tests.lua .` (A1) | 26 files parse; 57 passed |
+| 2026-11-21 | `texlua tools/offline/run_tests.lua .` (A1+A2) | 37 files parse; **83 passed, 0 failed** (A1 56 + A2 27) |
+| 2026-11-21 | `python3 tools/build_rbxlx.py . TumbleCircuit.rbxlx` + XML parse | well-formed |
+| 2026-11-23 | `python3 tools/luau_check.py src PLACEHOLDER_IDS.lua` (Linux, Python 3.13) | 23 files: 0 errors, 0 warnings; injected typos caught |
+| 2026-11-23 | Offline place build (Rojo-compatible) + `tests/verify_place.py` (Python 3.13) | 35 instances, 23 scripts, all references resolve |
+| 2026-11-23 | `python3 tests/test_publish.py` (Python 3.13) | 10 passed, 0 failed |
+| 2026-11-23 | GitHub Actions **Build** run 45146791501 (`rojo build`, Selene 0.32.0, Lune 0.10.5, Lua 5.3 specs) (GitHub cloud, ubuntu-latest) | **success**: 57 specs passed; Selene 0 errors / 6 style warnings; Rojo built .rbxl (80 KB) + .rbxlx; Lune: 35 instances, 23 scripts, all references resolve |
+| 2026-11-23 | GitHub Actions **Deploy** run 45160813071 (`scripts/publish.py`, Open Cloud Assets API) (GitHub cloud) | **success**: version 4 published; privacy guard read visibility PRIVATE |
+| 2026-11-23 | First real runtime playtest of A1 (owner) (Samsung Galaxy S25 Ultra, private experience) | **owner reports it works well** (no detailed checklist results recorded yet) |
+| 2026-11-23 | Owner feedback: turns "jump"/stutter, marble feels like it has corners → camera heading and steering frame now follow a chord-smoothed route tangent (±10 studs) instead of the 5°-per-vertex polyline (`RouteTracker.SmoothHorizontalTangentAtS`, `GameConfig.Camera.HeadingSmoothingStuds`, `PhysicsConfig.Movement.SteerFrameSmoothingStuds`) (texlua offline specs) | **66 passed**; simulated camera turn-rate kick at 35 studs/s, 60 fps: 1.31 °/s per frame (was 19.69); setting smoothing to 0 makes 3 new specs fail |
+| 2026-11-23 | Owner playtest of v5: camera turns now fine; lag at the first S-bend, then a 1–2 s whole-screen freeze at the next bend (same run, Roblox Android app). No cause found by code review (no runtime loops, no sliver floor wedges: thinnest wedge leg 0.79 studs). Added a hitch logger (frames ≥ 0.25 s logged with course piece + run number to the overlay and the dev console) and turned the frame-time overlay on by default for private playtests (texlua offline specs, luau_check) | 66 passed; 0 lint errors. Cause **not yet known** — waiting for overlay readings |
+| 2026-11-23 | Deploys v5 (smoothing) and v6 (stats box + hitch log), runs 45162969643 / 45170849945 | **success**, visibility PRIVATE both times |
+| 2026-11-23 | Owner, several more runs on v6 | **no freeze again**; treated as a one-off (phone or first-time graphics setup). Stats box stays on for playtests |
+| 2026-11-23 | A2 three-way merge + `luau_check` (34 files) + `texlua tools/offline/run_tests.lua .` | 0 errors, 1 warning (unused local `tangent` in HubBuilder, harmless); **92 passed, 0 failed** (A1 65 + A2 27) |
+| 2026-11-23 | Offline place build + `tests/verify_place.py` (A2) | 48 instances, 34 scripts, all references resolve |
+| 2026-11-23 | Smoothed heading on the A2 practice chute (offline) | defined everywhere; worst 0.92°/stud |
+| — | A2 first phone playtest (solo rounds) | **pending owner** |
+| — | 2-client network verification | **pending** (needs a second account) |

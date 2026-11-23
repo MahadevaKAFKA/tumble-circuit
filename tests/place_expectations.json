@@ -1,39 +1,198 @@
 {
   "instances": [
-    { "path": "ReplicatedStorage/Shared", "class": "Folder" },
-    { "path": "ReplicatedStorage/Shared/GameConfig", "class": "ModuleScript" },
-    { "path": "ReplicatedStorage/Shared/PhysicsConfig", "class": "ModuleScript" },
-    { "path": "ReplicatedStorage/Shared/Protocol", "class": "ModuleScript" },
-    { "path": "ReplicatedStorage/Shared/RouteTracker", "class": "ModuleScript" },
-    { "path": "ReplicatedStorage/Shared/TrackDefinitions", "class": "ModuleScript" },
-    { "path": "ReplicatedStorage/Shared/Utility", "class": "ModuleScript" },
-    { "path": "ReplicatedStorage/Shared/PlaceholderIds", "class": "ModuleScript" },
-    { "path": "ServerScriptService/ServerBootstrap", "class": "Script" },
-    { "path": "ServerScriptService/Services", "class": "Folder" },
-    { "path": "ServerScriptService/Services/MarbleCharacterService", "class": "ModuleScript" },
-    { "path": "ServerScriptService/Services/PracticeRunService", "class": "ModuleScript" },
-    { "path": "ServerScriptService/Services/RacePhysicsService", "class": "ModuleScript" },
-    { "path": "ServerScriptService/Services/TrainingTrackService", "class": "ModuleScript" },
-    { "path": "ServerScriptService/Tests/TestRunner", "class": "Script" },
-    { "path": "ServerScriptService/Tests/A1PureSpecs", "class": "ModuleScript" },
-    { "path": "ServerStorage/ProceduralBuilders/TrainingTrackBuilder", "class": "ModuleScript" },
-    { "path": "StarterPlayer/StarterPlayerScripts", "class": "StarterPlayerScripts" },
-    { "path": "StarterPlayer/StarterPlayerScripts/ClientBootstrap", "class": "LocalScript" },
-    { "path": "StarterPlayer/StarterPlayerScripts/Controllers", "class": "Folder" },
-    { "path": "StarterPlayer/StarterPlayerScripts/Controllers/CameraController", "class": "ModuleScript" },
-    { "path": "StarterPlayer/StarterPlayerScripts/Controllers/HazardController", "class": "ModuleScript" },
-    { "path": "StarterPlayer/StarterPlayerScripts/Controllers/InputController", "class": "ModuleScript" },
-    { "path": "StarterPlayer/StarterPlayerScripts/Controllers/MarbleMotorController", "class": "ModuleScript" },
-    { "path": "StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController", "class": "ModuleScript" },
-    { "path": "StarterPlayer/StarterPlayerScripts/Controllers/SoundController", "class": "ModuleScript" },
-    { "path": "StarterPlayer/StarterPlayerScripts/Controllers/TouchControls", "class": "ModuleScript" },
-    { "path": "Players", "class": "Players" },
-    { "path": "Workspace", "class": "Workspace" }
+    {
+      "path": "Workspace",
+      "class": "Workspace"
+    },
+    {
+      "path": "Players",
+      "class": "Players"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts",
+      "class": "StarterPlayerScripts"
+    },
+    {
+      "path": "ReplicatedStorage/Shared",
+      "class": "Folder"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/GameConfig",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/PhysicsConfig",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/Protocol",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/RaceConfig",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/RoundProtocol",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/RouteTracker",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/TrackDefinitions",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/Utility",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/PlaceholderIds",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/ServerBootstrap",
+      "class": "Script"
+    },
+    {
+      "path": "ServerScriptService/Services",
+      "class": "Folder"
+    },
+    {
+      "path": "ServerScriptService/Services/CheckpointService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/MarbleCharacterService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/ProgressService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/RacePhysicsService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/RaceRules",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/RoundService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/TrainingTrackService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests",
+      "class": "Folder"
+    },
+    {
+      "path": "ServerScriptService/Tests/Integration",
+      "class": "Folder"
+    },
+    {
+      "path": "ServerScriptService/Tests/Integration/MultiplayerRound.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/TestRunner",
+      "class": "Script"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit",
+      "class": "Folder"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/A1PureSpecs",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/RoundState.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerStorage/ProceduralBuilders",
+      "class": "Folder"
+    },
+    {
+      "path": "ServerStorage/ProceduralBuilders/HubBuilder",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerStorage/ProceduralBuilders/TrainingTrackBuilder",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/ClientBootstrap",
+      "class": "LocalScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers",
+      "class": "Folder"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/CameraController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/HazardController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/InputController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/MarbleMotorController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/SoundController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/TouchControls",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/UIKit",
+      "class": "ModuleScript"
+    }
   ],
   "properties": [
-    { "path": "Players", "name": "CharacterAutoLoads", "value": false },
-    { "path": "Workspace", "name": "StreamingEnabled", "value": false },
-    { "path": "StarterPlayer", "name": "EnableMouseLockOption", "value": false }
+    {
+      "path": "Players",
+      "name": "CharacterAutoLoads",
+      "value": false
+    },
+    {
+      "path": "Workspace",
+      "name": "StreamingEnabled",
+      "value": false
+    },
+    {
+      "path": "StarterPlayer",
+      "name": "EnableMouseLockOption",
+      "value": false
+    }
   ],
   "runtimeNames": [
     "PlayerGui",
@@ -47,6 +206,18 @@
     "Ring",
     "FloorRing",
     "TC_Bloom",
-    "TC_Grade"
+    "TC_Grade",
+    "RoundSnapshot",
+    "CheckpointFeedback",
+    "FinishNotice",
+    "Gates",
+    "StartGate",
+    "OrbitalGarage",
+    "PracticeChute",
+    "TrainingCourse",
+    "Board",
+    "NextRaceBoard",
+    "BoardMain",
+    "BoardSub"
   ]
 }

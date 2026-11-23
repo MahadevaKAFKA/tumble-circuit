@@ -20,6 +20,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
+local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
 
 local MarbleMotorController = {}
@@ -62,6 +63,47 @@ function MarbleMotorController:Bind(ball, excludeInstances)
 	self.grounded = false
 	self.groundedUntil = 0
 	self.brakeTarget = nil
+	self.lastVelocity = nil
+	self.chainUntil = 0
+	self.skipBumpCheck = true
+end
+
+-- Folder holding every marble, used to tell marble bumps from wall bounces.
+function MarbleMotorController:SetMarblesFolder(folder)
+	self.marblesFolder = folder
+end
+
+-- Bounded knockback (master: capped impulses, 1.2 s anti-chain-stun). A single-frame velocity
+-- change while touching another marble is limited with a counter-impulse; never a velocity set.
+function MarbleMotorController:_limitBump(ball, v, now)
+	local previous = self.lastVelocity
+	self.lastVelocity = v
+	if self.skipBumpCheck or not previous or not self.marblesFolder then
+		self.skipBumpCheck = false
+		return
+	end
+	local delta = v - previous
+	local cfg = RaceConfig.Collisions
+	local cap = now < self.chainUntil and cfg.ChainBumpDeltaV or cfg.MaxBumpDeltaV
+	local magnitude = delta.Magnitude
+	if magnitude <= cap then
+		return
+	end
+	local nearMarble = false
+	local position = ball.Position
+	for _, other in ipairs(self.marblesFolder:GetChildren()) do
+		if other ~= ball and other:IsA("BasePart") and (other.Position - position).Magnitude <= cfg.BumpProximity then
+			nearMarble = true
+			break
+		end
+	end
+	if not nearMarble then
+		return
+	end
+	local excess = delta * ((magnitude - cap) / magnitude)
+	ball:ApplyImpulse(-excess * ball.AssemblyMass)
+	self.lastVelocity = v - excess
+	self.chainUntil = now + cfg.AntiChainSeconds
 end
 
 function MarbleMotorController:Unbind()
@@ -108,6 +150,10 @@ function MarbleMotorController:Step(dt, ctx)
 
 	local m = PhysicsConfig.Movement
 	local v = ball.AssemblyLinearVelocity
+	if not ball.Anchored then
+		self:_limitBump(ball, v, now)
+		v = ball.AssemblyLinearVelocity
+	end
 	local speed = v.Magnitude
 	local up = self.groundNormal
 	local forwardH = ctx.forwardH
@@ -195,6 +241,7 @@ function MarbleMotorController:ApplyKick(direction, kickSpeed)
 		return false
 	end
 	ball:ApplyImpulse(direction * (deltaV * ball.AssemblyMass))
+	self.skipBumpCheck = true -- our own kick is not a marble bump
 	return true
 end
 

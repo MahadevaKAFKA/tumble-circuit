@@ -1,13 +1,13 @@
 --[[
-	ClientBootstrap — wires the A1 client together.
+	ClientBootstrap — wires the A2 client.
 
-	Flow: Loading -> Title ("PLAY PRACTICE") -> Playing (+ one skippable steering tutorial)
-	      -> Finished ("TRY AGAIN") -> Playing ...
-	Gameplay steering is only enabled while Playing with a bound marble and not Finished.
-	Hold-to-reset works while Playing or Finished. Every reset is a server request with no payload.
+	Flow: Loading -> Title (PLAY) -> Live. In Live the server's round snapshot decides what you
+	can do: free practice in the hub, frozen on the grid, racing, finished/spectating, results.
+	The client never decides checkpoints, placement or finish; it requests recovery and joining
+	only. Steering is live only when the marble is unanchored and the round allows it.
 
-	Per frame (one BindToRenderStep, after the default camera priority):
-	  input -> route progress -> steering frame -> motor forces -> hazard -> camera -> HUD
+	Per frame (one BindToRenderStep after the camera priority):
+	  input -> route progress (own zone) -> steering frame -> motor -> hazard -> camera -> HUDs
 ]]
 
 local GuiService = game:GetService("GuiService")
@@ -47,6 +47,8 @@ end
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
+local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
+local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local RouteTracker = require(Shared:WaitForChild("RouteTracker"))
 local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 local Utility = require(Shared:WaitForChild("Utility"))
@@ -58,15 +60,18 @@ local MarbleMotorController = require(Controllers:WaitForChild("MarbleMotorContr
 local CameraController = require(Controllers:WaitForChild("CameraController"))
 local HazardController = require(Controllers:WaitForChild("HazardController"))
 local HUD = require(Controllers:WaitForChild("PrototypeHUDController"))
+local RaceHUD = require(Controllers:WaitForChild("RaceHUDController"))
+local MatchUI = require(Controllers:WaitForChild("MatchUIController"))
 local SoundController = require(Controllers:WaitForChild("SoundController"))
 
 local ATTR = Protocol.PlayerAttributes
-local STATES = Protocol.RunStates
+local BALL = Protocol.BallAttributes
+local ZONES = Protocol.Zones
+local REASONS = Protocol.SpawnReasons
+local S = RoundProtocol.States
 local MODES = MarbleMotorController.Modes
 
----------------------------------------------------------------------------------------------
 -- Default Roblox controls off: no Humanoid to drive, and exactly one touch thumbstick (ours).
----------------------------------------------------------------------------------------------
 pcall(function()
 	GuiService.TouchControlsEnabled = false
 end)
@@ -89,102 +94,249 @@ if not workspace.CurrentCamera then
 end
 
 local maid = Utility.Maid.new()
-local input = InputController.new()
-local hud = HUD.new(input)
-local touch = TouchControls.new(input)
-local sound = SoundController.new(PlaceholderIds)
-local motor = MarbleMotorController.new()
-local cameraController = CameraController.new()
-maid:Give(input)
-maid:Give(hud)
-maid:Give(touch)
-maid:Give(sound)
-maid:Give(motor)
-maid:Give(cameraController)
+local input = maid:Give(InputController.new())
+local hud = maid:Give(HUD.new(input))
+local touch = maid:Give(TouchControls.new(input))
+local sound = maid:Give(SoundController.new(PlaceholderIds))
+local motor = maid:Give(MarbleMotorController.new())
+local cameraController = maid:Give(CameraController.new())
+local raceHud = maid:Give(RaceHUD.new())
+local matchUi = maid:Give(MatchUI.new())
+raceHud:SetVisible(false)
+matchUi:SetVisible(false)
 
-hud:ShowMessage("Building the practice course...")
+hud:ShowMessage("Building the Orbital Garage and race track...")
 
 ---------------------------------------------------------------------------------------------
--- Wait (bounded) for the server: remotes, course, marbles folder
+-- Wait (bounded) for the server
 ---------------------------------------------------------------------------------------------
 local timeout = GameConfig.Spawn.ClientWaitTimeoutSeconds
-local remotes = ReplicatedStorage:WaitForChild(Protocol.RemotesFolderName, timeout)
-local resetRemote = remotes and remotes:WaitForChild(Protocol.Remotes.RequestReset, 5)
+local remotes = ReplicatedStorage:WaitForChild(RoundProtocol.FolderName, timeout)
 
-local function waitForCourse()
+local function waitForWorld()
 	local deadline = os.clock() + timeout
 	while os.clock() < deadline do
 		if workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseReady) then
 			local course = workspace:FindFirstChild(Protocol.CourseModelName)
-			if course then
-				return course
+			local hubRoot = workspace:FindFirstChild(Protocol.HubModelName)
+			if course and hubRoot then
+				return course, hubRoot
 			end
 		elseif workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseError) then
-			return nil, workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseError)
+			return nil, nil, workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseError)
 		end
 		task.wait(0.1)
 	end
-	return nil, "timed out waiting for the server to build the course"
+	return nil, nil, "timed out waiting for the server to build the world"
 end
 
-local course, courseError = waitForCourse()
+local course, hubRoot, worldError = waitForWorld()
 local marblesFolder = course and workspace:WaitForChild(Protocol.MarblesFolderName, timeout)
-if not resetRemote or not course or not marblesFolder then
-	hud:ShowMessage("Could not start practice: " .. tostring(courseError or "server remotes missing") .. "\nCheck the Output window for [TumbleCircuit] errors, then press Stop and Play again.", true)
+local remote = {}
+if remotes then
+	for name in pairs(RoundProtocol.Remotes) do
+		remote[name] = remotes:WaitForChild(name, 5)
+	end
+end
+local remotesOk = remotes ~= nil and remotes:GetAttribute("ProtocolVersion") == RoundProtocol.Version
+for name in pairs(RoundProtocol.Remotes) do
+	if not remote[name] then
+		remotesOk = false
+	end
+end
+if not remotesOk or not course or not marblesFolder then
+	hud:ShowMessage("Could not start: " .. tostring(worldError or "server remotes missing or protocol mismatch") .. "\nCheck the Output window for [TumbleCircuit] errors, then press Stop and Play again.", true)
 	return
 end
 course:WaitForChild("Hazards", 5)
+hubRoot:WaitForChild("PracticeChute", 5)
 
-local layout = TrackDefinitions.Generate(TrackDefinitions.Training, PhysicsConfig.Ball.Radius)
-local tracker = RouteTracker.new(layout.Route)
+local layouts = {
+	[ZONES.Race] = TrackDefinitions.Generate(TrackDefinitions.Training, PhysicsConfig.Ball.Radius),
+	[ZONES.Hub] = TrackDefinitions.Generate(TrackDefinitions.PracticeChute, PhysicsConfig.Ball.Radius),
+}
 local hazards = HazardController.new(course, motor, sound)
+motor:SetMarblesFolder(marblesFolder)
 
 local function present(list)
 	local out = {}
-	for _, item in ipairs(list) do
+	for _, item in pairs(list) do
 		if item then
 			out[#out + 1] = item
 		end
 	end
 	return out
 end
-local cameraIgnore = present({ marblesFolder, course:FindFirstChild("Rails"), course:FindFirstChild("Decor"), course:FindFirstChild("Hazards") })
+local chute = hubRoot:FindFirstChild("PracticeChute")
+local cameraIgnore = present({
+	marblesFolder,
+	course:FindFirstChild("Rails"), course:FindFirstChild("Decor"), course:FindFirstChild("Hazards"), course:FindFirstChild("Gates"),
+	hubRoot:FindFirstChild("Rails"), hubRoot:FindFirstChild("Decor"),
+	chute and chute:FindFirstChild("Rails"), chute and chute:FindFirstChild("Decor"),
+})
 local groundIgnore = { marblesFolder }
+local boardPart = hubRoot:FindFirstChild("Decor") and hubRoot.Decor:FindFirstChild("NextRaceBoard")
+local board = boardPart and boardPart:FindFirstChild("Board")
 
 local function flatUnit(v, fallback)
 	return Utility.safeUnit(Vector3.new(v.X, 0, v.Z), fallback)
 end
-local spawnForward = flatUnit(layout.SpawnFrame.Forward, Vector3.new(0, 0, -1))
 
 ---------------------------------------------------------------------------------------------
 -- State
 ---------------------------------------------------------------------------------------------
-local uiState = "Title" -- "Title" | "Playing" | "Finished"
+local uiState = "Title" -- "Title" | "Live"
+local snapshot = nil
 local currentBall = nil
-local steerForward = spawnForward
+local currentZone = ZONES.Hub
+local tracker = RouteTracker.new(layouts[ZONES.Hub].Route)
+local steerForward = Vector3.new(1, 0, 0)
 local tutorial = { active = false, done = false, left = 0, right = 0 }
+local spectate = { active = false, userId = nil, ball = nil, tracker = RouteTracker.new(layouts[ZONES.Race].Route) }
+local stuck = { seconds = 0, startS = 0, shown = false }
 
-local function runState()
-	return player:GetAttribute(ATTR.RunState) or STATES.Ready
+local function myEntry()
+	if not snapshot then
+		return nil
+	end
+	for _, entry in ipairs(snapshot.racers or {}) do
+		if entry.userId == player.UserId then
+			return entry
+		end
+	end
+	return nil
+end
+
+local function roundState()
+	return snapshot and snapshot.state or S.Boot
+end
+
+local function amRacing()
+	local me = myEntry()
+	local state = roundState()
+	return me ~= nil and not me.finished and (state == S.Preparing or state == S.Countdown or state == S.Racing)
+end
+
+local function raceRunning()
+	local state = roundState()
+	return state == S.Racing or state == S.Countdown
+end
+
+local function canSteer()
+	if uiState ~= "Live" or not currentBall or currentBall.Anchored or spectate.active then
+		return false
+	end
+	if currentZone == ZONES.Hub then
+		return true
+	end
+	local me = myEntry()
+	return roundState() == S.Racing and me ~= nil and not me.finished
+end
+
+local function canRecover()
+	if uiState ~= "Live" or spectate.active or not currentBall then
+		return false
+	end
+	if currentZone == ZONES.Hub then
+		return true
+	end
+	local state = roundState()
+	return state == S.Racing or state == S.Results
 end
 
 local function refreshGates()
-	local rs = runState()
-	input:SetSteeringEnabled(uiState == "Playing" and currentBall ~= nil and rs ~= STATES.Finished)
-	input:SetRecoverEnabled(uiState ~= "Title")
-	touch:SetVisible(input.device == InputController.Devices.Touch and uiState == "Playing")
-	hud:SetHudVisible(uiState ~= "Title")
+	input:SetSteeringEnabled(canSteer())
+	input:SetRecoverEnabled(canRecover())
+	touch:SetVisible(input.device == InputController.Devices.Touch and uiState == "Live" and not spectate.active)
+	hud:SetHudVisible(uiState == "Live")
+	raceHud:SetVisible(uiState == "Live")
+	matchUi:SetVisible(uiState == "Live")
 end
 
 local resetLimiter = Utility.RateLimiter.new(GameConfig.Spawn.ClientResetThrottleSeconds)
-local function requestReset()
-	if resetLimiter:Try("reset") then
-		resetRemote:FireServer()
+local function requestRecover()
+	if canRecover() and resetLimiter:Try("recover") then
+		remote.RequestRecover:FireServer()
 	end
 end
 
 ---------------------------------------------------------------------------------------------
--- Marble binding (every spawn is a new Part; see MarbleCharacterService)
+-- Spectating (client view only; never affects the race)
+---------------------------------------------------------------------------------------------
+local function spectateCandidates()
+	local ids = {}
+	if not snapshot then
+		return ids
+	end
+	for _, entry in ipairs(snapshot.racers or {}) do
+		if entry.userId ~= player.UserId and not entry.isBot then
+			ids[#ids + 1] = entry.userId
+		end
+	end
+	return ids
+end
+
+local function bindCameraToOwn()
+	if currentBall and currentBall.Parent then
+		cameraController:Bind(currentBall, layouts[currentZone].Route, cameraIgnore)
+	end
+end
+
+local function stopSpectating()
+	if spectate.active then
+		spectate.active = false
+		spectate.userId, spectate.ball = nil, nil
+		bindCameraToOwn()
+		refreshGates()
+	end
+end
+
+local function spectateUser(userId)
+	local ball = marblesFolder:FindFirstChild(Protocol.MarbleName(userId))
+	if not ball then
+		return false
+	end
+	spectate.active = true
+	spectate.userId = userId
+	spectate.ball = ball
+	spectate.tracker:Reset()
+	cameraController:Bind(ball, layouts[ZONES.Race].Route, cameraIgnore)
+	refreshGates()
+	return true
+end
+
+local function cycleSpectate(direction)
+	local ids = spectateCandidates()
+	if #ids == 0 then
+		stopSpectating()
+		hud:Toast("Nobody to spectate right now", 1.5)
+		return
+	end
+	local index = 0
+	for i, id in ipairs(ids) do
+		if id == spectate.userId then
+			index = i
+		end
+	end
+	for _ = 1, #ids do
+		index = (index + direction - 1) % #ids + 1
+		if spectateUser(ids[index]) then
+			return
+		end
+	end
+	stopSpectating()
+end
+
+local function toggleSpectate()
+	if spectate.active then
+		stopSpectating()
+	elseif raceRunning() and not amRacing() then
+		cycleSpectate(1)
+	end
+end
+
+---------------------------------------------------------------------------------------------
+-- Own marble binding (every spawn is a new Part; its Zone attribute picks the route)
 ---------------------------------------------------------------------------------------------
 local myMarbleName = Protocol.MarbleName(player.UserId)
 
@@ -193,11 +345,16 @@ local function bindBall(ball)
 		return
 	end
 	currentBall = ball
-	tracker:Reset()
+	currentZone = ball:GetAttribute(BALL.Zone) or ZONES.Hub
+	tracker = RouteTracker.new(layouts[currentZone].Route)
 	input:ResetState()
 	motor:Bind(ball, groundIgnore)
-	cameraController:Bind(ball, layout.Route, cameraIgnore)
-	steerForward = spawnForward
+	local start = layouts[currentZone].Route
+	steerForward = flatUnit(RouteTracker.TangentAtS(start, tracker:Update(ball.Position).s), Vector3.new(1, 0, 0))
+	stuck.seconds = 0
+	if not spectate.active then
+		bindCameraToOwn()
+	end
 	refreshGates()
 end
 
@@ -205,7 +362,9 @@ local function unbindBall(ball)
 	if currentBall == ball then
 		currentBall = nil
 		motor:Unbind()
-		cameraController:Unbind()
+		if not spectate.active then
+			cameraController:Unbind()
+		end
 		refreshGates()
 	end
 end
@@ -213,6 +372,8 @@ end
 maid:Give(marblesFolder.ChildAdded:Connect(function(child)
 	if child.Name == myMarbleName and child:IsA("BasePart") then
 		bindBall(child)
+	elseif spectate.active and child.Name == Protocol.MarbleName(spectate.userId or 0) then
+		spectateUser(spectate.userId) -- spectated racer respawned
 	end
 end))
 maid:Give(marblesFolder.ChildRemoved:Connect(function(child)
@@ -225,14 +386,68 @@ end
 
 maid:Give(player:GetAttributeChangedSignal(ATTR.SpawnCount):Connect(function()
 	local reason = player:GetAttribute(ATTR.LastSpawnReason)
-	if reason == Protocol.SpawnReasons.Fell or reason == Protocol.SpawnReasons.Lost then
-		hud:Toast("Fell off - back to the start pad", 2)
+	if reason == REASONS.Fell or reason == REASONS.Lost then
+		hud:Toast(currentZone == ZONES.Race and "Fell off - back to your last checkpoint" or "Fell off - back to the hub", 2)
 		sound:Play("Respawn")
-	elseif reason == Protocol.SpawnReasons.Reset and uiState == "Playing" then
-		hud:Toast("Reset to start", 1)
+	elseif reason == REASONS.Movement then
+		hud:Toast("Position corrected", 1.5)
+	elseif reason == REASONS.Reset and uiState == "Live" then
+		hud:Toast("Recovered", 1)
 		sound:Play("Respawn")
 	end
 end))
+
+---------------------------------------------------------------------------------------------
+-- Round snapshots and server notices
+---------------------------------------------------------------------------------------------
+local lastState = nil
+maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
+	if type(snap) ~= "table" or snap.v ~= RoundProtocol.Version then
+		return
+	end
+	snapshot = snap
+	raceHud:ApplySnapshot(snap, player.UserId)
+	matchUi:ApplySnapshot(snap, player.UserId)
+	if snap.state ~= lastState then
+		if snap.state == S.Racing and myEntry() then
+			sound:Play("RunStart")
+		end
+		if snap.state ~= S.Racing and snap.state ~= S.Countdown then
+			stopSpectating()
+		end
+		lastState = snap.state
+	end
+	if spectate.active then
+		local stillRacing = false
+		for _, id in ipairs(spectateCandidates()) do
+			if id == spectate.userId then
+				stillRacing = true
+			end
+		end
+		if not stillRacing then
+			cycleSpectate(1)
+		end
+	end
+	refreshGates()
+end))
+maid:Give(remote.CheckpointFeedback.OnClientEvent:Connect(function(data)
+	if type(data) == "table" and type(data.index) == "number" and type(data.total) == "number" then
+		raceHud:FlashCheckpoint(data.index, data.total)
+		sound:Play("Checkpoint")
+	end
+end))
+maid:Give(remote.FinishNotice.OnClientEvent:Connect(function(data)
+	if type(data) ~= "table" or type(data.place) ~= "number" then
+		return
+	end
+	if data.userId == player.UserId then
+		raceHud:Flash(string.format("FINISHED  #%d", data.place), GameConfig.Palette.Mint, 2.5)
+		sound:Play("Finish")
+	else
+		hud:Toast(string.format("%s finished #%d", tostring(data.name), data.place), 2)
+	end
+end))
+remote.RequestSnapshot:FireServer()
 
 ---------------------------------------------------------------------------------------------
 -- UI flow
@@ -242,7 +457,7 @@ local function startPlaying()
 		return
 	end
 	sound:Play("UIClick")
-	uiState = "Playing"
+	uiState = "Live"
 	hud:HideOverlay()
 	if not tutorial.done then
 		tutorial.active = true
@@ -265,48 +480,37 @@ local function finishTutorial(message)
 	end
 end
 
-local function showFinish()
-	hud:ShowFinish(player:GetAttribute(ATTR.LastRunSeconds), player:GetAttribute(ATTR.BestSeconds), player:GetAttribute(ATTR.LastRunWasBest) == true)
-end
-
-local function onRunStateChanged()
-	local rs = runState()
-	if rs == STATES.Finished and uiState ~= "Title" then
-		uiState = "Finished"
-		showFinish()
-		sound:Play("Finish")
-	elseif rs == STATES.Running then
-		sound:Play("RunStart")
-	elseif rs == STATES.Ready and uiState == "Finished" then
-		uiState = "Playing"
-		hud:HideOverlay()
-	end
-	refreshGates()
-end
-
-maid:Give(player:GetAttributeChangedSignal(ATTR.RunState):Connect(onRunStateChanged))
-for _, name in ipairs({ ATTR.LastRunSeconds, ATTR.BestSeconds, ATTR.LastRunWasBest }) do
-	maid:Give(player:GetAttributeChangedSignal(name):Connect(function()
-		if uiState == "Finished" then
-			showFinish() -- attributes can arrive in any order; re-render with the latest values
-		end
-	end))
+local function requestJoin(wants)
+	remote.RequestJoinRace:FireServer(wants == true)
 end
 
 maid:Give(hud.PlayPressed:Connect(startPlaying))
-maid:Give(hud.TryAgainPressed:Connect(requestReset))
 maid:Give(hud.TutorialSkipped:Connect(function()
 	finishTutorial(nil)
 end))
 maid:Give(input.PrimaryActionRequested:Connect(function()
-	local overlay = hud:GetOverlay()
-	if overlay == "Title" then
+	if hud:GetOverlay() == "Title" then
 		startPlaying()
-	elseif overlay == "Finish" then
-		requestReset()
+	elseif matchUi:IsResultsOpen() then
+		requestJoin(true)
 	end
 end))
-maid:Give(input.RecoverTriggered:Connect(requestReset))
+maid:Give(input.RecoverTriggered:Connect(requestRecover))
+maid:Give(matchUi.JoinRequested:Connect(requestJoin))
+maid:Give(matchUi.SpectateToggled:Connect(toggleSpectate))
+maid:Give(matchUi.SpectateCycle:Connect(function(direction)
+	if spectate.active then
+		cycleSpectate(direction)
+	end
+end))
+maid:Give(input.SpectateCycleRequested:Connect(function(direction)
+	if spectate.active then
+		cycleSpectate(direction)
+	end
+end))
+maid:Give(input.ScoreboardToggleRequested:Connect(function()
+	raceHud:ToggleStandings()
+end))
 
 local function toggleCamera()
 	local mode = cameraController:ToggleMode()
@@ -324,11 +528,10 @@ maid:Give(input.DeviceChanged:Connect(function(device)
 end))
 hud:SetCameraMode(cameraController:GetMode())
 
--- Roblox menu "Reset Character" -> our marble reset (SetCore can fail until CoreScripts load).
 task.spawn(function()
 	local bindable = Instance.new("BindableEvent")
 	maid:Give(bindable)
-	maid:Give(bindable.Event:Connect(requestReset))
+	maid:Give(bindable.Event:Connect(requestRecover))
 	for _ = 1, 10 do
 		local ok = pcall(function()
 			StarterGui:SetCore("ResetButtonCallback", bindable)
@@ -348,37 +551,41 @@ local RENDER_STEP = "TumbleCircuitClient"
 local steerRequired = GameConfig.Tutorial.SteerSecondsRequired
 local hitchThreshold = GameConfig.Debug.HitchThresholdSeconds
 local clientStart = os.clock()
-local runNumber = 0
-local lastRunState = nil
+local boardTimer = 0
+local lastAnchored = nil
 
--- Name of the course piece under route segment i (segment i runs from section i to i + 1).
-local function pieceNameAt(index)
-	local section = layout.Sections[index + 1] or layout.Sections[index]
-	local piece = section and layout.Pieces[section.PieceIndex]
-	return piece and piece.Name or "?"
+-- Where the marble is, for the hitch log: zone + course piece under route segment i
+-- (segment i runs from section i to i + 1).
+local function whereLabel(zone, index)
+	local zoneLayout = layouts[zone]
+	local section = zoneLayout and (zoneLayout.Sections[index + 1] or zoneLayout.Sections[index])
+	local piece = section and zoneLayout.Pieces[section.PieceIndex]
+	return string.format("@%s/%s", tostring(zone), piece and piece.Name or "?")
 end
 
 RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, function(dt)
 	hud:RecordFrame(dt)
+	local ball = currentBall
+	if ball and ball.Anchored ~= lastAnchored then
+		lastAnchored = ball.Anchored -- released at GO
+		refreshGates()
+	end
 	input:Update(dt)
 
-	local ball = currentBall
 	local progressS = 0
 	local speed = 0
-	local rs = runState()
-	if rs == STATES.Running and lastRunState ~= STATES.Running then
-		runNumber = runNumber + 1
-	end
-	lastRunState = rs
+	local state = roundState()
+	local me = myEntry()
 	local where = "no marble"
 	if ball and ball.Parent then
 		local info = tracker:Update(ball.Position)
 		progressS = info.s
 		speed = ball.AssemblyLinearVelocity.Magnitude
-		where = string.format("@%s run%d", pieceNameAt(info.index), runNumber)
+		where = whereLabel(currentZone, info.index)
 
+		local route = layouts[currentZone].Route
 		local target = RouteTracker.SmoothHorizontalTangentAtS(
-			layout.Route,
+			route,
 			progressS + PhysicsConfig.Movement.SteerFrameLookAhead,
 			PhysicsConfig.Movement.SteerFrameSmoothingStuds
 		)
@@ -388,7 +595,7 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 		end
 
 		local mode = MODES.Idle
-		if rs == STATES.Finished then
+		if currentZone == ZONES.Race and ((me and me.finished) or state == S.Results) then
 			mode = MODES.Finished
 		elseif input.steeringEnabled then
 			mode = MODES.Play
@@ -400,7 +607,24 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 			brakePressed = input.brakePressed,
 			forwardH = steerForward,
 		})
-		hazards:Step(ball)
+		if currentZone == ZONES.Race then
+			hazards:Step(ball)
+		else
+			hazards:Step(nil) -- keep the bumper's colours in sync while away
+		end
+
+		-- Stuck hint: racing, trying to move, slow, and no route progress for a while.
+		local trying = input.steeringEnabled and (math.abs(input.steer.X) > 0.3 or input.steer.Y > 0.3) and not input.brake
+		local racingNow = currentZone == ZONES.Race and state == S.Racing and me and not me.finished
+		if racingNow and trying and speed < RaceConfig.Recovery.StuckMaxSpeed then
+			if stuck.seconds == 0 then
+				stuck.startS = progressS
+			end
+			stuck.seconds = stuck.seconds + dt
+		else
+			stuck.seconds = 0
+		end
+		stuck.shown = stuck.seconds >= RaceConfig.Recovery.StuckSeconds and progressS - stuck.startS < RaceConfig.Recovery.StuckMinProgress
 
 		if tutorial.active then
 			if input.steer.X < -0.3 then
@@ -421,16 +645,33 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 		warn(string.format("[TumbleCircuit] hitch %.2f s %s, %.0f s after join", dt, where, os.clock() - clientStart))
 	end
 
-	cameraController:Step(dt, progressS)
+	-- Camera: own marble, or the spectated racer (with its own progress tracker).
+	local cameraS = progressS
+	local spectatingName = nil
+	if spectate.active then
+		local target = spectate.ball
+		if target and target.Parent then
+			cameraS = spectate.tracker:Update(target.Position).s
+			for _, entry in ipairs(snapshot and snapshot.racers or {}) do
+				if entry.userId == spectate.userId then
+					spectatingName = entry.name
+				end
+			end
+		end
+	end
+	cameraController:Step(dt, cameraS)
+
 	touch:SetRecoverProgress(input.recoverProgress)
-	hud:Update({
-		speed = speed,
-		runState = rs,
-		runStartServerTime = player:GetAttribute(ATTR.RunStartServerTime),
-		bestSeconds = player:GetAttribute(ATTR.BestSeconds),
-		lastRunSeconds = player:GetAttribute(ATTR.LastRunSeconds),
-		recoverProgress = input.recoverProgress,
-	})
+	hud:Update({ speed = speed, recoverProgress = input.recoverProgress })
+	local now = workspace:GetServerTimeNow()
+	local queued = snapshot and snapshot.queued and snapshot.queued[tostring(player.UserId)] == true
+	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown })
+	matchUi:Update({ now = now, racing = amRacing(), raceRunning = raceRunning(), spectating = spectate.active })
+	boardTimer = boardTimer + dt
+	if boardTimer >= 0.25 then
+		boardTimer = 0
+		matchUi:UpdateBoard(board, { now = now })
+	end
 end)
 maid:Give(function()
 	RunService:UnbindFromRenderStep(RENDER_STEP)

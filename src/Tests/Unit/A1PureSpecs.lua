@@ -80,11 +80,6 @@ function Specs.run(m)
 	end
 	check("placeholder sound ids are nil or well-formed (none invented)", idsOk, badId)
 
-	local remoteCount = 0
-	for _ in pairs(m.Protocol.Remotes) do
-		remoteCount = remoteCount + 1
-	end
-	check("A1 exposes exactly one remote (RequestReset)", remoteCount == 1 and m.Protocol.Remotes.RequestReset ~= nil)
 	local attrOk, seen = true, {}
 	for _, name in pairs(m.Protocol.PlayerAttributes) do
 		if #name > 50 or seen[name] then

@@ -49,6 +49,11 @@ local modules = {
 	TrackDefinitions = H.module("ReplicatedStorage/Shared/TrackDefinitions"),
 	PlaceholderIds = H.module("ReplicatedStorage/Shared/PlaceholderIds"),
 	Builder = H.module("ServerStorage/ProceduralBuilders/TrainingTrackBuilder"),
+	HubBuilder = H.module("ServerStorage/ProceduralBuilders/HubBuilder"),
+	RaceConfig = H.module("ReplicatedStorage/Shared/RaceConfig"),
+	RoundProtocol = H.module("ReplicatedStorage/Shared/RoundProtocol"),
+	RaceRules = H.module("ServerScriptService/Services/RaceRules"),
+	CheckpointService = H.module("ServerScriptService/Services/CheckpointService"),
 }
 -- HazardController.PhaseAt is pure; load the client module file directly for that one function.
 do
@@ -57,14 +62,21 @@ do
 	modules.HazardPhase = chunk().PhaseAt
 end
 
-local Specs = dofile(root .. "/src/Tests/A1PureSpecs.lua")
-local results = Specs.run(modules)
-for _, line in ipairs(results.lines) do
-	print(line)
+local suites = {
+	{ "A1 pure specs", root .. "/src/Tests/Unit/A1PureSpecs.lua" },
+	{ "A2 round specs", root .. "/src/Tests/Unit/RoundState.spec.lua" },
+}
+local passed, failed = 0, 0
+for _, suite in ipairs(suites) do
+	local results = dofile(suite[2]).run(modules)
+	print("\n-- " .. suite[1] .. " --")
+	for _, line in ipairs(results.lines) do
+		print(line)
+	end
+	for _, line in ipairs(results.info) do
+		print("info  " .. line)
+	end
+	passed, failed = passed + results.passed, failed + results.failed
 end
-print("")
-for _, line in ipairs(results.info) do
-	print("info  " .. line)
-end
-print(string.format("\n%d passed, %d failed (+ %d syntax failures)", results.passed, results.failed, failures))
-os.exit((results.failed + failures) == 0 and 0 or 1)
+print(string.format("\n%d passed, %d failed (+ %d syntax failures)", passed, failed, failures))
+os.exit((failed + failures) == 0 and 0 or 1)

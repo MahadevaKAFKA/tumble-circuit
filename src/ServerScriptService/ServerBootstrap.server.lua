@@ -1,33 +1,36 @@
 --[[
-	ServerBootstrap — creates remotes once, then starts services in dependency order:
-	TrainingTrack (build course) -> MarbleCharacter -> RacePhysics -> PracticeRun.
-	Marble spawning starts LAST so every subscriber is connected before the first spawn.
+	ServerBootstrap — creates the one Remotes folder from RoundProtocol (server only), builds the
+	courses, then starts services in dependency order:
+	  TrainingTrack -> MarbleCharacter -> RacePhysics -> Checkpoint/Progress -> Round
+	Marble spawning starts LAST so every subscriber (and the spawn resolver) exists first.
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- First, before anything can yield: this game has no Characters (see MarbleCharacterService).
-Players.CharacterAutoLoads = false
+Players.CharacterAutoLoads = false -- this game has no Characters (see MarbleCharacterService)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
+local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 
 local Services = script.Parent:WaitForChild("Services")
 local TrainingTrackService = require(Services:WaitForChild("TrainingTrackService"))
 local MarbleCharacterService = require(Services:WaitForChild("MarbleCharacterService"))
 local RacePhysicsService = require(Services:WaitForChild("RacePhysicsService"))
-local PracticeRunService = require(Services:WaitForChild("PracticeRunService"))
+local CheckpointService = require(Services:WaitForChild("CheckpointService"))
+local ProgressService = require(Services:WaitForChild("ProgressService"))
+local RoundService = require(Services:WaitForChild("RoundService"))
 
--- Remotes: created by the server only, from Protocol.
-local existing = ReplicatedStorage:FindFirstChild(Protocol.RemotesFolderName)
+local existing = ReplicatedStorage:FindFirstChild(RoundProtocol.FolderName)
 if existing then
 	existing:Destroy()
 end
 local remotes = Instance.new("Folder")
-remotes.Name = Protocol.RemotesFolderName
-for _, remoteName in pairs(Protocol.Remotes) do
+remotes.Name = RoundProtocol.FolderName
+remotes:SetAttribute("ProtocolVersion", RoundProtocol.Version)
+for remoteName in pairs(RoundProtocol.Remotes) do
 	local remote = Instance.new("RemoteEvent")
 	remote.Name = remoteName
 	remote.Parent = remotes
@@ -47,10 +50,22 @@ end
 
 local marbles = MarbleCharacterService.new(track)
 local physics = RacePhysicsService.new(track, marbles)
-local runs = PracticeRunService.new(track, marbles, physics)
+local checkpoints = CheckpointService.new(track)
+local progress = ProgressService.new(checkpoints, physics)
+local round = RoundService.new({
+	track = track,
+	marbles = marbles,
+	physics = physics,
+	checkpoints = checkpoints,
+	progress = progress,
+	remotes = remotes,
+})
 
 physics:Start()
-runs:Start()
-marbles:Start(remotes)
+round:Start()
+marbles:Start()
 
-print(string.format("[TumbleCircuit] server ready (%s)", GameConfig.Version))
+-- Studio integration tests can reach the live services through this table (never replicated).
+_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, remotes = remotes }
+
+print(string.format("[TumbleCircuit] server ready (%s, protocol v%d)", GameConfig.Version, RoundProtocol.Version))

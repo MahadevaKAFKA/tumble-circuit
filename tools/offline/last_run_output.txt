@@ -3,31 +3,44 @@ ok    PLACEHOLDER_IDS.lua
 ok    src/ReplicatedStorage/Shared/GameConfig.lua
 ok    src/ReplicatedStorage/Shared/PhysicsConfig.lua
 ok    src/ReplicatedStorage/Shared/Protocol.lua
+ok    src/ReplicatedStorage/Shared/RaceConfig.lua
+ok    src/ReplicatedStorage/Shared/RoundProtocol.lua
 ok    src/ReplicatedStorage/Shared/RouteTracker.lua
 ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
 ok    src/ReplicatedStorage/Shared/Utility.lua
 ok    src/ServerScriptService/ServerBootstrap.server.lua
+ok    src/ServerScriptService/Services/CheckpointService.lua
 ok    src/ServerScriptService/Services/MarbleCharacterService.lua
-ok    src/ServerScriptService/Services/PracticeRunService.lua
+ok    src/ServerScriptService/Services/ProgressService.lua
 ok    src/ServerScriptService/Services/RacePhysicsService.lua
+ok    src/ServerScriptService/Services/RaceRules.lua
+ok    src/ServerScriptService/Services/RoundService.lua
 ok    src/ServerScriptService/Services/TrainingTrackService.lua
+ok    src/ServerStorage/ProceduralBuilders/HubBuilder.lua
 ok    src/ServerStorage/ProceduralBuilders/TrainingTrackBuilder.lua
 ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MarbleMotorController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SoundController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/TouchControls.lua
-ok    src/Tests/A1PureSpecs.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/UIKit.lua
+ok    src/Tests/Integration/MultiplayerRound.spec.lua
 ok    src/Tests/TestRunner.server.lua
+ok    src/Tests/Unit/A1PureSpecs.lua
+ok    src/Tests/Unit/RoundState.spec.lua
 ok    tools/offline/harness.lua
 ok    tools/offline/roblox_shim.lua
 ok    tools/offline/run_tests.lua
 
 == A1 pure specs ==
-WARN	[TumbleCircuit] signal handler error: ./src/Tests/A1PureSpecs.lua:112: deliberate test error (expected warning)
+WARN	[TumbleCircuit] signal handler error: ./src/Tests/Unit/A1PureSpecs.lua:107: deliberate test error (expected warning)
+
+-- A1 pure specs --
 PASS  ball is a 4-stud diameter sphere (radius 2)
 PASS  ball density within Roblox range
 PASS  ball friction/elasticity in [0,2]/[0,1]
@@ -55,7 +68,6 @@ PASS  palette has Yellow
 PASS  palette has Violet
 PASS  palette has Mint
 PASS  placeholder sound ids are nil or well-formed (none invented)
-PASS  A1 exposes exactly one remote (RequestReset)
 PASS  attribute names unique and <= 50 chars
 PASS  exponential smoothing is frame-rate independent
 PASS  deadzone zeroes small input
@@ -94,11 +106,39 @@ PASS  part budget under 1500
 PASS  exactly one gentle bumper hazard
 PASS  pulse bumper cycles Idle -> Telegraph -> Active -> Idle
 PASS  hazard telegraph lasts 0.5-1.0 s before activating
-
 info  tunables: accel 35, lateral cap 22, terminal 80, air 40%, brake x0.65, deadzone 0.12 (spec hypotheses 35/22/80/40%/0.65/0.12)
 info  camera turn-rate kick at 35 studs/s, 60 fps: 1.31 deg/s per frame (raw polyline: ~20)
 info  floor: 19 flat quads as boxes, 252 wedges for curved/banked quads
-info  course parts: 701 total, 438 collidable
+info  course parts: 714 total, 439 collidable
 info  route 947 studs; 1-D MODEL (full throttle, no braking/steering losses) clean run ~17.9 s, end speed 60 -- not a measurement
 
-66 passed, 0 failed (+ 0 syntax failures)
+-- A2 round specs --
+PASS  every round state is reachable from Boot
+PASS  no round state is a dead end
+PASS  full race cycle Intermission -> ... -> Intermission is legal
+PASS  cannot jump Lobby -> Racing or Intermission -> Racing
+PASS  self-transitions are not in the graph (idempotence is RoundService's job)
+PASS  aborts always possible once racers are placed
+PASS  remote payload validation accepts only exact schemas
+PASS  every client remote is rate limited; no Set* remotes exist
+PASS  standings: finishers by order, then checkpoint, then distance, ties by ordinal, DNF last
+PASS  near-simultaneous finishes ordered by interpolated time then ordinal
+PASS  crossing fraction interpolates inside a sample
+PASS  grid shuffle is a deterministic permutation
+PASS  grid shuffle varies between rounds
+PASS  checkpoints confirmed in order, then finish
+PASS  finish time interpolated within one sample
+PASS  finished racer produces no further events
+PASS  teleport-sized progress jump is rejected (no checkpoint)
+PASS  crossing outside the corridor is rejected
+PASS  impossibly fast split (120 studs/s average) is rejected
+PASS  respawn sample (no previous progress) never crosses
+PASS  progress capped at the next unconfirmed checkpoint
+PASS  hub has 16 spawn spots, spaced >= 1.5 marble widths
+PASS  hub spawns sit well inside the rim
+PASS  practice chute starts flush with the hub floor edge
+PASS  hub rim leaves the chute entrance open
+PASS  practice chute validates
+PASS  race track has >= 3 checkpoints and 16 grid slots
+
+92 passed, 0 failed (+ 0 syntax failures)

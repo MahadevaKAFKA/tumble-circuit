@@ -4,7 +4,8 @@
 	  brake  : bool, brakePressed: true on the frame brake goes down
 	  recover: hold-to-reset progress (1 s), fires RecoverTriggered once per hold
 
-	PC:        A/D (or arrows) steer, W/S forward/back bias, Shift brake, hold R reset, V camera
+	PC:        A/D (or arrows) steer, W/S forward/back bias, Shift brake, hold R reset, V camera,
+	           Tab standings, Q/E cycle spectated racer (A2)
 	Gamepad:   left stick steer/bias, LT brake, hold Y reset, R3 camera
 	Touch:     TouchControls feeds virtual steer + Brake/Recover buttons (one explicit stick only;
 	           the default Roblox touch controls are disabled by ClientBootstrap)
@@ -102,6 +103,8 @@ function InputController.new()
 	self.CameraToggleRequested = Utility.Signal.new()
 	self.PerfToggleRequested = Utility.Signal.new()
 	self.PrimaryActionRequested = Utility.Signal.new()
+	self.SpectateCycleRequested = Utility.Signal.new() -- (direction -1 | 1), Q/E or LB/RB
+	self.ScoreboardToggleRequested = Utility.Signal.new() -- Tab / D-pad up
 
 	local function setDevice(device)
 		if device and device ~= self.device then
@@ -145,6 +148,12 @@ function InputController.new()
 			self.PerfToggleRequested:Fire()
 		elseif code == KEY.Return or code == KEY.KeypadEnter or code == KEY.Space or code == KEY.ButtonA then
 			self.PrimaryActionRequested:Fire()
+		elseif code == KEY.Q or code == KEY.ButtonL1 then
+			self.SpectateCycleRequested:Fire(-1)
+		elseif code == KEY.E or code == KEY.ButtonR1 then
+			self.SpectateCycleRequested:Fire(1)
+		elseif code == KEY.Tab or code == KEY.DPadUp then
+			self.ScoreboardToggleRequested:Fire()
 		end
 	end))
 

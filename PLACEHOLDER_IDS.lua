@@ -14,11 +14,12 @@ return {
 		-- Finish = "rbxassetid://<id>",
 		-- BumperKick = "rbxassetid://<id>",
 		-- Respawn = "rbxassetid://<id>",
+		-- Checkpoint = "rbxassetid://<id>",
 		-- UIClick = "rbxassetid://<id>",
 	},
 	Music = {
 		-- Practice = "rbxassetid://<id>",
 	},
 	-- Keys the code may ask for. Tests check that anything you fill in is well-formed.
-	KnownSoundKeys = { "RunStart", "Finish", "BumperKick", "Respawn", "UIClick" },
+	KnownSoundKeys = { "RunStart", "Finish", "BumperKick", "Respawn", "UIClick", "Checkpoint" },
 }

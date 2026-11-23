@@ -1,8 +1,13 @@
-# Tumble Circuit: Chaos Drop — Phase A1
+# Tumble Circuit: Chaos Drop — Phase A2
 
-A marble-racing Roblox game, built as a Rojo/Luau project. Phase A1 — "the marble must feel
-great": one marble, steering, braking, a chase camera and a short training course
-(start pad → straight ramp → banked S-turn → pulse bumper → 90° banked drop → finish basin).
+A marble-racing Roblox game, built as a Rojo/Luau project.
+
+- **A1** — "the marble must feel great": one marble, steering, braking, a chase camera and a short
+  training course (start pad → straight ramp → banked S-turn → pulse bumper → 90° banked drop →
+  finish basin). Played on the owner's phone, 2026-11-23: go.
+- **A2** — fair multiplayer rounds: Orbital Garage hub with a practice chute, automatic rounds
+  (intermission → frozen grid → 3-2-1 → GO → race → results), server-judged checkpoints and
+  placings, spawn protection and bump limits, spectating.
 
 Two ways to work with it:
 
@@ -17,7 +22,7 @@ Manual playtest checklist: [TEST_PLAN.md](TEST_PLAN.md).
 ## The cloud pipeline
 
 - **Build** (`.github/workflows/build.yml`) — runs on every push. Checks every script
-  (syntax, globals, module/config references), runs the project's own 57 offline specs,
+  (syntax, globals, module/config references), runs the project's own offline specs (92 for A1 + A2),
   lints with Selene, builds the place with **Rojo**, verifies the built place with **Lune**,
   and attaches `TumbleCircuit.rbxl` / `.rbxlx` as a downloadable artifact. Publishes nothing.
 - **Deploy to Roblox (private playtest)** (`.github/workflows/deploy.yml`) — started by hand

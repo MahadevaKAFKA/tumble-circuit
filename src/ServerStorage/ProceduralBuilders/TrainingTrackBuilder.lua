@@ -340,7 +340,22 @@ function Builder.ComputeSpecs(layout)
 	for _, gate in ipairs(layout.Gates) do
 		local f = gate.Frame
 		local half = f.Width / 2 + railT + 1.2
-		local color = gate.Kind == "Finish" and palette.Mint or palette.Cyan
+		local color = palette.Cyan
+		if gate.Kind == "Finish" then
+			color = palette.Mint
+		elseif gate.Kind == "Checkpoint" then
+			color = palette.Violet
+			add({
+				Class = "Part",
+				Name = "CheckpointLine",
+				Folder = "Decor",
+				Size = Vector3.new(f.Width - 0.5, 0.1, 0.8),
+				CFrame = frameCFrame(f, 0.05),
+				Color = palette.Violet,
+				Material = "Neon",
+				Collide = false,
+			})
+		end
 		local base = frameCFrame(f, 0)
 		for _, sideSign in ipairs({ -1, 1 }) do
 			add({
@@ -364,6 +379,23 @@ function Builder.ComputeSpecs(layout)
 			Material = "SmoothPlastic",
 			Collide = false,
 			Gui = { Kind = "Surface", Text = gate.Text, Color = color },
+		})
+	end
+
+	-- A2 start gate: a physical barrier the round opens at GO (RoundService toggles it).
+	if layout.StartGateFrame and def.StartGate then
+		local g = layout.StartGateFrame
+		local height = def.StartGate.Height or 5
+		add({
+			Class = "Part",
+			Name = "StartGate",
+			Folder = "Gates",
+			Size = Vector3.new(g.Width + railT * 2, height, 1),
+			CFrame = frameCFrame(g, height / 2),
+			Color = palette.Coral,
+			Material = "Neon",
+			Transparency = 0.35,
+			Physics = railPhysics,
 		})
 	end
 
@@ -519,6 +551,8 @@ local function makePart(spec, parent)
 	return part
 end
 
+Builder.MakePart = makePart
+
 -- Build the course under `parent` (normally Workspace). Returns the root Folder.
 function Builder.Build(layout, parent, name)
 	local root = Instance.new("Folder")
@@ -546,7 +580,7 @@ function Builder.Build(layout, parent, name)
 		end
 		return parentFolder
 	end
-	for _, folderName in ipairs({ "Floor", "Rails", "Decor", "Hazards" }) do
+	for _, folderName in ipairs({ "Floor", "Rails", "Decor", "Hazards", "Gates" }) do
 		folderFor(folderName)
 	end
 

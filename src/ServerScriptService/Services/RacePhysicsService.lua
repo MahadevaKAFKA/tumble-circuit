@@ -1,13 +1,14 @@
 --[[
-	RacePhysicsService (server, A1 scope) — observes every marble at a fixed low rate:
-	route progress (RouteTracker, ADR-09), measured speed, fall-off detection, and a speed-envelope
-	anomaly LOG (never a punishment). It publishes Progress for PracticeRunService.
+	RacePhysicsService (server) — observes every marble at PhysicsConfig.Server.MonitorHz:
+	  * route progress on the marble's zone (RouteTracker, ADR-09), measured speed
+	  * falls: below the zone's kill height, or (race zone) far off the route for a while
+	  * movement audit: distance moved over a sliding window vs the plausibility envelope
+	    (catches teleports without flagging replication hiccups); logged, and reported so the
+	    round can put the marble back at its last confirmed checkpoint. Never a ban.
+	Publishes Progress (consumed by checkpoints/standings), Fell and MovementRejected.
 
-	In A1 the owning client applies the steering forces (client network ownership). The server
-	does not apply forces; validating impulses and movement plausibility for competitive rounds is
-	A2 work (see BUILD_STATUS "A2 security notes").
-
-	One Heartbeat connection for all players. Elapsed time is accumulated, never discarded.
+	Client network ownership means forces are applied by the owning client; this service is the
+	server's audit of the result. Exposes the envelope and impulse caps for later milestones.
 ]]
 
 local Players = game:GetService("Players")
@@ -15,14 +16,21 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
-local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
+local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local RouteTracker = require(Shared:WaitForChild("RouteTracker"))
 local Utility = require(Shared:WaitForChild("Utility"))
+local RaceRules = require(script.Parent:WaitForChild("RaceRules"))
 
 local RacePhysicsService = {}
 RacePhysicsService.__index = RacePhysicsService
+
+-- Largest velocity change any server-approved impulse may impose (studs/s). A3 abilities use it.
+RacePhysicsService.ImpulseCaps = {
+	BumperKick = PhysicsConfig.Hazards.PulseBumper.KickSpeed,
+	MarbleBump = RaceConfig.Collisions.MaxBumpDeltaV,
+}
 
 function RacePhysicsService.new(trackService, marbleService)
 	local self = setmetatable({}, RacePhysicsService)
@@ -30,19 +38,35 @@ function RacePhysicsService.new(trackService, marbleService)
 	self.marbles = marbleService
 	self.entries = {}
 	self.maid = Utility.Maid.new()
-	self.Progress = Utility.Signal.new() -- (player, info) info = {s, distance, speed, position, ...}
-	self.Fell = Utility.Signal.new() -- (player)
+	self.Progress = Utility.Signal.new() -- (player, info)
+	self.Fell = Utility.Signal.new() -- (player, zone)
+	self.MovementRejected = Utility.Signal.new() -- (player, info)
+	self.SampleComplete = Utility.Signal.new() -- () after every player was observed this sample
 	return self
 end
 
+function RacePhysicsService:GetEnvelope()
+	local v = RaceConfig.Validation
+	return {
+		terminalSpeed = PhysicsConfig.Movement.TerminalSpeed,
+		factor = v.PlausibleSpeedFactor,
+		windowSeconds = v.WindowSeconds,
+		slackStuds = v.SlackStuds,
+	}
+end
+
 function RacePhysicsService:Start()
-	local layout = self.track:GetLayout()
-	self.maid:Give(self.marbles.MarbleSpawned:Connect(function(player, ball)
+	self.maid:Give(self.marbles.MarbleSpawned:Connect(function(player, ball, _, zone)
+		local layout = self.track:GetLayout(zone)
 		self.entries[player] = {
 			ball = ball,
+			zone = zone,
+			layout = layout,
 			tracker = RouteTracker.new(layout.Route),
-			overSpeedSeconds = 0,
-			anomalyLogged = false,
+			history = {},
+			offRouteSeconds = 0,
+			lastS = nil,
+			lastTime = nil,
 			lastInfo = nil,
 		}
 	end))
@@ -62,45 +86,69 @@ function RacePhysicsService:Start()
 		end
 		local elapsed = accumulated
 		accumulated = 0
+		local now = os.clock()
 		for player, entry in pairs(self.entries) do
-			self:_observe(player, entry, elapsed)
+			self:_observe(player, entry, elapsed, now)
 		end
+		self.SampleComplete:Fire()
 	end))
 end
 
-function RacePhysicsService:_observe(player, entry, elapsed)
+function RacePhysicsService:_observe(player, entry, elapsed, now)
 	local ball = entry.ball
 	if not ball.Parent then
 		return
 	end
 	local position = ball.Position
-	local velocity = ball.AssemblyLinearVelocity
 	local info = entry.tracker:Update(position)
-	info.speed = velocity.Magnitude
+	info.speed = ball.AssemblyLinearVelocity.Magnitude
 	info.position = position
+	info.zone = entry.zone
+	info.time = now
+	info.prevS = entry.lastS
+	info.prevTime = entry.lastTime
+	info.halfWidth = entry.layout.Sections[math.min(info.index, #entry.layout.Sections)].Width / 2
+	info.frozen = ball.Anchored
+	entry.lastS = info.s
+	entry.lastTime = now
 	entry.lastInfo = info
 
-	if position.Y < self.track:GetKillY() then
+	-- Falls
+	local fell = position.Y < self.track:GetKillY(entry.zone)
+	if not fell and entry.zone == Protocol.Zones.Race and not ball.Anchored then
+		if info.distance > RaceConfig.Recovery.OffRouteDistance then
+			entry.offRouteSeconds = entry.offRouteSeconds + elapsed
+			fell = entry.offRouteSeconds >= RaceConfig.Recovery.OffRouteSeconds
+		else
+			entry.offRouteSeconds = 0
+		end
+	end
+	if fell then
 		self.entries[player] = nil -- stop observing until the next spawn
-		self.Fell:Fire(player)
-		self.marbles:ScheduleRespawn(player, Protocol.SpawnReasons.Fell, GameConfig.Spawn.FallRespawnDelaySeconds)
+		self.Fell:Fire(player, entry.zone)
+		self.marbles:ScheduleRespawn(player, Protocol.SpawnReasons.Fell, RaceConfig.Recovery.FallRespawnDelaySeconds)
 		return
 	end
 
-	local envelope = PhysicsConfig.Movement.TerminalSpeed * PhysicsConfig.Server.AnomalySpeedFactor
-	if info.speed > envelope then
-		entry.overSpeedSeconds = entry.overSpeedSeconds + elapsed
-		if entry.overSpeedSeconds >= PhysicsConfig.Server.AnomalySustainSeconds and not entry.anomalyLogged then
-			entry.anomalyLogged = true
-			warn(string.format(
-				"[RacePhysics] anomaly (logged only): %s held %.0f studs/s, envelope %.0f",
-				player.Name,
-				info.speed,
-				envelope
-			))
+	-- Movement audit over a sliding window (spawns reset the history).
+	local history = entry.history
+	history[#history + 1] = { t = now, p = position }
+	local window = RaceConfig.Validation.WindowSeconds
+	while #history > 2 and history[2].t <= now - window do
+		table.remove(history, 1)
+	end
+	local oldest = history[1]
+	local span = now - oldest.t
+	if span >= window * 0.9 then
+		local env = self:GetEnvelope()
+		local moved = (position - oldest.p).Magnitude
+		if RaceRules.ExceedsEnvelope(moved, span, env.terminalSpeed, env.factor, env.slackStuds) then
+			warn(string.format("[RacePhysics] movement rejected (logged): %s moved %.0f studs in %.2fs (zone %s)", player.Name, moved, span, entry.zone))
+			info.rejected = true
+			entry.history = { { t = now, p = position } }
+			self.MovementRejected:Fire(player, info)
+			return
 		end
-	else
-		entry.overSpeedSeconds = 0
 	end
 
 	self.Progress:Fire(player, info)

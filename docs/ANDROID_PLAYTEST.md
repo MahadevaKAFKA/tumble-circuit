@@ -1,4 +1,4 @@
-# Playtesting A1 on Android (no Studio)
+# Playtesting on Android (no Studio)
 
 After a successful **Deploy** run (see [SETUP.md](SETUP.md)), use either method. The
 experience stays private: only you, plus any collaborators you add, can join.
@@ -23,6 +23,39 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
+## Current build: A2 — multiplayer rounds
+
+You join in the **Orbital Garage** hub (round glass platform). The **practice chute** loops back
+to the hub so you can roll while you wait. Every round runs on its own, and one player is enough:
+
+1. **NEXT RACE IN 15** on the hub board (intermission).
+2. Everyone queued is placed on the start grid, frozen (2 s), then **3-2-1** and **GO!**: the
+   coral gate opens.
+3. Race the training course: three checkpoints flash as you pass them, with your place on screen.
+   Falling off or holding RESET puts you back at your last checkpoint.
+4. **RACE RESULTS** for 12 s, with **PLAY AGAIN** / **SIT OUT**, then back to the hub.
+
+Extra touch control in A2: **LIST** (above RESET) shows or hides the standings. When you sit out,
+the **SPECTATE** and **< >** buttons let you watch someone else's marble.
+
+The small stats box (top left) is on for private playtests. If its second line ever lists a
+hitch, send a screenshot.
+
+### What to check (A2)
+- [ ] You spawn in the hub, the board counts down, the practice chute works and brings you back.
+- [ ] Grid → 3-2-1 → GO: you can't move before GO and can move right after it.
+- [ ] Each checkpoint flashes once, in order; the finish shows your time and place.
+- [ ] Fall off / hold RESET mid-race → back at your last checkpoint (not the start).
+- [ ] Results screen: PLAY AGAIN and SIT OUT both work; three rounds in a row with no stuck state.
+- [ ] LIST button shows the standings during a race.
+- [ ] **Errors:** type `/console` in chat, open **Log**, and check **Client** and **Server**
+      (you see the server log because you own the game). Screenshot any red lines.
+
+Two-player checks (bumping, placement between players) need a second Roblox account that can
+join the private experience. That can wait until later.
+
+## A1 reference
+
 ## Touch controls (A1)
 
 | Control | Where | What it does |
@@ -35,7 +68,7 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 There is only ever one stick (Roblox's default stick and jump button are turned off). A1 has
 no jump — the marble stays on the track.
 
-## What to check (Phase A1)
+## What to check (Phase A1, practice course only)
 
 - [ ] Night sky, neon course, title **TUMBLE CIRCUIT / CHAOS DROP** with **PLAY PRACTICE**.
 - [ ] Tap PLAY PRACTICE → steering card. Drag left and right → both turn green, "Nice steering!" (or SKIP).
