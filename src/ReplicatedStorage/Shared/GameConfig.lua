@@ -11,7 +11,10 @@ GameConfig.BuildLabel = "A1 prototype - practice course"
 GameConfig.Debug = {
 	RunTestsInStudio = true, -- TestRunner prints PASS/FAIL to Output when playing in Studio
 	VerboseLogging = false,
-	PerfOverlayDefault = false, -- F2 toggles the frame-time overlay in game
+	-- Frame-time overlay (top left). ON for the private phone playtests so stalls can be read on a
+	-- phone with no F2 key; turn it off before anyone else plays. F2 toggles it in game.
+	PerfOverlayDefault = true,
+	HitchThresholdSeconds = 0.25, -- frames longer than this are logged with where the marble was
 }
 
 GameConfig.Spawn = {

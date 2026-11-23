@@ -346,6 +346,17 @@ end)
 ---------------------------------------------------------------------------------------------
 local RENDER_STEP = "TumbleCircuitClient"
 local steerRequired = GameConfig.Tutorial.SteerSecondsRequired
+local hitchThreshold = GameConfig.Debug.HitchThresholdSeconds
+local clientStart = os.clock()
+local runNumber = 0
+local lastRunState = nil
+
+-- Name of the course piece under route segment i (segment i runs from section i to i + 1).
+local function pieceNameAt(index)
+	local section = layout.Sections[index + 1] or layout.Sections[index]
+	local piece = section and layout.Pieces[section.PieceIndex]
+	return piece and piece.Name or "?"
+end
 
 RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, function(dt)
 	hud:RecordFrame(dt)
@@ -355,10 +366,16 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	local progressS = 0
 	local speed = 0
 	local rs = runState()
+	if rs == STATES.Running and lastRunState ~= STATES.Running then
+		runNumber = runNumber + 1
+	end
+	lastRunState = rs
+	local where = "no marble"
 	if ball and ball.Parent then
 		local info = tracker:Update(ball.Position)
 		progressS = info.s
 		speed = ball.AssemblyLinearVelocity.Magnitude
+		where = string.format("@%s run%d", pieceNameAt(info.index), runNumber)
 
 		local target = RouteTracker.SmoothHorizontalTangentAtS(
 			layout.Route,
@@ -397,6 +414,11 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 				finishTutorial("Nice steering!")
 			end
 		end
+	end
+
+	if dt >= hitchThreshold then
+		hud:RecordHitch(dt, where)
+		warn(string.format("[TumbleCircuit] hitch %.2f s %s, %.0f s after join", dt, where, os.clock() - clientStart))
 	end
 
 	cameraController:Step(dt, progressS)

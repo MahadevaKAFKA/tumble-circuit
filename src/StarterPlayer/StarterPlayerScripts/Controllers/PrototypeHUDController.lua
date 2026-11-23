@@ -7,13 +7,16 @@
 	  top right    CAM toggle and hold-to-RESET (mouse/keyboard layout only; touch has its own)
 	  bottom left  device-specific control hint (keyboard / gamepad)
 	  centre       toast messages, one skippable steering tutorial card
-	  top left     F2 frame-time overlay (avg + 95th percentile), off by default
+	  top left     frame-time overlay (FPS, p95, worst frame, memory, ping) + the last hitches
+	               (frames longer than GameConfig.Debug.HitchThresholdSeconds, with where they
+	               happened); F2 toggles it, GameConfig.Debug.PerfOverlayDefault sets the default
 	Overlay (full screen, above everything): title / Play Practice, Finish! / Try Again,
 	loading and fatal-error messages.
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Stats = game:GetService("Stats")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -100,6 +103,7 @@ function HUD.new(input)
 	self.frameTimes = {}
 	self.frameIndex = 0
 	self.perfTimer = 0
+	self.hitches = {}
 	self.lastTimerText = nil
 	self.lastSpeedText = nil
 	self.PlayPressed = Utility.Signal.new()
@@ -294,13 +298,19 @@ function HUD.new(input)
 	self.perfLabel = label(root, {
 		Name = "Perf",
 		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.fromOffset(360, 20),
+		Size = UDim2.fromOffset(460, 40),
+		TextScaled = false,
+		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
 		Font = Enum.Font.Code,
 		TextColor3 = palette.Mint,
+		BackgroundColor3 = palette.Ink,
+		BackgroundTransparency = 0.45,
 		Text = "measuring...",
 		Visible = self.perfVisible,
 	})
+	new("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingTop = UDim.new(0, 3) }, self.perfLabel)
 
 	------------------------------------------------------------------ Overlay layer
 	local overlayGui = new("ScreenGui", {
@@ -491,7 +501,17 @@ function HUD:TogglePerf()
 	self.perfLabel.Visible = self.perfVisible
 end
 
--- Frame-time sampling for the F2 overlay (last 240 frames).
+-- A frame longer than GameConfig.Debug.HitchThresholdSeconds. `where` says where the marble was.
+-- The newest three are shown on the overlay's second line.
+function HUD:RecordHitch(seconds, where)
+	table.insert(self.hitches, 1, string.format("%.2fs %s", seconds, where))
+	if #self.hitches > 3 then
+		table.remove(self.hitches)
+	end
+	self.perfTimer = math.huge -- refresh the overlay on this frame
+end
+
+-- Frame-time sampling for the overlay (last 240 frames).
 function HUD:RecordFrame(dt)
 	self.frameIndex = self.frameIndex % 240 + 1
 	self.frameTimes[self.frameIndex] = dt
@@ -515,7 +535,23 @@ function HUD:RecordFrame(dt)
 	table.sort(samples)
 	local avg = total / #samples
 	local p95 = samples[math.max(1, math.ceil(#samples * 0.95))]
-	self.perfLabel.Text = string.format("FPS %.0f  avg %.1f ms  p95 %.1f ms  (%d frames)", 1 / avg, avg * 1000, p95 * 1000, #samples)
+	local worst = samples[#samples]
+	local okMem, memMb = pcall(function()
+		return Stats:GetTotalMemoryUsageMb()
+	end)
+	local okPing, ping = pcall(function()
+		return Players.LocalPlayer:GetNetworkPing()
+	end)
+	local line1 = string.format(
+		"FPS %.0f  p95 %.0f ms  worst %.0f ms  mem %s  ping %s",
+		1 / avg,
+		p95 * 1000,
+		worst * 1000,
+		okMem and string.format("%.0f MB", memMb) or "?",
+		okPing and string.format("%.0f ms", ping * 1000) or "?"
+	)
+	local line2 = #self.hitches > 0 and ("hitches: " .. table.concat(self.hitches, " | ")) or "hitches: none"
+	self.perfLabel.Text = line1 .. "\n" .. line2
 end
 
 -- state = { speed, runState, runStartServerTime, bestSeconds, lastRunSeconds, recoverProgress }
