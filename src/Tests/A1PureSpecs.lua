@@ -185,6 +185,71 @@ function Specs.run(m)
 	check("steering frame defined along the whole route (no vertical shaft flip)", okSteer)
 	check("steering frame never jumps > 10 deg per 2 studs", worstTurn <= 10, string.format("%.2f deg", worstTurn))
 
+	-- Smoothed (chord) heading used by the camera and the steering frame: defined everywhere, turns
+	-- continuously, and stays on the curve (no lag) — owner playtest 2026-11-23: turns "jumped".
+	local function angleDeg(a, b)
+		return math.deg(math.acos(math.max(-1, math.min(1, a:Dot(b)))))
+	end
+	for _, use in ipairs({
+		{ "camera", G.Camera.HeadingSmoothingStuds },
+		{ "steering frame", mv.SteerFrameSmoothingStuds },
+	}) do
+		local okSmooth, worstStep, worstDev, prevSmooth = true, 0, 0, nil
+		s = 0
+		while s <= layout.Route.total do
+			local smooth = m.RouteTracker.SmoothHorizontalTangentAtS(layout.Route, s, use[2])
+			local raw = m.RouteTracker.HorizontalTangentAtS(layout.Route, s)
+			if not smooth or not raw then
+				okSmooth = false
+			else
+				if prevSmooth then
+					worstStep = math.max(worstStep, angleDeg(prevSmooth, smooth))
+				end
+				worstDev = math.max(worstDev, angleDeg(raw, smooth))
+				prevSmooth = smooth
+			end
+			s = s + 1
+		end
+		check(use[1] .. " heading smoothing enabled (> 0 studs)", use[2] > 0)
+		check(use[1] .. " smoothed heading defined along the whole route", okSmooth)
+		check(use[1] .. " smoothed heading turns <= 1.5 deg per stud", worstStep <= 1.5, string.format("%.2f deg", worstStep))
+		check(use[1] .. " smoothed heading stays within 5 deg of the track", worstDev <= 5, string.format("%.2f deg", worstDev))
+	end
+
+	-- Camera turn rate must change gradually: simulate the camera heading filter riding the route at
+	-- 35 studs/s, 60 fps, and measure how much the turn rate changes from one frame to the next.
+	do
+		local cam, frameDt, speedSim = G.Camera, 1 / 60, 35
+		local atan2 = math.atan2 or math.atan -- Luau has atan2; plain Lua 5.3 uses two-argument atan
+		local heading = m.RouteTracker.SmoothHorizontalTangentAtS(layout.Route, cam.HeadingLookAheadStuds, cam.HeadingSmoothingStuds)
+		local prevYaw, prevRate, worstKick = nil, nil, 0
+		local sim = 0
+		while sim < layout.Route.total - cam.HeadingLookAheadStuds do
+			local target = m.RouteTracker.SmoothHorizontalTangentAtS(layout.Route, sim + cam.HeadingLookAheadStuds, cam.HeadingSmoothingStuds)
+				or heading
+			local turned = U.turnToward(heading, target, U.expAlpha(cam.HeadingResponse, frameDt), Vector3.new(0, 1, 0))
+			heading = U.safeUnit(Vector3.new(turned.X, 0, turned.Z), heading)
+			local yaw = atan2(heading.X, heading.Z)
+			if prevYaw then
+				local d = yaw - prevYaw
+				if d > math.pi then
+					d = d - 2 * math.pi
+				elseif d < -math.pi then
+					d = d + 2 * math.pi
+				end
+				local rate = math.deg(d) / frameDt
+				if prevRate then
+					worstKick = math.max(worstKick, math.abs(rate - prevRate))
+				end
+				prevRate = rate
+			end
+			prevYaw = yaw
+			sim = sim + speedSim * frameDt
+		end
+		info(string.format("camera turn-rate kick at 35 studs/s, 60 fps: %.2f deg/s per frame (raw polyline: ~20)", worstKick))
+		check("camera turn rate changes <= 5 deg/s per frame through curves", worstKick <= 5, string.format("%.2f deg/s", worstKick))
+	end
+
 	-- Route tracker: walking the centreline yields monotonic progress; a jump re-acquires.
 	local tracker = m.RouteTracker.new(layout.Route)
 	local lastS, trackOk, maxDist = -1, true, 0

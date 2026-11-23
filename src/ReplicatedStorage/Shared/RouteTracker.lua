@@ -87,6 +87,30 @@ function RouteTracker.HorizontalTangentAtS(route, s)
 	return flat / m
 end
 
+-- Gravity-projected tangent taken from the chord between the route points halfWindow studs before
+-- and after s. HorizontalTangentAtS is constant along each polyline segment, so on a curve it jumps
+-- by the curve's yaw step (5 deg) at every vertex; anything that follows it (camera, steering frame)
+-- then turns in little kicks, which feels like the marble has corners. The chord turns
+-- continuously instead, and on a circular arc it is parallel to the true tangent at s, so it does
+-- not lag the curve. halfWindow <= 0 falls back to HorizontalTangentAtS.
+-- Returns nil on a near-vertical stretch so callers keep their last stable direction.
+function RouteTracker.SmoothHorizontalTangentAtS(route, s, halfWindow)
+	if not halfWindow or halfWindow <= 0 then
+		return RouteTracker.HorizontalTangentAtS(route, s)
+	end
+	local chord = RouteTracker.PointAtS(route, s + halfWindow) - RouteTracker.PointAtS(route, s - halfWindow)
+	local length = chord.Magnitude
+	if length < 1e-6 then
+		return RouteTracker.HorizontalTangentAtS(route, s)
+	end
+	local flat = Vector3.new(chord.X, 0, chord.Z)
+	local m = flat.Magnitude
+	if m < 0.2 * length then
+		return nil
+	end
+	return flat / m
+end
+
 local function closestOnSegment(a, b, p)
 	local ab = b - a
 	local len2 = ab:Dot(ab)

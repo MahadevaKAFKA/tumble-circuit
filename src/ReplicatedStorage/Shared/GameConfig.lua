@@ -44,6 +44,7 @@ GameConfig.Camera = {
 	DropPitchGain = 0.85, -- how much of the route's downward angle ahead is added to pitch
 	LookAheadStuds = 26, -- route distance ahead used to detect drops
 	HeadingLookAheadStuds = 8, -- route distance ahead used for camera heading
+	HeadingSmoothingStuds = 10, -- heading = route chord +/- this many studs (0 = raw polyline, turns in kicks)
 	AimAheadStuds = 6, -- the camera aims slightly ahead of the marble
 	FocusHeight = 1.5,
 	HeadingResponse = 4.0, -- 1/s exponential smoothing rates (frame-rate independent)

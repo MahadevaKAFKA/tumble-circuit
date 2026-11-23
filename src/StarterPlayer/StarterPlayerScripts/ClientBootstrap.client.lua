@@ -360,7 +360,11 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 		progressS = info.s
 		speed = ball.AssemblyLinearVelocity.Magnitude
 
-		local target = RouteTracker.HorizontalTangentAtS(layout.Route, progressS + PhysicsConfig.Movement.SteerFrameLookAhead)
+		local target = RouteTracker.SmoothHorizontalTangentAtS(
+			layout.Route,
+			progressS + PhysicsConfig.Movement.SteerFrameLookAhead,
+			PhysicsConfig.Movement.SteerFrameSmoothingStuds
+		)
 		if target then
 			local turned = Utility.turnToward(steerForward, target, Utility.expAlpha(PhysicsConfig.Movement.SteerFrameResponse, dt))
 			steerForward = flatUnit(turned, steerForward)

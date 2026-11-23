@@ -2,7 +2,9 @@
 	CameraController — scriptable 3/4 chase camera.
 
 	* Heading = smoothed gravity-projected route tangent a few studs ahead (never the ball's spin,
-	  never its velocity), turned with turnToward() which cannot snap 180 degrees.
+	  never its velocity), turned with turnToward() which cannot snap 180 degrees. The tangent is
+	  the chord-smoothed one (RouteTracker.SmoothHorizontalTangentAtS), so the camera turns
+	  steadily through curves instead of in a small kick at every 5-degree polyline vertex.
 	* Pitch adapts to drops: the route's descent angle LookAheadStuds ahead is added to the base
 	  pitch, capped at MaxPitchDeg so the look vector never approaches vertical. Up is always
 	  world +Y, so CFrame.lookAt cannot flip.
@@ -113,7 +115,8 @@ function CameraController:Step(dt, progressS)
 	self.snapNext = false
 	self.lastBallPosition = position
 
-	local targetHeading = RouteTracker.HorizontalTangentAtS(route, s + cfg.HeadingLookAheadStuds) or self.heading
+	local targetHeading = RouteTracker.SmoothHorizontalTangentAtS(route, s + cfg.HeadingLookAheadStuds, cfg.HeadingSmoothingStuds)
+		or self.heading
 	local ahead = RouteTracker.PointAtS(route, s + cfg.LookAheadStuds)
 	local delta = ahead - position
 	local horizontal = math.max(1, Vector3.new(delta.X, 0, delta.Z).Magnitude)

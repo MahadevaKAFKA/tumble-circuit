@@ -75,6 +75,15 @@ PASS  spawn clearance: marble bottom above floor
 PASS  spawn has room each side
 PASS  steering frame defined along the whole route (no vertical shaft flip)
 PASS  steering frame never jumps > 10 deg per 2 studs
+PASS  camera heading smoothing enabled (> 0 studs)
+PASS  camera smoothed heading defined along the whole route
+PASS  camera smoothed heading turns <= 1.5 deg per stud
+PASS  camera smoothed heading stays within 5 deg of the track
+PASS  steering frame heading smoothing enabled (> 0 studs)
+PASS  steering frame smoothed heading defined along the whole route
+PASS  steering frame smoothed heading turns <= 1.5 deg per stud
+PASS  steering frame smoothed heading stays within 5 deg of the track
+PASS  camera turn rate changes <= 5 deg/s per frame through curves
 PASS  route tracker progress monotonic along the course
 PASS  route tracker re-acquires after respawn jump
 PASS  route tracker finish beyond start
@@ -87,8 +96,9 @@ PASS  pulse bumper cycles Idle -> Telegraph -> Active -> Idle
 PASS  hazard telegraph lasts 0.5-1.0 s before activating
 
 info  tunables: accel 35, lateral cap 22, terminal 80, air 40%, brake x0.65, deadzone 0.12 (spec hypotheses 35/22/80/40%/0.65/0.12)
+info  camera turn-rate kick at 35 studs/s, 60 fps: 1.31 deg/s per frame (raw polyline: ~20)
 info  floor: 19 flat quads as boxes, 252 wedges for curved/banked quads
 info  course parts: 701 total, 438 collidable
 info  route 947 studs; 1-D MODEL (full throttle, no braking/steering losses) clean run ~17.9 s, end speed 60 -- not a measurement
 
-57 passed, 0 failed (+ 0 syntax failures)
+66 passed, 0 failed (+ 0 syntax failures)

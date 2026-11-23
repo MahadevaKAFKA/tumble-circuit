@@ -78,6 +78,9 @@ PhysicsConfig.Movement = {
 	-- along the route it samples the tangent (studs).
 	SteerFrameResponse = 8,
 	SteerFrameLookAhead = 4,
+	-- The steering frame follows the route chord +/- this many studs, so it turns smoothly through
+	-- curves instead of in 5-degree kicks at every polyline vertex (0 = raw polyline).
+	SteerFrameSmoothingStuds = 10,
 }
 
 PhysicsConfig.Ground = {
