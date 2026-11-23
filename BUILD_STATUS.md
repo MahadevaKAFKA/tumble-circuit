@@ -125,5 +125,6 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-23 | A2 three-way merge + `luau_check` (34 files) + `texlua tools/offline/run_tests.lua .` | 0 errors, 1 warning (unused local `tangent` in HubBuilder, harmless); **92 passed, 0 failed** (A1 65 + A2 27) |
 | 2026-11-23 | Offline place build + `tests/verify_place.py` (A2) | 48 instances, 34 scripts, all references resolve |
 | 2026-11-23 | Smoothed heading on the A2 practice chute (offline) | defined everywhere; worst 0.92°/stud |
+| 2026-11-23 | GitHub Actions **Deploy** run 45173389534 (A2 commit 84d195d: Rojo build, Selene, Lune, 92 specs, publish) | **success**: Selene 0 errors / 19 style warnings (shadowing, `_G` in tests, UDim2 style); Lune: 48 instances, 34 scripts, all references resolve; **version 7** published, visibility PRIVATE |
 | — | A2 first phone playtest (solo rounds) | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |
