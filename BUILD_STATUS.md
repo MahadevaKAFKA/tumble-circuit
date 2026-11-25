@@ -166,5 +166,6 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | A2 phone re-test of v8 (owner, Roblox Android app) | **owner: "everything is going smoothly"** — marble moves at GO, join/sit-out and results work; A2 approved, go to A3 |
 | 2026-11-25 | A3 merge + `luau_check` (44 files) + offline specs + offline place build + `verify_place.py` | 0 errors (3 unused-local warnings); **140 passed, 0 failed**; 58 instances, 44 scripts, all references resolve; smoothed heading defined on both routes (worst 0.75 / 0.92 °/stud) |
 | 2026-11-25 | Cloud build run 45595559373 | **failed at Selene**: 2 `if_same_then_else` errors in `AbilitySecurity.spec.lua` (three branches all set `constrained = false`); folded into one condition, same meaning; nothing published |
+| 2026-11-25 | GitHub Actions **Deploy** run 45595693660 (A3, commit f77686c: Rojo, Selene, Lune, 140 specs, publish) | **success**: Selene 0 errors; **version 9** published, visibility PRIVATE |
 | — | A3 first phone playtest (solo) | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |
