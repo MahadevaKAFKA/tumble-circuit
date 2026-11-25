@@ -1,13 +1,36 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** B1 — three worlds, map vote, Time Trial with PB ghost, Party Race (Phase B
-started on the owner's go-ahead, 2026-11-25). Plan: docs/PHASE_BCD_PLAN.md.
-**State:** A1–A6 played on the owner's phone and approved (A6 hub fixes in v15). B1 offline-verified
-(398 specs) and published privately — **B1 has not been played in Roblox yet**.
+**Active milestone:** B2 — the nine play-earned abilities (Phase B on the owner's go-ahead,
+2026-11-25; plan: docs/PHASE_BCD_PLAN.md). B1 published as v16.
+**State:** A1–A6 played and approved on the owner's phone. B1 + B2 offline-verified (428 specs)
+and published privately — **neither has been played in Roblox yet**.
 **Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — Phase B2: nine play-earned abilities
+
+- **Frost Wake** (32 s): icy 10-stud lane 24 studs behind you for 2.2 s; a rival crossing it (server
+  positions) steers 25% less for 1.2 s (Shield blocks). **Magnet** (30 s): 3 pulls over 1.5 s on
+  rivals within 10 studs, ≤ 9 studs/s in total (Shield blocks; no loose pickups exist in the game,
+  so it only pulls rivals). **Phase** (38 s): 1.5 s through bumper posts, sweeper arms, hammer
+  heads (owner-local; floor/walls/checkpoints unchanged; bots identical). **Grapple Spark** (30 s):
+  server raycast to the nearest grapple ring ahead within 24 studs and before the next checkpoint
+  (rings generated every 150 studs on every world); ≤ 20 studs/s zip; no ring → no cooldown spent.
+  **Bounce Burst** (22 s): next landing or hit within 2 s adds one 18 studs/s bounce.
+  **Gravity Glide** (35 s): −35% gravity + 1.2× steering for 2.5 s (can't exceed gravity).
+  **Reverse Jet** (28 s): 16 studs/s backward hop. **Decoy** (40 s): server hologram labelled DECOY
+  rolls beside you for 3 s; anchored, no collision/query/touch, never a racer.
+  **Anchor** (30 s): 70% of knockback absorbed (kicks, impulses, marble bumps), steadier steering.
+- Effects: EffectState.statuses to the owner's motor (shared module: bots behave the same).
+- Earned only: level 3/6/10 unlocks a tier for free, or earned Coins 800/1200/1600 earlier
+  (RequestUnlockAbility; debit checked inside the same profile mutation). Profile schema **v2**
+  (ownedAbilityIds). No Robux anywhere.
+- ABILITIES menu lists all twelve; locked ones can be **TRIED** in the hub (practice set used only
+  on the platform / practice chute, never touches anyone); races always use the owned loadout.
+- Protocol v8. Offline: B2Abilities.spec (30). Not testable here: 2-client interactions
+  (frost/magnet/decoy vs real rivals), feel of each effect on a phone.
 
 ## 2026-11-25 — Phase B1: Sky Carnival, Volcano Vault, map vote, Time Trial, Party Race
 
@@ -368,6 +391,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | B1: `luau_check` (88 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **398 passed, 0 failed** (worlds 31, B1 rules 27 new); 102 instances, 88 scripts, all references resolve; 1-D model clean runs Foundry 64 s / Sky 54 s / Volcano 49 s (models, not measurements) |
 | — | Hub rework phone playtest | **pending owner** |
 | 2026-11-25 | GitHub Actions **Deploy** run 45609934353 (B1, Rojo, Selene 0 errors, Lune, 398 specs, publish) | **success**: **version 16** published, visibility PRIVATE |
+| 2026-11-25 | B2: `luau_check` (90 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **428 passed, 0 failed** (B2 abilities 30 new); 104 instances, 90 scripts, all references resolve |
 | — | B1 phone playtest (3 worlds, Time Trial) | **pending owner** |
+| — | B2 phone playtest (abilities) | **pending owner** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

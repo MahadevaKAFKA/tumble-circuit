@@ -305,3 +305,20 @@ builds) and `B1 rules specs` (map vote, party grouping, Time Trial + ghost rules
 - [ ] A Time Trial runner passes through racers (no contact), racers' results unaffected.
 - [ ] Party: two accounts in one Roblox party start on neighbouring slots; PARTY card count.
 
+## 12. B2 — nine play-earned abilities
+
+**Automated:** `B2 ability specs` — pack cooldowns/values, unlock tiers, unlock rules, frost lane,
+magnet cap, grapple (ahead / range / checkpoint / line of sight), reverse jet, status expiry,
+profile v2, motor statuses (chill, glide, anchor, bounce) — 0 failed.
+
+**Play Solo / phone**
+- [ ] Unlock by Coins (exact debit, once, persists) and by level (free); refused with the reason
+      otherwise. TRY in the hub; the race uses the owned loadout.
+- [ ] Each ability's effect, cooldown ring and cleanup on respawn / round end.
+- [ ] Grapple refuses with no ring ahead (no cooldown spent) and never pulls past a checkpoint.
+
+**Two clients**
+- [ ] Frost Wake chills a rival crossing the lane once (Shield blocks); Magnet pulls within 10
+      studs and Shield blocks; Decoy is labelled and can't be bumped or counted; Anchor absorbs
+      a Pulse (30% gets through); Phase passes a bumper post but not walls.
+

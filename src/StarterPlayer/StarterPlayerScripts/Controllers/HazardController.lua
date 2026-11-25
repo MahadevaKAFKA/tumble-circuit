@@ -249,6 +249,16 @@ function HazardController:Step(ball)
 	local shielded = self.isShielded and self.isShielded()
 	local bouncy = HazardSim.BumperKickMultiplier(self.modifier, workspace:GetServerTimeNow()) > 1
 
+	-- B2 Phase: tagged hazard props (bumper posts, sweeper arms, hammer heads) don't touch you
+	-- for 1.5 s. Locally only, for your own marble (you simulate it); floor/walls never change.
+	local phased = self.motor.HasStatus and self.motor:HasStatus("Phase") or false
+	if phased ~= self.phased then
+		self.phased = phased
+		for _, bumper in ipairs(self.bumpers) do
+			bumper.base.CanCollide = not phased
+			bumper.base.LocalTransparencyModifier = phased and 0.6 or 0
+		end
+	end
 	for _, bumper in ipairs(self.bumpers) do
 		local state, blend = HazardController.PhaseAt(t + (bumper.phaseOffset or 0), cfg)
 		local key = state .. math.floor(blend * 20) .. (bouncy and "B" or "") -- colour changes in 5% steps
@@ -285,7 +295,7 @@ function HazardController:Step(ball)
 				rock.CFrame = bumper.rockRest
 			end
 		end
-		if ball and ball.Parent and state == "Active" and now >= bumper.cooldownUntil then
+		if ball and ball.Parent and state == "Active" and now >= bumper.cooldownUntil and not phased then
 			local rel = ball.Position - bumper.floorPoint
 			local along = rel:Dot(bumper.axis)
 			if along > -1 and along < bumper.height + 1 then
@@ -307,6 +317,9 @@ function HazardController:Step(ball)
 			if hz.Params and hz.Frame and (hz.Kind == "Sweeper" or hz.Kind == "Hammer" or hz.Kind == "Trampoline") then
 				if (self.cooldowns[hz.Id] or 0) <= now then
 					local kick = HazardSim.Contact(hz, t, ball.Position, ballRadius)
+					if kick and hz.Kind ~= "Trampoline" and phased then
+						kick = nil -- B2 Phase: sweeper arms / hammer heads pass through you
+					end
 					if kick and (hz.Kind == "Trampoline" or not shielded) then
 						self.cooldowns[hz.Id] = now + 0.5
 						local cap = HazardSim.KickCap + 15

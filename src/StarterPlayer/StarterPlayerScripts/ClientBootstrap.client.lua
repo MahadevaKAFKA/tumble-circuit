@@ -408,7 +408,9 @@ end)
 ui:Register("AbilitiesRace", function(visible)
 	local me = myEntry()
 	local live = visible and roundState() == S.Racing and me ~= nil and not me.finished and currentZone == ZONES.Race
-	abilities:SetMode(live and "Race" or "Hidden", input.device)
+	-- B2 try-it: after TRY in the ability menu, the two buttons work in the hub on yourself
+	local practice = not live and visible and currentZone == ZONES.Hub and abilities:HasPractice()
+	abilities:SetMode((live or practice) and "Race" or "Hidden", input.device, practice)
 end)
 
 local function refreshGates()
@@ -701,6 +703,7 @@ maid:Give(remote.ProfileState.OnClientEvent:Connect(function(p)
 	end
 	profileState = p
 	matchUi:ApplyProfile(p)
+	loadout:SetProfile(p.level, p.coins) -- B2: unlock buttons know your level and Coins
 	results:ApplyProfile(p)
 	settings:ApplyServer(p.settings)
 end))
@@ -714,7 +717,8 @@ maid:Give(remote.RewardNotice.OnClientEvent:Connect(function(notice)
 end))
 maid:Give(abilities.StateReceived:Connect(function(state)
 	if type(state.loadout) == "table" then
-		loadout:ApplyServer(state.loadout)
+		loadout:ApplyServer(state.loadout, state)
+		refreshGates() -- B2: practice buttons appear / disappear
 		local AbilityConfig = require(Shared:WaitForChild("AbilityConfig"))
 		local a, b = AbilityConfig.Abilities[state.loadout[1]], AbilityConfig.Abilities[state.loadout[2]]
 		matchUi:SetLoadoutText((a and a.DisplayName or "?") .. " + " .. (b and b.DisplayName or "?"))

@@ -69,6 +69,7 @@ local modules = {
 	MapVoteRules = H.module("ServerScriptService/Services/MapVoteRules"),
 	PartyRules = H.module("ServerScriptService/Services/PartyRules"),
 	TimeTrialRules = H.module("ReplicatedStorage/Shared/TimeTrialRules"),
+	AbilityRules = H.module("ServerScriptService/Services/AbilityRules"),
 	SocialConfig = H.module("ReplicatedStorage/Shared/SocialConfig"),
 }
 -- A5 client modules: load-time references to client services are stubbed; only their pure
@@ -179,6 +180,7 @@ do
 	modules.MotorHarness = {
 		new = function()
 			local fakeWorkspace = {
+				Gravity = 196.2,
 				Spherecast = function()
 					return { Normal = Vector3.new(0, 1, 0) } -- always on flat ground
 				end,
@@ -219,6 +221,7 @@ local suites = {
 	{ "Hub free roam specs (offline only)", root .. "/src/Tests/Unit/HubFreeRoam.spec.lua" },
 	{ "B1 world specs", root .. "/src/Tests/Unit/Worlds.spec.lua" },
 	{ "B1 rules specs", root .. "/src/Tests/Unit/B1Rules.spec.lua" },
+	{ "B2 ability specs", root .. "/src/Tests/Unit/B2Abilities.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

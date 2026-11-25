@@ -32,6 +32,7 @@ local FEEDBACK = {
 	PerfectDodge = "PERFECT DODGE!",
 	SlipstreamOn = "SLIPSTREAM +12%",
 	Charge = "Cooldowns -1.5 s",
+	Chilled = "CHILLED! Steering -25%", -- B2 Frost Wake
 }
 
 function AbilityController.new(deps)
@@ -122,13 +123,21 @@ function AbilityController.new(deps)
 	end)
 	on("ApplyImpulse", function(data)
 		if typeof(data.direction) == "Vector3" and type(data.deltaV) == "number" then
-			self.motor:ApplyExternalImpulse(data.direction, data.deltaV, AbilityConfig.Abilities.Pulse.MaxDeltaV)
-			self.flash("PULSED!", palette.Coral, 0.8)
+			-- B2: the server names the source and its cap (never above 24 studs/s here)
+			local cap = math.min(type(data.cap) == "number" and data.cap or AbilityConfig.Abilities.Pulse.MaxDeltaV, 24)
+			self.motor:ApplyExternalImpulse(data.direction, data.deltaV, cap)
+			if data.source == "Magnet" then
+				self.flash("MAGNET!", palette.Violet, 0.6)
+			elseif data.source == nil or data.source == "Pulse" then
+				self.flash("PULSED!", palette.Coral, 0.8)
+			end
 		end
 	end)
 	on("SkillEvent", function(data)
 		local text = FEEDBACK[data.kind]
-		if data.kind == "Denied" or data.kind == "TrickFail" then
+		if data.kind == "Unlocked" then
+			self.flash(tostring(data.detail or "Unlocked"), palette.Yellow, 2) -- B2
+		elseif data.kind == "Denied" or data.kind == "TrickFail" then
 			self.toast(tostring(data.detail or "Not now"), 1.4)
 		elseif text then
 			self.flash(text, (data.kind == "NearMiss" or data.kind == "PerfectDodge") and palette.Yellow or palette.Mint, 1)
@@ -139,6 +148,18 @@ function AbilityController.new(deps)
 	end)
 	self:SetMode("Hidden", "KeyboardMouse")
 	return self
+end
+
+function AbilityController:HasPractice()
+	return self.state ~= nil and self.state.practice ~= nil
+end
+
+-- the two abilities on the buttons right now (B2: practice set in the hub)
+function AbilityController:_current()
+	if self.practiceMode and self.state and self.state.practice then
+		return self.state.practice
+	end
+	return self.state and self.state.loadout or {}
 end
 
 function AbilityController:RequestAbility(slot)
@@ -191,7 +212,7 @@ function AbilityController:_renderLoadout()
 		return
 	end
 	for slot = 1, 2 do
-		local id = self.state.loadout[slot]
+		local id = self:_current()[slot]
 		local def = AbilityConfig.Abilities[id]
 		local keys = KEYS[self.device or "KeyboardMouse"] or KEYS.KeyboardMouse
 		self.loadoutButtons[slot].Text = string.format("%s%s  (change)", keys[slot] ~= "" and (keys[slot] .. ": ") or ("SLOT " .. slot .. ": "), def and def.DisplayName or "?")
@@ -206,9 +227,10 @@ function AbilityController:_renderLoadout()
 end
 
 -- mode: "Hidden" | "Race" | "Hub"
-function AbilityController:SetMode(mode, device)
+function AbilityController:SetMode(mode, device, practice)
 	self.visibleMode = mode
 	self.device = device
+	self.practiceMode = practice == true -- B2: hub try-it buttons
 	local touch = device == "Touch"
 	local race = mode == "Race"
 	for slot = 1, 2 do
@@ -232,7 +254,7 @@ function AbilityController:Update()
 	local now = workspace:GetServerTimeNow()
 	for slot = 1, 2 do
 		local finish = self.state.cooldowns[slot] or 0
-		local def = AbilityConfig.Abilities[self.state.loadout[slot]]
+		local def = AbilityConfig.Abilities[self:_current()[slot]]
 		local left = math.max(0, finish - now)
 		local fraction = def and math.clamp(left / def.Cooldown, 0, 1) or 0
 		self.slots[slot].fill.Size = UDim2.fromScale(1, fraction)

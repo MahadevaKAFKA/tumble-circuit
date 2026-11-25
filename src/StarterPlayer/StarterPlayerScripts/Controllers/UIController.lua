@@ -19,8 +19,9 @@ UIController.Screens = {
 	Lobby = {
 		-- No RaceHud here (owner playtest 2026-11-25): its top-centre status sat on top of the hub's
 		-- 3D board; the lobby column now carries the countdown / waiting line itself.
-		layers = { "Hud", "Lobby", "Modes", "Touch", "Social" }, -- loadout summary lives on the LOADOUT button
-		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote" },
+		-- AbilitiesRace here = B2 try-it buttons (only shown after TRY in the ability menu)
+		layers = { "Hud", "Lobby", "Modes", "Touch", "Social", "AbilitiesRace" }, -- loadout summary lives on the LOADOUT button
+		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2" },
 	},
 	-- B1 solo Time Trial: timer card + QUIT; no abilities, no lobby column
 	TimeTrial = { layers = { "Hud", "TimeTrial", "Touch" }, buttons = { "QuitTrial", "Brake", "Reset", "Camera" } },

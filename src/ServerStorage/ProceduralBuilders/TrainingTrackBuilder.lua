@@ -657,6 +657,18 @@ function Builder.ComputeSpecs(layout)
 		end
 	end
 
+	-- B2 Grapple Spark rings (decor: the server grapples to the anchor point, rays ignore these)
+	for _, anchor in ipairs(layout.GrappleAnchors or {}) do
+		local sec = sections[1]
+		for _, candidate in ipairs(sections) do
+			if candidate.S <= anchor.S then
+				sec = candidate
+			end
+		end
+		add({ Class = "Part", Shape = "Cylinder", Name = "GrappleRing", Folder = "Decor", Size = Vector3.new(0.4, 3.2, 3.2), CFrame = CFrame.fromMatrix(anchor.Position, sec.Forward, sec.Up), Color = palette.Yellow, Material = "Neon", Transparency = 0.15, Collide = false })
+		add({ Class = "Part", Name = "GrapplePost", Folder = "Decor", Size = Vector3.new(0.4, 0.4, 0.4), CFrame = CFrame.new(anchor.Position), Color = palette.White, Material = "Neon", Collide = false })
+	end
+
 	-- B1 world decor (never collides, never queried)
 	local decor = def.Theme and def.Theme.Decor
 	if decor == "Clouds" then

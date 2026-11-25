@@ -12,13 +12,16 @@
 	  rewardLedger = { raceId, ... }   bounded (newest last), duplicate-award protection
 	  botPractice = { day = UTC day number, races = count }
 	}
+	v2 (B2) adds ownedAbilityIds = { id, ... } — abilities bought with earned Coins (level unlocks
+	are derived from the level, starters are always owned); equippedAbilityIds may hold any of
+	the twelve ids (the server checks ownership).
 ]]
 
 local ProgressionConfig = require(script.Parent:WaitForChild("ProgressionConfig"))
 
 local PlayerDataSchema = {}
 
-PlayerDataSchema.Version = 1
+PlayerDataSchema.Version = 2
 PlayerDataSchema.LedgerSize = 25 -- last N rewarded race ids kept (bounded, never grows)
 
 PlayerDataSchema.Settings = {
@@ -33,6 +36,8 @@ PlayerDataSchema.Settings = {
 PlayerDataSchema.SettingOrder = { "reducedMotion", "cameraMode", "music", "sfx", "sensitivity", "graphicsMode", "muteEmotes" }
 
 PlayerDataSchema.StarterAbilities = { "Boost", "Shield", "Pulse" }
+-- B2: every ability id a profile may reference (mirrors AbilityConfig.Order; a spec checks)
+PlayerDataSchema.KnownAbilities = { "Boost", "Shield", "Pulse", "Magnet", "BounceBurst", "ReverseJet", "FrostWake", "GrappleSpark", "Anchor", "Phase", "GravityGlide", "Decoy" }
 PlayerDataSchema.DefaultLoadout = { "Boost", "Shield" }
 
 local function round(x, step)
@@ -97,6 +102,7 @@ function PlayerDataSchema.Defaults()
 		podiumCount = 0,
 		bestTimes = {},
 		equippedAbilityIds = { PlayerDataSchema.DefaultLoadout[1], PlayerDataSchema.DefaultLoadout[2] },
+		ownedAbilityIds = {}, -- v2: bought with earned Coins
 		settings = PlayerDataSchema.DefaultSettings(),
 		rewardLedger = {},
 		botPractice = { day = 0, races = 0 },
@@ -121,8 +127,8 @@ function PlayerDataSchema.ValidLoadout(list)
 	end
 	for _, id in ipairs(list) do
 		local known = false
-		for _, starter in ipairs(PlayerDataSchema.StarterAbilities) do
-			if id == starter then
+		for _, ability in ipairs(PlayerDataSchema.KnownAbilities) do
+			if id == ability then
 				known = true
 			end
 		end
@@ -179,12 +185,23 @@ function PlayerDataSchema.Migrate(raw)
 			table.remove(d.rewardLedger, 1)
 		end
 	end
+	if type(raw.ownedAbilityIds) == "table" then
+		local seen = {}
+		for _, id in ipairs(raw.ownedAbilityIds) do
+			for _, known in ipairs(PlayerDataSchema.KnownAbilities) do
+				if id == known and not seen[id] then
+					seen[id] = true
+					d.ownedAbilityIds[#d.ownedAbilityIds + 1] = id
+				end
+			end
+		end
+	end
 	if type(raw.botPractice) == "table" then
 		d.botPractice.day = count(raw.botPractice.day)
 		d.botPractice.races = count(raw.botPractice.races)
 	end
 	d.level = (ProgressionConfig.LevelForXp(d.xp)) -- level is always derived from XP (no double level-ups)
-	return d, version ~= PlayerDataSchema.Version or raw.level ~= d.level, version == 0 and "migrated v0 -> v1" or nil
+	return d, version ~= PlayerDataSchema.Version or raw.level ~= d.level, version < PlayerDataSchema.Version and ("migrated v" .. version .. " -> v" .. PlayerDataSchema.Version) or nil
 end
 
 function PlayerDataSchema.LedgerHas(data, raceId)

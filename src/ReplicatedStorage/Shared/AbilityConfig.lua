@@ -1,6 +1,6 @@
 --[[
-	AbilityConfig — A3 starter abilities and micro-skills (master section 4). Exact values are
-	starting hypotheses. The server owns every timestamp and effect; clients only display.
+	AbilityConfig — A3 starter abilities and micro-skills (master section 4) and the nine B2
+	play-earned abilities (master section 8). Exact values are starting hypotheses. The server owns every timestamp and effect; clients only display.
 ]]
 
 local AbilityConfig = {}
@@ -39,7 +39,91 @@ AbilityConfig.Abilities = {
 		Color = "Coral",
 		Description = "Nudges rivals within 12 studs",
 	},
+	-- B2: nine more active abilities, earned by play only (master section 8). Unlock = reach the
+	-- level OR spend earned Coins (800 / 1200 / 1600 tiers). Never Robux. Hitbox and mass never change.
+	FrostWake = {
+		Id = "FrostWake", DisplayName = "FROST WAKE", Cooldown = 32, Color = "Cyan",
+		Duration = 2.2, LaneWidth = 10, LaneLength = 24, SteerMultiplier = 0.75, ChillSeconds = 1.2,
+		Description = "Icy 10-stud lane behind you: rivals crossing it steer 25% less for 1.2 s",
+		Unlock = { Level = 6, Coins = 1200 },
+	},
+	Magnet = {
+		Id = "Magnet", DisplayName = "MAGNET", Cooldown = 30, Color = "Violet",
+		Duration = 1.5, Radius = 10, TickSeconds = 0.5, DeltaVPerTick = 3, MaxTotalDeltaV = 9,
+		Description = "Gently pulls rivals within 10 studs toward you for 1.5 s (Shield resists)",
+		Unlock = { Level = 3, Coins = 800 },
+	},
+	Phase = {
+		Id = "Phase", DisplayName = "PHASE", Cooldown = 38, Color = "Mint",
+		Duration = 1.5,
+		Description = "Pass through bumpers, sweepers and hammers for 1.5 s (floor, walls and checkpoints stay)",
+		Unlock = { Level = 10, Coins = 1600 },
+	},
+	GrappleSpark = {
+		Id = "GrappleSpark", DisplayName = "GRAPPLE", Cooldown = 30, Color = "Yellow",
+		Range = 24, MaxDeltaV = 20,
+		Description = "Zips you toward a grapple ring within 24 studs ahead (never past a checkpoint)",
+		Unlock = { Level = 6, Coins = 1200 },
+	},
+	BounceBurst = {
+		Id = "BounceBurst", DisplayName = "BOUNCE", Cooldown = 22, Color = "Mint",
+		Window = 2, UpDeltaV = 18,
+		Description = "Your next landing or hit within 2 s bounces you up",
+		Unlock = { Level = 3, Coins = 800 },
+	},
+	GravityGlide = {
+		Id = "GravityGlide", DisplayName = "GLIDE", Cooldown = 35, Color = "Violet",
+		Duration = 2.5, GravityReduction = 0.35, SteerMultiplier = 1.2,
+		Description = "35% less gravity and sharper steering for 2.5 s",
+		Unlock = { Level = 10, Coins = 1600 },
+	},
+	ReverseJet = {
+		Id = "ReverseJet", DisplayName = "REVERSE JET", Cooldown = 28, Color = "Coral",
+		DeltaV = 16,
+		Description = "A quick backward hop to dodge (16 studs/s)",
+		Unlock = { Level = 3, Coins = 800 },
+	},
+	Decoy = {
+		Id = "Decoy", DisplayName = "DECOY", Cooldown = 40, Color = "Yellow",
+		Duration = 3, LateralOffset = 5,
+		Description = "A labelled hologram rolls beside you for 3 s (it can't touch anything)",
+		Unlock = { Level = 10, Coins = 1600 },
+	},
+	Anchor = {
+		Id = "Anchor", DisplayName = "ANCHOR", Cooldown = 30, Color = "Cyan",
+		Duration = 2.5, KnockbackScale = 0.3, SteerAssist = 1.5,
+		Description = "Absorbs 70% of knockback and steadies your steering for 2.5 s",
+		Unlock = { Level = 6, Coins = 1200 },
+	},
 }
+
+-- Display / menu order (starters first, then by unlock tier)
+AbilityConfig.Order = { "Boost", "Shield", "Pulse", "Magnet", "BounceBurst", "ReverseJet", "FrostWake", "GrappleSpark", "Anchor", "Phase", "GravityGlide", "Decoy" }
+for _, id in ipairs(AbilityConfig.Order) do
+	AbilityConfig.Ids[id] = id
+end
+
+-- Pure: can `id` be unlocked now? returns ok, how ("Owned" / "Level" / "Coins"), detail
+function AbilityConfig.UnlockState(id, ownedSet, level, coins)
+	local def = AbilityConfig.Abilities[id]
+	if not def then
+		return false, "Unknown", "Unknown ability"
+	end
+	if ownedSet[id] then
+		return true, "Owned", nil
+	end
+	local unlock = def.Unlock
+	if not unlock then
+		return false, "Locked", "Not unlockable"
+	end
+	if (level or 1) >= unlock.Level then
+		return true, "Level", nil
+	end
+	if (coins or 0) >= unlock.Coins then
+		return true, "Coins", unlock.Coins
+	end
+	return false, "Locked", string.format("Reach level %d or have %d Coins", unlock.Level, unlock.Coins)
+end
 
 -- Absolute cap for any speed modifier (studs/s). Must stay below the movement audit envelope
 -- (TerminalSpeed * PlausibleSpeedFactor = 108) so boosted racers are never flagged.

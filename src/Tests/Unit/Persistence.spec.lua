@@ -43,7 +43,7 @@ function Spec.run(m)
 	-------------------------------------------------------------------- schema
 	local d1, d2 = Schema.Defaults(), Schema.Defaults()
 	check("defaults are deterministic", deepEqual(d1, d2))
-	check("defaults carry every v1 field", d1.schemaVersion == 1 and d1.coins == 0 and d1.xp == 0 and d1.level == 1 and d1.raceCount == 0 and d1.winCount == 0 and d1.podiumCount == 0 and type(d1.bestTimes) == "table" and #d1.equippedAbilityIds == 2 and type(d1.settings) == "table" and type(d1.rewardLedger) == "table")
+	check("defaults carry every field (current schema)", d1.schemaVersion == Schema.Version and type(d1.ownedAbilityIds) == "table" and d1.coins == 0 and d1.xp == 0 and d1.level == 1 and d1.raceCount == 0 and d1.winCount == 0 and d1.podiumCount == 0 and type(d1.bestTimes) == "table" and #d1.equippedAbilityIds == 2 and type(d1.settings) == "table" and type(d1.rewardLedger) == "table")
 	local settingsOk = true
 	for _, key in ipairs({ "reducedMotion", "cameraMode", "music", "sfx", "sensitivity", "graphicsMode" }) do
 		if d1.settings[key] == nil then
@@ -63,7 +63,7 @@ function Spec.run(m)
 	end
 	local v0 = { coins = 50, xp = 500, loadout = { "Pulse", "Boost" }, settings = { music = 5, cameraMode = "Weird", reducedMotion = "true", sensitivity = 0.73 }, bestTimes = { ["a|1|0|Race"] = 71.5, bad = -3 }, rewardLedger = ledger }
 	local migrated, changed = Schema.Migrate(v0)
-	check("v0 -> v1: earned values kept, level derived from XP", migrated.schemaVersion == 1 and migrated.coins == 50 and migrated.xp == 500 and migrated.level == 2 and changed == true)
+	check("v0 -> v1: earned values kept, level derived from XP", migrated.schemaVersion == Schema.Version and migrated.coins == 50 and migrated.xp == 500 and migrated.level == 2 and changed == true)
 	check("v0 -> v1: flat loadout moved to equippedAbilityIds", migrated.equippedAbilityIds[1] == "Pulse" and migrated.equippedAbilityIds[2] == "Boost")
 	check("v0 -> v1: settings sanitized (clamped, rounded, unknown enum -> default)", migrated.settings.music == 1 and migrated.settings.cameraMode == "Chase" and migrated.settings.reducedMotion == true and math.abs(migrated.settings.sensitivity - 0.7) < 1e-9)
 	check("v0 -> v1: invalid best times dropped", migrated.bestTimes["a|1|0|Race"] == 71.5 and migrated.bestTimes.bad == nil)

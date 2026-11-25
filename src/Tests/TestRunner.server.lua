@@ -61,6 +61,7 @@ local modules = {
 	MapVoteRules = require(Services:WaitForChild("MapVoteRules")),
 	PartyRules = require(Services:WaitForChild("PartyRules")),
 	TimeTrialRules = require(Shared:WaitForChild("TimeTrialRules")),
+	AbilityRules = require(Services:WaitForChild("AbilityRules")),
 	SocialConfig = require(Shared:WaitForChild("SocialConfig")),
 }
 do
@@ -119,6 +120,7 @@ end
 report("A6 social specs", require(Unit:WaitForChild("Social.spec")).run(modules))
 report("B1 world specs", require(Unit:WaitForChild("Worlds.spec")).run(modules))
 report("B1 rules specs", require(Unit:WaitForChild("B1Rules.spec")).run(modules))
+report("B2 ability specs", require(Unit:WaitForChild("B2Abilities.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

@@ -23,6 +23,19 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
+## Phase B2 — nine more abilities
+
+LOADOUT now lists twelve abilities. The nine new ones unlock for free at **level 3 / 6 / 10**, or
+earlier with Coins you've earned (800 / 1200 / 1600). Tap **TRY 1 / TRY 2** on a locked one, close
+the menu, and use your ability buttons on the hub platform to feel it (practice only).
+
+### What to check (B2)
+- [ ] Unlock one with Coins (or reach level 3): Coins drop by the right amount once; it stays
+      unlocked after you rejoin.
+- [ ] Try Glide, Bounce, Reverse Jet, Anchor, Phase in the hub; in a race try Grapple (yellow
+      rings above the track), Frost Wake and Magnet near bots, Decoy.
+- [ ] Nothing gets stuck on: effects end, and a fall/respawn clears them.
+
 ## Phase B1 — three worlds, Time Trial, Party
 
 - Races now rotate through **Neon Foundry → Sky Carnival → Volcano Vault**. With 2+ people in the

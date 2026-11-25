@@ -17,6 +17,7 @@ ok    src/ReplicatedStorage/Shared/TimeTrialRules.lua
 ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
 ok    src/ReplicatedStorage/Shared/Utility.lua
 ok    src/ServerScriptService/ServerBootstrap.server.lua
+ok    src/ServerScriptService/Services/AbilityRules.lua
 ok    src/ServerScriptService/Services/AbilityService.lua
 ok    src/ServerScriptService/Services/BotBrain.lua
 ok    src/ServerScriptService/Services/BotService.lua
@@ -73,6 +74,7 @@ ok    src/Tests/Unit/A1PureSpecs.lua
 ok    src/Tests/Unit/Ability.spec.lua
 ok    src/Tests/Unit/AbilitySecurity.spec.lua
 ok    src/Tests/Unit/B1Rules.spec.lua
+ok    src/Tests/Unit/B2Abilities.spec.lua
 ok    src/Tests/Unit/BotNavigation.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
@@ -164,7 +166,7 @@ PASS  hazard telegraph lasts 0.5-1.0 s before activating
 info  tunables: accel 35, lateral cap 22, terminal 80, air 40%, brake x0.65, deadzone 0.12 (spec hypotheses 35/22/80/40%/0.65/0.12)
 info  camera turn-rate kick at 35 studs/s, 60 fps: 1.31 deg/s per frame (raw polyline: ~20)
 info  floor: 19 flat quads as boxes, 252 wedges for curved/banked quads
-info  course parts: 717 total, 440 collidable
+info  course parts: 727 total, 440 collidable
 info  route 947 studs; 1-D MODEL (full throttle, no braking/steering losses) clean run ~17.9 s, end speed 60 -- not a measurement
 
 -- A2 round specs --
@@ -399,9 +401,9 @@ PASS  no world comes within 150 studs of the hub
 info  Neon Foundry: 2931 studs, 16 modules, drop 184, 1-D model clean run 64 s (a model, not a measurement)
 info  Sky Carnival: 2530 studs, 14 modules, drop 162, 1-D model clean run 54 s (a model, not a measurement)
 info  Volcano Vault: 2300 studs, 14 modules, drop 158, 1-D model clean run 49 s (a model, not a measurement)
-info  Neon Foundry: 2016 parts, 1270 collidable
-info  Sky Carnival: 1821 parts, 1141 collidable
-info  Volcano Vault: 1779 parts, 1127 collidable
+info  Neon Foundry: 2050 parts, 1270 collidable
+info  Sky Carnival: 1851 parts, 1141 collidable
+info  Volcano Vault: 1807 parts, 1127 collidable
 
 -- B1 rules specs --
 PASS  rotation: nothing raced -> world 1, then 2, 3, back to 1
@@ -431,9 +433,41 @@ PASS  ghost playback interpolates between samples
 PASS  ghost ends after its last sample
 PASS  ghost capped at 180 s worth of samples
 
+-- B2 ability specs --
+PASS  nine abilities with the pack's cooldowns (32/30/38/30/22/35/28/40/30)
+PASS  pack numbers: frost lane 10 studs 2.2 s -25% 1.2 s; magnet 10 studs 1.5 s; phase 1.5 s; grapple 24 studs
+PASS  pack numbers: bounce window 2 s; glide -35% 2.5 s; reverse jet 16 studs/s; decoy 3 s; anchor 70% 2.5 s
+PASS  unlock costs are the three tiers 800/1200/1600 (3 each), earned Coins only
+PASS  12 abilities in menu order, starters first, no unlock on starters
+PASS  profile schema knows exactly the twelve ability ids
+PASS  no ability changes hitbox or mass (no Size/Mass/Density fields)
+PASS  level 3 unlocks a tier-1 ability for free
+PASS  1600 Coins unlock a tier-3 ability before its level
+PASS  not enough level or Coins: refused with the reason
+PASS  owned abilities report Owned; unknown ids refused
+PASS  menu card: locked text, coin unlock, free unlock at level
+PASS  frost lane: 24 studs behind the caster, 10 wide
+PASS  frost lane catches a rival inside it
+PASS  not outside it (laterally / along / after 2.2 s)
+PASS  one chill per rival per lane
+PASS  magnet pulls only rivals within 10 studs, never protected / frozen
+PASS  magnet displacement capped (total pull <= 9 studs/s)
+PASS  grapple: nearest anchor AHEAD within 24 studs
+PASS  grapple: never past the next checkpoint
+PASS  grapple: blocked line of sight -> no target
+PASS  grapple impulse bounded by 20 studs/s
+PASS  reverse jet: horizontal, backwards, exactly 16 studs/s
+PASS  status list drops expired effects
+PASS  v1 -> v2: earned values kept, ownedAbilityIds added
+PASS  v2 sanitizing: duplicates / unknown ids dropped; any known pair may be equipped
+PASS  Chilled: steering push reduced to 75%
+PASS  Gravity Glide: lifts exactly 35% of gravity (never more)
+PASS  Anchor: incoming impulse scaled to 30%
+PASS  Bounce Burst: one bounded upward bounce on the next hit, only once
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
-PASS  defaults carry every v1 field
+PASS  defaults carry every field (current schema)
 PASS  settings: reducedMotion, cameraMode, music, sfx, sensitivity, graphicsMode
 PASS  defaults are fresh tables (no shared state)
 PASS  missing profile -> defaults
@@ -544,4 +578,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-398 passed, 0 failed (+ 0 syntax failures)
+428 passed, 0 failed (+ 0 syntax failures)

@@ -86,10 +86,10 @@ function BotService:Start()
 				entry.motor:SetEffects(effects)
 			end
 		end,
-		applyImpulse = function(bot, direction, deltaV)
+		applyImpulse = function(bot, direction, deltaV, cap)
 			local entry = self.bots[bot]
 			if entry and entry.motor then
-				entry.motor:ApplyExternalImpulse(direction, deltaV, 18)
+				entry.motor:ApplyExternalImpulse(direction, deltaV, math.min(cap or 18, 24))
 			end
 		end,
 	})
@@ -394,6 +394,10 @@ function BotService:_stepBot(bot, entry, dt, now, hazardTime, cfgBumper)
 			if not ball.Anchored then
 				-- same hazard contact model the human clients apply to their own marbles
 				local kick, id, kind = self.hazards:ContactFor(ball.Position, PhysicsConfig.Ball.Radius)
+				local phased = entry.motor:HasStatus("Phase") -- B2: same rule as human clients
+				if kick and kind ~= "Trampoline" and phased then
+					kick = nil
+				end
 				if kick and (entry.kickCooldown[id] or 0) <= now then
 					entry.kickCooldown[id] = now + 0.5
 					local function apply()
@@ -408,7 +412,7 @@ function BotService:_stepBot(bot, entry, dt, now, hazardTime, cfgBumper)
 				for i, bumper in ipairs(self.bumpers) do
 					local offset = (bumper.hazard.Params and bumper.hazard.Params.PhaseOffset) or 0
 					local phase = HazardTiming.PhaseAt(hazardTime + offset, cfgBumper)
-					if phase == "Active" and (entry.kickCooldown["b" .. i] or 0) <= now then
+					if phase == "Active" and not phased and (entry.kickCooldown["b" .. i] or 0) <= now then
 						local d, along, radial = HazardTiming.AxisDistance(ball.Position, bumper.floorPoint, bumper.axis)
 						if along > -1 and along < bumper.height + 1 and d > 1e-3 and d <= bumper.contact then
 							entry.kickCooldown["b" .. i] = now + cfgBumper.CooldownSeconds

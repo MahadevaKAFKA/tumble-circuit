@@ -755,6 +755,24 @@ function TrackDefinitions.Generate(def, ballRadius)
 		end
 	end
 
+	-- B2 Grapple Spark anchors: every GrappleSpacing studs of route (after the start, before the
+	-- finish straight), floating GrappleHeight above the lane centre. Generated, never hand-placed,
+	-- so every world gets them. The server only lets a grapple reach an anchor before the next
+	-- checkpoint (no slingshot past a checkpoint).
+	layout.GrappleAnchors = {}
+	do
+		local spacing, height = def.GrappleSpacing or 150, def.GrappleHeight or 10
+		local fromS = (layout.StartLineS or 0) + 120
+		local toS = (layout.FinishLineS or layout.Route.total) - 80
+		local h = 0
+		for _, sec in ipairs(layout.Sections) do
+			if sec.S >= fromS and sec.S <= toS and sec.S >= h then
+				layout.GrappleAnchors[#layout.GrappleAnchors + 1] = { S = sec.S, Position = sec.Position + sec.Up * height, Index = #layout.GrappleAnchors + 1 }
+				h = sec.S + spacing
+			end
+		end
+	end
+
 	layout.Hazards = {}
 	for i, hz in ipairs(def.Hazards or {}) do
 		local entry = { Kind = hz.Kind, Id = hz.Id or (hz.Kind .. i), Definition = hz, Frame = resolve(hz), Offset = hz.Offset or 0, Radius = hz.Radius, Height = hz.Height }

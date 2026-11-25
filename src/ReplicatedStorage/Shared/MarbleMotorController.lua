@@ -75,6 +75,43 @@ function MarbleMotorController:SetEffects(effects)
 	self.effects = effects
 end
 
+-- B2: an active timed status from the server (EffectState.statuses), or nil
+function MarbleMotorController:GetStatus(kind)
+	local effects = self.effects
+	if not effects or not effects.statuses then
+		return nil
+	end
+	local now = workspace:GetServerTimeNow()
+	for _, st in ipairs(effects.statuses) do
+		if st.kind == kind and now < st.endsAt then
+			return st
+		end
+	end
+	return nil
+end
+
+function MarbleMotorController:HasStatus(kind)
+	return self:GetStatus(kind) ~= nil
+end
+
+-- B2 Anchor: share of incoming knockback that still gets through (1 = all)
+function MarbleMotorController:_knockbackScale()
+	local anchor = self:GetStatus("Anchor")
+	return anchor and (anchor.knockbackScale or 0.3) or 1
+end
+
+-- B2 Bounce Burst: the next landing or hit while it is active adds one bounded upward bounce
+function MarbleMotorController:_bounceBurst(ball)
+	local st = self:GetStatus("BounceBurst")
+	if st and self.bounceUsedFor ~= st.endsAt and ball and ball.Parent and not ball.Anchored then
+		self.bounceUsedFor = st.endsAt
+		ball:ApplyImpulse(Vector3.new(0, 1, 0) * (math.min(st.upDeltaV or 18, 24) * ball.AssemblyMass))
+		self.skipBumpCheck = true
+		return true
+	end
+	return false
+end
+
 function MarbleMotorController:_modifier()
 	local effects = self.effects
 	if not effects or not effects.modifiers then
@@ -111,9 +148,10 @@ function MarbleMotorController:ApplyExternalImpulse(direction, deltaV, cap)
 	if not ball or not ball.Parent or ball.Anchored then
 		return false
 	end
-	local dv = math.min(deltaV, cap or 18)
+	local dv = math.min(deltaV, cap or 18) * self:_knockbackScale()
 	ball:ApplyImpulse(direction.Unit * (dv * ball.AssemblyMass))
 	self.skipBumpCheck = true
+	self:_bounceBurst(ball)
 	return true
 end
 
@@ -135,7 +173,7 @@ function MarbleMotorController:_limitBump(ball, v, now)
 	local cfg = RaceConfig.Collisions
 	local cap = now < self.chainUntil and cfg.ChainBumpDeltaV or cfg.MaxBumpDeltaV
 	local magnitude = delta.Magnitude
-	if magnitude <= cap then
+	if magnitude <= cap and (self:_knockbackScale() >= 1 or magnitude < 4) then
 		return
 	end
 	local nearMarble = false
@@ -149,7 +187,14 @@ function MarbleMotorController:_limitBump(ball, v, now)
 	if not nearMarble then
 		return
 	end
-	local excess = delta * ((magnitude - cap) / magnitude)
+	local excess = magnitude > cap and delta * ((magnitude - cap) / magnitude) or Vector3.new(0, 0, 0)
+	local scale = self:_knockbackScale()
+	if scale < 1 then
+		local anchored = delta * (1 - scale) -- B2 Anchor absorbs most of a marble bump
+		if anchored.Magnitude > excess.Magnitude then
+			excess = anchored
+		end
+	end
 	ball:ApplyImpulse(-excess * ball.AssemblyMass)
 	self.lastVelocity = v - excess
 	self.chainUntil = now + cfg.AntiChainSeconds
@@ -212,6 +257,18 @@ function MarbleMotorController:Step(dt, ctx)
 	local fwd = Utility.safeUnit(Utility.projectOnPlane(forwardH, up), forwardH)
 	local right = Utility.safeUnit(fwd:Cross(up), Vector3.new(1, 0, 0))
 	local control = self.grounded and 1 or m.AirControl
+	-- B2 statuses: Chilled (Frost Wake) and Gravity Glide scale steering; Anchor steadies it
+	local chilled, glide, anchor = self:GetStatus("Chilled"), self:GetStatus("GravityGlide"), self:GetStatus("Anchor")
+	local steerMult = (chilled and chilled.steer or 1) * (glide and glide.steer or 1)
+	local assistMult = anchor and (anchor.steerAssist or 1.5) or 1
+	if self.grounded then
+		if self.airborneSince and now - self.airborneSince > 0.2 then
+			self:_bounceBurst(ball) -- landing
+		end
+		self.airborneSince = nil
+	elseif not self.airborneSince then
+		self.airborneSince = now
+	end
 	local accel = Vector3.new(0, 0, 0)
 	local velDir = speed > 1e-3 and v / speed or Vector3.new(0, 0, 0)
 
@@ -251,16 +308,16 @@ function MarbleMotorController:Step(dt, ctx)
 		local lateralSpeed = v:Dot(right)
 		local lateralAccel
 		if steerX ~= 0 then
-			lateralAccel = (steerX * m.LateralSpeedCap - lateralSpeed) * m.LateralResponse
+			lateralAccel = (steerX * m.LateralSpeedCap * steerMult - lateralSpeed) * m.LateralResponse
 			if steerX > 0 then
 				lateralAccel = math.max(0, lateralAccel)
 			else
 				lateralAccel = math.min(0, lateralAccel)
 			end
 		else
-			lateralAccel = -lateralSpeed * m.LateralAssistDamping
+			lateralAccel = -lateralSpeed * m.LateralAssistDamping * assistMult
 		end
-		lateralAccel = Utility.clamp(lateralAccel, -m.LateralAccelMax, m.LateralAccelMax)
+		lateralAccel = Utility.clamp(lateralAccel, -m.LateralAccelMax * steerMult, m.LateralAccelMax * steerMult)
 		accel = accel + right * (lateralAccel * control)
 
 		-- Forward thrust / back bias (no thrust while braking). A3 modifiers scale the thrust,
@@ -316,6 +373,10 @@ function MarbleMotorController:Step(dt, ctx)
 	if self.grounded then
 		accel = accel * m.RollingInertiaCompensation
 	end
+	if glide and not ball.Anchored then
+		-- B2 Gravity Glide: cancel a share of gravity (never more than gravity: it can't fly)
+		accel = accel + Vector3.new(0, workspace.Gravity * math.min(glide.gravityReduction or 0.35, 0.5), 0)
+	end
 	self.debug.accel = accel
 	self.force.Force = accel * ball.AssemblyMass
 end
@@ -331,8 +392,9 @@ function MarbleMotorController:ApplyKick(direction, kickSpeed)
 	if deltaV <= 0 then
 		return false
 	end
-	ball:ApplyImpulse(direction * (deltaV * ball.AssemblyMass))
+	ball:ApplyImpulse(direction * (deltaV * self:_knockbackScale() * ball.AssemblyMass))
 	self.skipBumpCheck = true -- our own kick is not a marble bump
+	self:_bounceBurst(ball)
 	return true
 end
 

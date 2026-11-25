@@ -86,6 +86,43 @@ function VFXController:OnOutcome(outcome)
 		ring.CFrame = CFrame.fromMatrix(outcome.position, Vector3.new(0, 1, 0), Vector3.new(1, 0, 0))
 		self:_add({ startedAt = t, endsAt = t + 0.35, part = ring, cleanup = { ring }, grow = AbilityConfig.Abilities.Pulse.Radius * 2, origin = outcome.position })
 	end
+	-- B2 abilities: brief, low-cost native-part visuals; a coloured aura for self effects
+	local B2_AURA = { Phase = palette.Mint, GravityGlide = palette.Violet, Anchor = palette.Cyan, BounceBurst = palette.Mint, Magnet = palette.Violet }
+	local aura = B2_AURA[outcome.abilityId]
+	if aura then
+		local shell = effectPart({ Shape = Enum.PartType.Ball, Size = Vector3.new(5.2, 5.2, 5.2), Color = aura, Material = Enum.Material.ForceField, Transparency = outcome.abilityId == "Anchor" and 0.1 or 0.35 })
+		self:_add({ endsAt = outcome.endsAt or (t + 1.5), follow = outcome.userId, part = shell, cleanup = { shell } })
+	elseif outcome.abilityId == "FrostWake" and type(outcome.lane) == "table" then
+		local parts = {}
+		local width = type(outcome.laneWidth) == "number" and outcome.laneWidth or 10
+		for i = 1, #outcome.lane - 1 do
+			local a, b = outcome.lane[i], outcome.lane[i + 1]
+			if typeof(a) == "Vector3" and typeof(b) == "Vector3" and (b - a).Magnitude > 0.1 then
+				local strip = effectPart({ Size = Vector3.new(width, 0.15, (b - a).Magnitude + 0.2), Color = Color3.fromRGB(190, 240, 255), Material = Enum.Material.Ice, Transparency = 0.35 })
+				strip.CFrame = CFrame.lookAt((a + b) / 2 + Vector3.new(0, 0.1, 0), b + Vector3.new(0, 0.1, 0))
+				parts[#parts + 1] = strip
+			end
+		end
+		self:_add({ endsAt = outcome.endsAt or (t + 2.2), cleanup = parts })
+	elseif outcome.abilityId == "GrappleSpark" and typeof(outcome.anchor) == "Vector3" then
+		local ball = ballFor(self, outcome.userId)
+		if ball then
+			local a0 = Instance.new("Attachment")
+			local target = effectPart({ Size = Vector3.new(0.4, 0.4, 0.4), Transparency = 1 })
+			target.CFrame = CFrame.new(outcome.anchor)
+			local a1 = Instance.new("Attachment")
+			a1.Parent = target
+			local beam = Instance.new("Beam")
+			beam.Attachment0, beam.Attachment1 = a0, a1
+			beam.Color = ColorSequence.new(palette.Yellow)
+			beam.Width0, beam.Width1 = 0.4, 0.4
+			beam.LightEmission = 1
+			beam.FaceCamera = true
+			a0.Parent = ball
+			beam.Parent = ball
+			self:_add({ endsAt = outcome.endsAt or (t + 0.4), cleanup = { a0, beam, target } })
+		end
+	end
 	for _, blockedId in ipairs(outcome.blocked or {}) do
 		self:EndShield(blockedId)
 	end

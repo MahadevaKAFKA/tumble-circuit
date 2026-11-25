@@ -46,12 +46,17 @@
 	GhostPath             server->client   {key, seconds, hz, points}  the runner's own PB ghost
 	Snapshot adds worldId, nextWorldId, mapVote = {open, endsAt, options, counts},
 	party = {available, tags = {[tostring(userId)] = group}, maxSize}.
+	B2 (v8):
+	RequestUnlockAbility  client->server   (abilityId)         unlock by level (free) or earned Coins
+	AbilityState adds owned (all twelve possible) and practice (hub try-it set);
+	EffectState adds statuses = {{kind, endsAt, ...}} (GravityGlide, Anchor, Phase, BounceBurst,
+	Chilled); ApplyImpulse adds source and cap.
 	Snapshot adds chaosModifier = {kind, startsAt, endsAt} while a voted modifier is pending/active.
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 7
+RoundProtocol.Version = 8
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -91,6 +96,8 @@ RoundProtocol.Remotes = {
 	RequestTimeTrial = { Direction = "ClientToServer", Args = { "boolean" }, MinInterval = 1.0 },
 	TimeTrialState = { Direction = "ServerToClient" }, -- to owner: Countdown / Running / Checkpoint / Finished / Ended / Refused
 	GhostPath = { Direction = "ServerToClient" }, -- to owner: their PB ghost for this world + variation
+	-- B2
+	RequestUnlockAbility = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 16 } }, MinInterval = 0.5 },
 }
 
 RoundProtocol.States = {

@@ -431,6 +431,8 @@
     "TimeTrialState",
     "RequestMapVote",
     "Rock",
-    "TC_PBGhost"
+    "TC_PBGhost",
+    "TC_Decoys",
+    "RequestUnlockAbility"
   ]
 }

@@ -86,10 +86,13 @@ local round = RoundService.new({
 
 abilities = AbilityService.new({ marbles = marbles, physics = physics, round = round, remotes = remotes })
 bots.abilities = abilities
+abilities.track = track -- B2: grapple anchors, decoy route
+abilities.checkpoints = checkpoints -- B2: grapple never past the next checkpoint
 local micro = MicroSkillService.new({ track = track, marbles = marbles, physics = physics, round = round, abilities = abilities, remotes = remotes, hazards = hazards })
 local chaos = ChaosGateService.new({ track = track, physics = physics, round = round, progress = progress, abilities = abilities, remotes = remotes })
 local perf = PerfService.new({ track = track, bots = bots })
 local playerData = PlayerDataService.new({ remotes = remotes })
+abilities.playerData = playerData -- B2: owned abilities, unlocks (level / earned Coins)
 local economy = EconomyService.new({ round = round, playerData = playerData, track = track, hazards = hazards, remotes = remotes })
 local dev = DevService.new({ round = round, bots = bots, playerData = playerData, remotes = remotes })
 local social = SocialService.new({ round = round, hazards = hazards, remotes = remotes, hubBuilder = HubBuilder })
