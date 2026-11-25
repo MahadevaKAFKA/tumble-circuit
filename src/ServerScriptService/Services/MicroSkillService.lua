@@ -47,6 +47,7 @@ function MicroSkillService.new(deps)
 	self.limiter = Utility.RateLimiter.new(RoundProtocol.Remotes.RequestTrick.MinInterval)
 	self.losParams = RaycastParams.new()
 	self.losParams.FilterType = Enum.RaycastFilterType.Exclude
+	self.TrickLanded = Utility.Signal.new() -- B3: (entity) a judged trick success
 	return self
 end
 
@@ -145,6 +146,9 @@ function MicroSkillService:_onSample(player, info)
 			self.abilities:SetModifier(player, "Trick", CFG.Trick.SpeedMultiplier, CFG.Trick.Duration)
 			self.abilities:ApplyCharge(player, "Trick")
 			self:_event(player, "TrickSuccess")
+			if self.TrickLanded then
+				self.TrickLanded:Fire(player) -- B3 quests
+			end
 		elseif result == "Takeoff" then
 			self:_event(player, "Takeoff", state.trick.pressed and "armed" or nil)
 		elseif result == "NoLanding" then

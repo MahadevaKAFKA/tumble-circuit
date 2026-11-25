@@ -53,6 +53,7 @@ function ChaosGateService.new(deps)
 	self.remotes = deps.remotes
 	self.collected = {}
 	self.maid = Utility.Maid.new()
+	self.GateCollected = Utility.Signal.new() -- B3: (entity, gateId)
 	return self
 end
 
@@ -82,6 +83,7 @@ function ChaosGateService:_check(entity, info)
 		self.collected[entity] = self.collected[entity] or {}
 		if not self.collected[entity][key] and ChaosGateService.Crossed(gate, info.prevS, info.s, info.lateral or 0) then
 			self.collected[entity][key] = true
+			self.GateCollected:Fire(entity, gate.Id) -- B3 quests
 			local standings = self.round:GetStandings()
 			local place, count = #standings, #standings
 			for _, entry in ipairs(standings) do

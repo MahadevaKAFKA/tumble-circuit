@@ -1,14 +1,17 @@
 == Syntax (Lua 5.3 parser over Lua-5.1-subset Luau) ==
 ok    PLACEHOLDER_IDS.lua
 ok    src/ReplicatedStorage/Shared/AbilityConfig.lua
+ok    src/ReplicatedStorage/Shared/Catalog.lua
 ok    src/ReplicatedStorage/Shared/GameConfig.lua
 ok    src/ReplicatedStorage/Shared/HazardSim.lua
 ok    src/ReplicatedStorage/Shared/HazardTiming.lua
+ok    src/ReplicatedStorage/Shared/MarbleLook.lua
 ok    src/ReplicatedStorage/Shared/MarbleMotorController.lua
 ok    src/ReplicatedStorage/Shared/PhysicsConfig.lua
 ok    src/ReplicatedStorage/Shared/PlayerDataSchema.lua
 ok    src/ReplicatedStorage/Shared/ProgressionConfig.lua
 ok    src/ReplicatedStorage/Shared/Protocol.lua
+ok    src/ReplicatedStorage/Shared/QuestConfig.lua
 ok    src/ReplicatedStorage/Shared/RaceConfig.lua
 ok    src/ReplicatedStorage/Shared/RoundProtocol.lua
 ok    src/ReplicatedStorage/Shared/RouteTracker.lua
@@ -23,9 +26,11 @@ ok    src/ServerScriptService/Services/BotBrain.lua
 ok    src/ServerScriptService/Services/BotService.lua
 ok    src/ServerScriptService/Services/ChaosGateService.lua
 ok    src/ServerScriptService/Services/CheckpointService.lua
+ok    src/ServerScriptService/Services/CosmeticService.lua
 ok    src/ServerScriptService/Services/DevService.lua
 ok    src/ServerScriptService/Services/EconomyService.lua
 ok    src/ServerScriptService/Services/HazardService.lua
+ok    src/ServerScriptService/Services/LeaderboardService.lua
 ok    src/ServerScriptService/Services/MapVoteRules.lua
 ok    src/ServerScriptService/Services/MarbleCharacterService.lua
 ok    src/ServerScriptService/Services/MicroSkillService.lua
@@ -35,12 +40,14 @@ ok    src/ServerScriptService/Services/PerfService.lua
 ok    src/ServerScriptService/Services/PlayerDataService.lua
 ok    src/ServerScriptService/Services/ProfileStore.lua
 ok    src/ServerScriptService/Services/ProgressService.lua
+ok    src/ServerScriptService/Services/QuestService.lua
 ok    src/ServerScriptService/Services/RacePhysicsService.lua
 ok    src/ServerScriptService/Services/RaceRules.lua
 ok    src/ServerScriptService/Services/RewardRules.lua
 ok    src/ServerScriptService/Services/RoundService.lua
 ok    src/ServerScriptService/Services/SkillRules.lua
 ok    src/ServerScriptService/Services/SocialService.lua
+ok    src/ServerScriptService/Services/TelemetryService.lua
 ok    src/ServerScriptService/Services/TimeTrialService.lua
 ok    src/ServerScriptService/Services/TrackValidator.lua
 ok    src/ServerScriptService/Services/TrainingTrackService.lua
@@ -54,6 +61,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/DevPanelController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HubMenusController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ModesController.lua
@@ -75,6 +83,7 @@ ok    src/Tests/Unit/Ability.spec.lua
 ok    src/Tests/Unit/AbilitySecurity.spec.lua
 ok    src/Tests/Unit/B1Rules.spec.lua
 ok    src/Tests/Unit/B2Abilities.spec.lua
+ok    src/Tests/Unit/B3Progression.spec.lua
 ok    src/Tests/Unit/BotNavigation.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
@@ -465,6 +474,43 @@ PASS  Gravity Glide: lifts exactly 35% of gravity (never more)
 PASS  Anchor: incoming impulse scaled to 30%
 PASS  Bounce Burst: one bounded upward bounce on the next hit, only once
 
+-- B3 progression specs --
+PASS  35 marbles: 12 Common / 10 Rare / 7 Epic / 4 Legendary / 2 Mythic
+PASS  12 trails, 8 finish bursts, 8 emotes
+PASS  ids are stable lowercase slugs (not display names), <= 40 chars
+PASS  starters and defaults exist (Cobalt, Dust, Confetti, 3 emotes)
+PASS  level rewards every 5 levels (5..50), all real items
+PASS  locked items say how they're earned (no buy button)
+PASS  capsule pools: every rarity has marbles
+PASS  every marble look builds; shells stay within 1.5x the ball
+PASS  MarbleLook never writes Size / CustomPhysicalProperties / CanCollide on the ball
+PASS  equip a non-owned item refused
+PASS  equip an owned marble
+PASS  kind mismatch refused (a trail as a marble)
+PASS  emote slots: choosing one already slotted swaps (never duplicates)
+PASS  emote slot must be 1-3
+PASS  level rewards due: 10 and 15 at level 17 when 5 was claimed
+PASS  v2 -> v3: earned values kept, defaults added
+PASS  v3 sanitize: unknown / duplicate ids dropped, starters kept
+PASS  v3 sanitize: can't equip what you don't own or the wrong kind
+PASS  v3 sanitize: no duplicate emotes
+PASS  v3 sanitize: favorites known only, claimed levels valid only
+PASS  UTC week turns on Monday 00:00
+PASS  daily quests: 3 distinct, the same for everyone that day
+PASS  refresh: 3 daily + 4 weekly
+PASS  progress caps at the target
+PASS  claim pays once (250 Coins + 400 XP), a second claim is refused
+PASS  unfinished quest can't be claimed
+PASS  '2 different worlds' counts distinct worlds only
+PASS  bot practice: only the first 3 bot races a day count for quests
+PASS  new UTC day = fresh daily quests (no streak, nothing lost but the old day)
+PASS  stored quests sanitized (unknown dropped, progress capped)
+PASS  board names stable and short
+PASS  times stored as whole ms (ascending)
+PASS  garage filters: owned / favorites / rarity
+PASS  reset timer text
+PASS  emote bubble uses the equipped catalog emote, falls back to the A6 slot
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
 PASS  defaults carry every field (current schema)
@@ -578,4 +624,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-428 passed, 0 failed (+ 0 syntax failures)
+463 passed, 0 failed (+ 0 syntax failures)

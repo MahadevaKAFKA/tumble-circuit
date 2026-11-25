@@ -322,3 +322,20 @@ profile v2, motor statuses (chill, glide, anchor, bounce) — 0 failed.
       studs and Shield blocks; Decoy is labelled and can't be bumped or counted; Anchor absorbs
       a Pulse (30% gets through); Phase passes a bumper post but not walls.
 
+## 13. B3 — garage, cosmetics, quests, leaderboards, telemetry
+
+**Automated:** `B3 progression specs` — catalog counts / ids / rarities, looks visual-only,
+inventory rules, level rewards, profile v3 migration + sanitizing, quests (UTC day/week, bot
+limit, single claim, sanitize), board naming, garage filters, emote text — 0 failed.
+
+**Play Solo / phone**
+- [ ] Equip each kind; look rebuilt in place; respawn keeps it; rejoin keeps it.
+- [ ] Locked item: no buy button, "how to earn" text. Level 5 reward granted once.
+- [ ] Quest progress from: race, finish, podium, ability, trick, gate, Time Trial, worlds, PB;
+      CLAIM once; 4th bot race of the day doesn't count (panel says so).
+- [ ] Low graphics: trails off locally; finish burst respects reduced motion.
+
+**Live game only**
+- [ ] Best-time board updates after a PB; weekly wins only in 2+ human races; friends here.
+- [ ] Creator Dashboard analytics shows race_start / race_finish / onboarding funnel.
+

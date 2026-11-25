@@ -26,6 +26,8 @@ local Protocol = require(Shared:WaitForChild("Protocol"))
 local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local BotFactory = require(ServerStorage:WaitForChild("ProceduralBuilders"):WaitForChild("BotFactory"))
+local Catalog = require(Shared:WaitForChild("Catalog"))
+local MarbleLook = require(Shared:WaitForChild("MarbleLook"))
 
 local MarbleCharacterService = {}
 MarbleCharacterService.__index = MarbleCharacterService
@@ -95,7 +97,7 @@ local function weldVisual(ball, part)
 	part.Parent = ball
 end
 
-local function createBall(player, cframe, zone, frozen)
+local function createBall(player, cframe, zone, frozen, look)
 	local cfg = PhysicsConfig.Ball
 	local palette = GameConfig.Palette
 	local diameter = cfg.Radius * 2
@@ -122,16 +124,16 @@ local function createBall(player, cframe, zone, frozen)
 	ball:SetAttribute(BALL.Protected, true)
 	ball:SetAttribute(BALL.Frozen, frozen)
 	ball:SetAttribute("BallRoot", true)
-	for i, axisTurn in ipairs({ CFrame.new(), CFrame.Angles(0, math.pi / 2, 0) }) do
-		local stripe = Instance.new("Part")
-		stripe.Name = "Stripe" .. i
-		stripe.Shape = Enum.PartType.Cylinder
-		stripe.Size = Vector3.new(0.55, diameter + 0.08, diameter + 0.08)
-		stripe.Material = Enum.Material.Neon
-		stripe.Color = i == 1 and palette.Coral or palette.Yellow
-		stripe.CFrame = axisTurn
-		weldVisual(ball, stripe)
-	end
+	-- B3: the equipped catalog look (visual only: massless, non-colliding welded shells; the
+	-- BallRoot's size, physics and collision above never change). Default = Cobalt.
+	local marbleItem = look and Catalog.Get(look.marble) or Catalog.Get(Catalog.Defaults.marble)
+	local trailItem = look and look.trail and Catalog.Get(look.trail) or nil
+	MarbleLook.Apply(ball, marbleItem, function(root, part, offset)
+		part.CFrame = offset
+		weldVisual(root, part)
+	end, trailItem)
+	ball:SetAttribute("TC_Look", marbleItem and marbleItem.Id or nil)
+	ball:SetAttribute("TC_Burst", look and look.burst or Catalog.Defaults.burst)
 	local plate = BotFactory.AddNameplate(ball, player.DisplayName, palette.White)
 	-- Your own name never floats in front of your chase camera. Hidden by the engine for the owner
 	-- (owner playtest 2026-11-25: the client-side hide missed and the name sat mid-screen).
@@ -215,6 +217,30 @@ function MarbleCharacterService:_resolve(player, reason)
 	return { CFrame = self.track:NextHubSpawnCFrame(), Zone = Protocol.Zones.Hub, Frozen = false }
 end
 
+-- B3: rebuild the equipped look on the current marble in place (visual parts only)
+function MarbleCharacterService:RefreshLook(player)
+	local ball = self:GetBall(player)
+	if not ball or not ball.Parent or not self.lookResolver then
+		return
+	end
+	local ok, look = pcall(self.lookResolver, player)
+	if not ok or not look then
+		return
+	end
+	for _, child in ipairs(ball:GetChildren()) do
+		if string.match(child.Name, "^Look%d+$") or child.Name == "TC_Trail" or child.Name == "TrailA" or child.Name == "TrailB" then
+			child:Destroy()
+		end
+	end
+	local marbleItem = Catalog.Get(look.marble) or Catalog.Get(Catalog.Defaults.marble)
+	MarbleLook.Apply(ball, marbleItem, function(root, part, offset)
+		part.CFrame = offset
+		weldVisual(root, part)
+	end, look.trail and Catalog.Get(look.trail) or nil)
+	ball:SetAttribute("TC_Look", marbleItem.Id)
+	ball:SetAttribute("TC_Burst", look.burst or Catalog.Defaults.burst)
+end
+
 function MarbleCharacterService:SpawnMarble(player, reason)
 	local state = self.players[player]
 	if not state or state.removed or not player.Parent then
@@ -226,7 +252,12 @@ function MarbleCharacterService:SpawnMarble(player, reason)
 
 	local spot = self:_resolve(player, reason)
 	local frozen = spot.Frozen == true
-	local ball = createBall(player, spot.CFrame, spot.Zone, frozen)
+	local look = nil
+	if self.lookResolver then
+		local ok, result = pcall(self.lookResolver, player)
+		look = ok and result or nil
+	end
+	local ball = createBall(player, spot.CFrame, spot.Zone, frozen, look)
 	ball.Parent = self.folder
 	if not frozen then
 		local ok, err = pcall(function()

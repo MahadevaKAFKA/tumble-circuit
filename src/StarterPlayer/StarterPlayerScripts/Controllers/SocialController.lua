@@ -15,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Protocol = require(Shared:WaitForChild("Protocol"))
 local SocialConfig = require(Shared:WaitForChild("SocialConfig"))
+local Catalog = require(Shared:WaitForChild("Catalog"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local UIKit = require(script.Parent:WaitForChild("UIKit"))
 
@@ -74,7 +75,7 @@ function Social.new(deps)
 	self.banner = UIKit.label(root, { Name = "ChaosBanner", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 104), Size = UDim2.fromOffset(640, 26), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, TextStrokeTransparency = 0.3, Visible = false })
 
 	-- emote bar: last row of the compact lobby column (MatchUIController lists the column layout)
-	local bar = UIKit.new("Frame", { Name = "Emotes", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 320), Size = UDim2.fromOffset(250, 40), BackgroundTransparency = 1, Visible = false }, root)
+	local bar = UIKit.new("Frame", { Name = "Emotes", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 372), Size = UDim2.fromOffset(250, 40), BackgroundTransparency = 1, Visible = false }, root)
 	self.emoteButtons = {}
 	for i, emote in ipairs(SocialConfig.Emotes.List) do
 		local b = UIKit.button(bar, { Position = UDim2.fromOffset((i - 1) * 85, 0), Size = UDim2.fromOffset(80, 40), Text = emote.text }, palette.Mint)
@@ -92,7 +93,7 @@ function Social.new(deps)
 	end))
 	maid:Give(self.remotes.EmoteShown.OnClientEvent:Connect(function(data)
 		if type(data) == "table" and type(data.userId) == "number" and type(data.id) == "number" then
-			self:_showBubble(data.userId, data.id)
+			self:_showBubble(data.userId, data.id, data.emoteId)
 		end
 	end))
 	local emoteKeys = {
@@ -167,11 +168,28 @@ function Social:SendEmote(id)
 	self.remotes.QuickEmote:FireServer(id)
 end
 
-function Social:_showBubble(userId, id)
+-- B3: the three equipped emote ids (catalog) for the emote row
+function Social:SetEmotes(ids)
+	if type(ids) ~= "table" then
+		return
+	end
+	self.emoteIds = { ids[1], ids[2], ids[3] }
+end
+
+-- B3: preset text of a catalog emote, or the A6 default for that slot
+function Social.EmoteText(id, emoteId)
+	local item = type(emoteId) == "string" and Catalog.Get(emoteId)
+	if item and item.Kind == "Emote" then
+		return { icon = item.Icon or "", text = item.Name }
+	end
+	return SocialConfig.Emotes.List[id]
+end
+
+function Social:_showBubble(userId, id, emoteId)
 	if self.muted and userId ~= self.localUserId then
 		return
 	end
-	local emote = SocialConfig.Emotes.List[id]
+	local emote = Social.EmoteText(id, emoteId)
 	local ball = self.marbles:FindFirstChild(Protocol.MarbleName(userId))
 	local camera = workspace.CurrentCamera
 	if not emote or not ball or not camera or (ball.Position - camera.CFrame.Position).Magnitude > SocialConfig.Emotes.MaxDistance then
@@ -220,7 +238,7 @@ function Social:Update(now)
 	local cooling = os.clock() < self.emoteReadyAt
 	for i, b in ipairs(self.emoteButtons) do
 		b.TextTransparency = cooling and 0.6 or 0
-		local emote = SocialConfig.Emotes.List[i]
+		local emote = Social.EmoteText(i, self.emoteIds and self.emoteIds[i])
 		UIKit.setText(b, emote.text) -- dimmed while cooling (a bare countdown digit read as a bug)
 	end
 end

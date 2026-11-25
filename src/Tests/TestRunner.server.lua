@@ -62,6 +62,11 @@ local modules = {
 	PartyRules = require(Services:WaitForChild("PartyRules")),
 	TimeTrialRules = require(Shared:WaitForChild("TimeTrialRules")),
 	AbilityRules = require(Services:WaitForChild("AbilityRules")),
+	Catalog = require(Shared:WaitForChild("Catalog")),
+	MarbleLook = require(Shared:WaitForChild("MarbleLook")),
+	QuestConfig = require(Shared:WaitForChild("QuestConfig")),
+	CosmeticService = require(Services:WaitForChild("CosmeticService")),
+	LeaderboardService = require(Services:WaitForChild("LeaderboardService")),
 	SocialConfig = require(Shared:WaitForChild("SocialConfig")),
 }
 do
@@ -121,6 +126,7 @@ report("A6 social specs", require(Unit:WaitForChild("Social.spec")).run(modules)
 report("B1 world specs", require(Unit:WaitForChild("Worlds.spec")).run(modules))
 report("B1 rules specs", require(Unit:WaitForChild("B1Rules.spec")).run(modules))
 report("B2 ability specs", require(Unit:WaitForChild("B2Abilities.spec")).run(modules))
+report("B3 progression specs", require(Unit:WaitForChild("B3Progression.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

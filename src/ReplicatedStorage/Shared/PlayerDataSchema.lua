@@ -15,13 +15,17 @@
 	v2 (B2) adds ownedAbilityIds = { id, ... } — abilities bought with earned Coins (level unlocks
 	are derived from the level, starters are always owned); equippedAbilityIds may hold any of
 	the twelve ids (the server checks ownership).
+	v3 (B3) adds cosmetics = { owned = {id..}, equipped = { marble, trail, burst, emotes = {3} },
+	favorites = {id..} }, levelRewardsClaimed = { level.. }, quests (QuestConfig shape).
 ]]
 
 local ProgressionConfig = require(script.Parent:WaitForChild("ProgressionConfig"))
+local Catalog = require(script.Parent:WaitForChild("Catalog"))
+local QuestConfig = require(script.Parent:WaitForChild("QuestConfig"))
 
 local PlayerDataSchema = {}
 
-PlayerDataSchema.Version = 2
+PlayerDataSchema.Version = 3
 PlayerDataSchema.LedgerSize = 25 -- last N rewarded race ids kept (bounded, never grows)
 
 PlayerDataSchema.Settings = {
@@ -91,6 +95,72 @@ function PlayerDataSchema.DefaultSettings()
 	return out
 end
 
+function PlayerDataSchema.DefaultCosmetics()
+	local owned = {}
+	for i, id in ipairs(Catalog.Starters) do
+		owned[i] = id
+	end
+	local d = Catalog.Defaults
+	return { owned = owned, equipped = { marble = d.marble, trail = d.trail, burst = d.burst, emotes = { d.emotes[1], d.emotes[2], d.emotes[3] } }, favorites = {} }
+end
+
+-- v3: sanitize the cosmetics table (known ids only; starters always owned; equipped must be
+-- owned and of the right kind, else the default)
+function PlayerDataSchema.SanitizeCosmetics(raw)
+	local c = PlayerDataSchema.DefaultCosmetics()
+	if type(raw) ~= "table" then
+		return c
+	end
+	local set = {}
+	for _, id in ipairs(c.owned) do
+		set[id] = true
+	end
+	for _, id in ipairs(type(raw.owned) == "table" and raw.owned or {}) do
+		if type(id) == "string" and Catalog.Get(id) and not set[id] then
+			set[id] = true
+			c.owned[#c.owned + 1] = id
+		end
+	end
+	local eq = type(raw.equipped) == "table" and raw.equipped or {}
+	for key, kind in pairs({ marble = "Marble", trail = "Trail", burst = "Burst" }) do
+		if type(eq[key]) == "string" and set[eq[key]] and Catalog.IsKind(eq[key], kind) then
+			c.equipped[key] = eq[key]
+		end
+	end
+	if type(eq.emotes) == "table" then
+		local seen = {}
+		for i = 1, 3 do
+			local id = eq.emotes[i]
+			if type(id) == "string" and set[id] and Catalog.IsKind(id, "Emote") and not seen[id] then
+				c.equipped.emotes[i] = id
+			end
+			seen[c.equipped.emotes[i]] = true
+		end
+		-- never the same emote twice: a duplicate default falls back to an unused owned emote
+		local used = {}
+		for i = 1, 3 do
+			local id = c.equipped.emotes[i]
+			if used[id] then
+				for _, candidate in ipairs(c.owned) do
+					if Catalog.IsKind(candidate, "Emote") and not used[candidate] then
+						c.equipped.emotes[i] = candidate
+						break
+					end
+				end
+			end
+			used[c.equipped.emotes[i]] = true
+		end
+	end
+	local favSeen = {}
+	for _, id in ipairs(type(raw.favorites) == "table" and raw.favorites or {}) do
+		if type(id) == "string" and Catalog.Get(id) and not favSeen[id] and #c.favorites < 60 then
+			favSeen[id] = true
+			c.favorites[#c.favorites + 1] = id
+		end
+	end
+	return c
+end
+
 function PlayerDataSchema.Defaults()
 	return {
 		schemaVersion = PlayerDataSchema.Version,
@@ -103,6 +173,9 @@ function PlayerDataSchema.Defaults()
 		bestTimes = {},
 		equippedAbilityIds = { PlayerDataSchema.DefaultLoadout[1], PlayerDataSchema.DefaultLoadout[2] },
 		ownedAbilityIds = {}, -- v2: bought with earned Coins
+		cosmetics = PlayerDataSchema.DefaultCosmetics(), -- v3
+		levelRewardsClaimed = {}, -- v3: levels whose reward was granted
+		quests = QuestConfig.Default(), -- v3
 		settings = PlayerDataSchema.DefaultSettings(),
 		rewardLedger = {},
 		botPractice = { day = 0, races = 0 },
@@ -196,6 +269,17 @@ function PlayerDataSchema.Migrate(raw)
 			end
 		end
 	end
+	d.cosmetics = PlayerDataSchema.SanitizeCosmetics(raw.cosmetics)
+	if type(raw.levelRewardsClaimed) == "table" then
+		local seen = {}
+		for _, level in ipairs(raw.levelRewardsClaimed) do
+			if type(level) == "number" and Catalog.LevelRewards[level] and not seen[level] then
+				seen[level] = true
+				d.levelRewardsClaimed[#d.levelRewardsClaimed + 1] = level
+			end
+		end
+	end
+	d.quests = QuestConfig.Sanitize(raw.quests)
 	if type(raw.botPractice) == "table" then
 		d.botPractice.day = count(raw.botPractice.day)
 		d.botPractice.races = count(raw.botPractice.races)

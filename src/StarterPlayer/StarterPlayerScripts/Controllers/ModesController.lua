@@ -49,17 +49,17 @@ function ModesController.new(deps)
 	-- Lobby "Modes" layer ----------------------------------------------------------------
 	local modes = UIKit.new("Frame", { Name = "Modes", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false }, root)
 	self.modes = modes
-	self.trialButton = UIKit.button(modes, { Name = "TimeTrial", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -143, 0, 268), Size = UDim2.fromOffset(121, 44), Text = "TIME TRIAL" }, palette.Mint)
+	self.trialButton = UIKit.button(modes, { Name = "TimeTrial", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -143, 0, 320), Size = UDim2.fromOffset(121, 44), Text = "TIME TRIAL" }, palette.Mint)
 	maid:Give(self.trialButton.Activated:Connect(function()
 		self.remotes.RequestTimeTrial:FireServer(true)
 	end))
-	self.partyButton = UIKit.button(modes, { Name = "Party", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 268), Size = UDim2.fromOffset(121, 44), Text = "PARTY" }, palette.Yellow)
+	self.partyButton = UIKit.button(modes, { Name = "Party", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 320), Size = UDim2.fromOffset(121, 44), Text = "PARTY" }, palette.Yellow)
 	maid:Give(self.partyButton.Activated:Connect(function()
 		self.partyCard.Visible = not self.partyCard.Visible
 	end))
 
 	-- party card (left of the column)
-	local card = UIKit.panel(modes, { Name = "PartyCard", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -278, 0, 216), Size = UDim2.fromOffset(250, 132), Visible = false })
+	local card = UIKit.panel(modes, { Name = "PartyCard", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -278, 0, 320), Size = UDim2.fromOffset(250, 132), Visible = false })
 	UIKit.new("UIStroke", { Color = palette.Yellow, Thickness = 2 }, card)
 	self.partyCard = card
 	UIKit.label(card, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 24), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = "PARTY RACE" })

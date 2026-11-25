@@ -76,6 +76,7 @@ local ResultsController = require(Controllers:WaitForChild("ResultsController"))
 local DevPanelController = require(Controllers:WaitForChild("DevPanelController"))
 local SocialController = require(Controllers:WaitForChild("SocialController"))
 local ModesController = require(Controllers:WaitForChild("ModesController"))
+local HubMenusController = require(Controllers:WaitForChild("HubMenusController"))
 local Lighting = game:GetService("Lighting")
 
 local ATTR = Protocol.PlayerAttributes
@@ -378,6 +379,17 @@ end
 -- UIController layers: each ScreenGui shows only when the current screen / modal lists it.
 ui:Register("Title", function() end) -- the title overlay is driven by the PLAY flow below
 modes:RegisterLayers(ui) -- B1: "Modes" (lobby) and "TimeTrial"
+-- B3: GARAGE / QUESTS / BOARDS modals
+local hubMenus = maid:Give(HubMenusController.new({
+	remotes = remote,
+	toast = function(text, seconds)
+		hud:Toast(text, seconds)
+	end,
+}))
+hubMenus:RegisterLayers(ui)
+maid:Give(hubMenus.EquippedChanged:Connect(function(equipped)
+	social:SetEmotes(equipped.emotes) -- B3: the three equipped emotes on the emote row
+end))
 ui:Register("Hud", function(visible)
 	hud:SetHudVisible(visible)
 end)
@@ -679,7 +691,7 @@ maid:Give(remote.FinishNotice.OnClientEvent:Connect(function(data)
 		raceHud:Flash(string.format("FINISHED  #%d", data.place), GameConfig.Palette.Mint, 2.5)
 		sound:Play("Finish")
 		if currentBall and currentBall.Parent then
-			vfx:Confetti(currentBall.Position + Vector3.new(0, 2, 0)) -- every finisher gets one
+			vfx:Confetti(currentBall.Position + Vector3.new(0, 2, 0), currentBall:GetAttribute("TC_Burst")) -- every finisher gets one (B3: their equipped burst)
 		end
 	else
 		hud:Toast(string.format("%s%s finished #%d", data.isBot and "[BOT] " or "", tostring(data.name), data.place), 2)
@@ -760,6 +772,19 @@ maid:Give(matchUi.LoadoutRequested:Connect(function()
 end))
 maid:Give(matchUi.SettingsRequested:Connect(function()
 	openModal("Settings")
+end))
+maid:Give(matchUi.GarageRequested:Connect(function()
+	openModal("Garage")
+end))
+maid:Give(matchUi.QuestsRequested:Connect(function()
+	openModal("Quests")
+end))
+maid:Give(matchUi.BoardsRequested:Connect(function()
+	openModal("Boards")
+end))
+maid:Give(hubMenus.CloseRequested:Connect(function()
+	ui:CloseModal()
+	refreshGates()
 end))
 maid:Give(abilities.LoadoutRequested:Connect(function()
 	openModal("Loadout")

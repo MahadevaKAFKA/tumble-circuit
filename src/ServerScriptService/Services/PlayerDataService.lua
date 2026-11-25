@@ -72,6 +72,7 @@ function PlayerDataService.new(deps)
 	self.releasing = {} -- [userId] = true while a leave-save runs
 	self.maid = Utility.Maid.new()
 	self.ProfileLoaded = Utility.Signal.new() -- (player, profile)
+	self.Updated = Utility.Signal.new() -- B3: (player) after any successful Update mutation
 	self.limiter = Utility.RateLimiter.new(RoundProtocol.Remotes.RequestSettings.MinInterval)
 	return self
 end
@@ -256,6 +257,7 @@ function PlayerDataService:Update(player, fn)
 	profile.data.level = (ProgressionConfig.LevelForXp(profile.data.xp))
 	ProfileStore.MarkDirty(profile)
 	self:SendState(player)
+	self.Updated:Fire(player) -- B3: level rewards / cosmetic state follow profile changes
 	return true
 end
 

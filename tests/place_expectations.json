@@ -433,6 +433,17 @@
     "Rock",
     "TC_PBGhost",
     "TC_Decoys",
-    "RequestUnlockAbility"
+    "RequestUnlockAbility",
+    "RequestLeaderboard",
+    "RequestQuestClaim",
+    "TC_Trail",
+    "CosmeticState",
+    "RequestEquipCosmetic",
+    "RequestFavorite",
+    "QuestState",
+    "LeaderboardData",
+    "ProgressionNotice",
+    "TrailA",
+    "TrailB"
   ]
 }

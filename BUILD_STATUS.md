@@ -1,13 +1,41 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** B2 — the nine play-earned abilities (Phase B on the owner's go-ahead,
-2026-11-25; plan: docs/PHASE_BCD_PLAN.md). B1 published as v16.
-**State:** A1–A6 played and approved on the owner's phone. B1 + B2 offline-verified (428 specs)
-and published privately — **neither has been played in Roblox yet**.
+**Active milestone:** B3 — garage, cosmetics, level rewards, quests, leaderboards, telemetry
+(Phase B on the owner's go-ahead, 2026-11-25; plan: docs/PHASE_BCD_PLAN.md). B1 = v16, B2 = v17.
+**State:** A1–A6 played and approved on the owner's phone. B1–B3 offline-verified (463 specs) and
+published privately — **none of Phase B has been played in Roblox yet**.
 **Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — Phase B3: garage, cosmetics, quests, leaderboards, telemetry
+
+- **Catalog** (stable slug ids): 35 marbles (12 Common / 10 Rare / 7 Epic / 4 Legendary / 2 Mythic),
+  12 trails, 8 finish bursts, 8 preset-text emotes. Looks are procedural from native materials:
+  the BallRoot keeps its size, physics and collision; extra shells are massless, non-colliding
+  welded parts (MarbleLook). Trails are server Trails, switched off locally on Low graphics /
+  reduced motion. Bursts replace the finish confetti per player.
+- **Inventory** (CosmeticService — not "CollectionService", which is a Roblox service): owned /
+  equipped / favorites in profile **v3**; equip only owned items of the right kind; 3 emote slots
+  (swap, never duplicate); looks rebuilt in place. Starters: Cobalt, Dust, Confetti, GG / Nice
+  Save / Oops. **Level rewards** every 5 levels (10 items up to level 50), granted once.
+  Everything else says "Free Coin capsules & Shard Shop (Phase C)" — no buy button, no Robux.
+- **Quests**: 3 daily (picked from 7, same for everyone each UTC day) + 4 weekly (Monday 00:00
+  UTC); progress from server events only; CLAIM = flag + Coins/XP in one profile mutation
+  (daily 60 Coins + 100 XP, weekly 250 + 400). Bot practice counts for the first 3 bot races a
+  day (shown in the panel). No streaks.
+- **Leaderboards**: OrderedDataStores, humans only. Best race time per world | layout |
+  variation (written on a server-verified PB, faster value kept); weekly wins (races with 2+
+  humans). Budget-checked writes, 60 s read cache, display names, "friends here" from their
+  profiles, your best. Studio mock mode says boards need the live game.
+- **Telemetry**: TelemetryService wraps Roblox AnalyticsService (onboarding funnel Title → first
+  race → first finish; race start/finish/DNF, ability used, quest claim, item granted);
+  pcall-guarded, off in Studio.
+- **Hub column**: [ABILITIES][GARAGE] / [QUESTS][MORE → LEADERBOARDS, SETTINGS] / [TIME TRIAL]
+  [PARTY] / emotes. New modals GARAGE (tabs, filters, 3D preview, equip, favorite), QUESTS, BOARDS.
+- Protocol v9. Offline: B3Progression.spec (35). Not testable here: OrderedDataStore boards,
+  AnalyticsService, the garage preview on a phone.
 
 ## 2026-11-25 — Phase B2: nine play-earned abilities
 
@@ -394,6 +422,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | B2: `luau_check` (90 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **428 passed, 0 failed** (B2 abilities 30 new); 104 instances, 90 scripts, all references resolve |
 | — | B1 phone playtest (3 worlds, Time Trial) | **pending owner** |
 | 2026-11-25 | GitHub Actions **Deploy** run 45611643242 (B2, Selene 0 errors, 428 specs, publish) | **success**: **version 17** published, visibility PRIVATE |
+| 2026-11-25 | B3: `luau_check` (99 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **463 passed, 0 failed** (B3 progression 35 new); 113 instances, 99 scripts, all references resolve |
 | — | B2 phone playtest (abilities) | **pending owner** |
+| — | B3 phone playtest (garage, quests, boards) | **pending owner** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

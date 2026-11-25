@@ -75,6 +75,7 @@ function RoundService.new(deps)
 	self.warned = {}
 	self.StateChanged = Utility.Signal.new() -- (state, snapshot)
 	self.RaceFinished = Utility.Signal.new() -- (roundId, results) for later milestones (rewards = A5)
+	self.TimeTrialFinished = Utility.Signal.new() -- B3: (player, seconds, isPb)
 	for name, spec in pairs(RoundProtocol.Remotes) do
 		if spec.Direction == "ClientToServer" then
 			self.limiters[name] = Utility.RateLimiter.new(spec.MinInterval)
@@ -270,6 +271,10 @@ function RoundService:TryMapVote(player, optionIndex)
 		self:SendSnapshot(player)
 	end
 	return ok, reason
+end
+
+function RoundService:ReportTimeTrial(player, seconds, isPb)
+	self.TimeTrialFinished:Fire(player, seconds, isPb)
 end
 
 function RoundService:GetNextWorldId()

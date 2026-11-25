@@ -190,7 +190,8 @@ function SocialService:Emote(player, id)
 		return false
 	end
 	self.emoteCooldown[player] = now + SocialConfig.Emotes.CooldownSeconds
-	self.remotes.EmoteShown:FireAllClients({ userId = player.UserId, id = id })
+	local emoteId = self.emoteResolver and self.emoteResolver(player, id) or nil -- B3: equipped emote in that slot
+	self.remotes.EmoteShown:FireAllClients({ userId = player.UserId, id = id, emoteId = emoteId })
 	return true
 end
 

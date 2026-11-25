@@ -71,6 +71,10 @@ local modules = {
 	TimeTrialRules = H.module("ReplicatedStorage/Shared/TimeTrialRules"),
 	AbilityRules = H.module("ServerScriptService/Services/AbilityRules"),
 	SocialConfig = H.module("ReplicatedStorage/Shared/SocialConfig"),
+	Catalog = H.module("ReplicatedStorage/Shared/Catalog"),
+	MarbleLook = H.module("ReplicatedStorage/Shared/MarbleLook"),
+	QuestConfig = H.module("ReplicatedStorage/Shared/QuestConfig"),
+	CosmeticService = H.module("ServerScriptService/Services/CosmeticService"),
 }
 -- A5 client modules: load-time references to client services are stubbed; only their pure
 -- functions (Step / Choose / PbLine) are exercised.
@@ -79,6 +83,9 @@ modules.SettingsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/
 modules.LoadoutPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/StarterLoadoutController")
 modules.ResultsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/ResultsController")
 modules.SocialPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/SocialController")
+H.stubServices = { Players = {}, RunService = {}, DataStoreService = {}, UserService = {} }
+modules.HubMenusPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/HubMenusController")
+modules.LeaderboardService = H.module("ServerScriptService/Services/LeaderboardService")
 H.stubServices = {}
 
 -- A5 UI text scan: every string literal in client code (comments stripped).
@@ -206,6 +213,13 @@ do
 	}
 end
 
+modules.ReadFile = function(rel) -- B3 specs read a source file (offline only)
+	local f = assert(io.open(root .. "/" .. rel))
+	local text = f:read("*a")
+	f:close()
+	return text
+end
+
 local suites = {
 	{ "A1 pure specs", root .. "/src/Tests/Unit/A1PureSpecs.lua" },
 	{ "A2 round specs", root .. "/src/Tests/Unit/RoundState.spec.lua" },
@@ -222,6 +236,7 @@ local suites = {
 	{ "B1 world specs", root .. "/src/Tests/Unit/Worlds.spec.lua" },
 	{ "B1 rules specs", root .. "/src/Tests/Unit/B1Rules.spec.lua" },
 	{ "B2 ability specs", root .. "/src/Tests/Unit/B2Abilities.spec.lua" },
+	{ "B3 progression specs", root .. "/src/Tests/Unit/B3Progression.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

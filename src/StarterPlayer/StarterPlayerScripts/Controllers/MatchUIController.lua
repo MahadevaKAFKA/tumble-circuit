@@ -48,6 +48,9 @@ function MatchUI.new()
 	self.SpectateCycle = Utility.Signal.new() -- (direction)
 	self.LoadoutRequested = Utility.Signal.new()
 	self.SettingsRequested = Utility.Signal.new()
+	self.GarageRequested = Utility.Signal.new() -- B3
+	self.QuestsRequested = Utility.Signal.new() -- B3
+	self.BoardsRequested = Utility.Signal.new() -- B3
 
 	-- Lobby layer -------------------------------------------------------------------------
 	local lobby = UIKit.new("Frame", { Name = "Lobby", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) }, root)
@@ -58,9 +61,10 @@ function MatchUI.new()
 	--          line that sat on top of the hub's 3D board)
 	--   y  72  [READY?] [SIT OUT / JOIN RACE]
 	--   y 124  profile: LEVEL + XP, bar, Coins/races/wins, save status
-	--   y 216  [LOADOUT] [SETTINGS]
-	--   y 268  [TIME TRIAL] [PARTY] (B1, ModesController)
-	--   y 320  emotes (SocialController)
+	--   y 216  [ABILITIES] [GARAGE]   (B3)
+	--   y 268  [QUESTS] [MORE]        (MORE -> BOARDS / SETTINGS)
+	--   y 320  [TIME TRIAL] [PARTY] (B1, ModesController)
+	--   y 372  emotes (SocialController)
 	-- Clear of Roblox's top bar and chat (top left), the stick (left) and RESET/BRAKE (bottom right).
 	local status = UIKit.panel(lobby, { Name = "Status", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 8), Size = UDim2.fromOffset(250, 58) })
 	UIKit.new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, status)
@@ -78,12 +82,32 @@ function MatchUI.new()
 	self.coinLabel = UIKit.label(chip, { Position = UDim2.fromOffset(10, 44), Size = UDim2.new(1, -20, 0, 20), TextColor3 = palette.Yellow, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
 	self.saveLabel = UIKit.label(chip, { Position = UDim2.fromOffset(10, 66), Size = UDim2.new(1, -20, 0, 14), Font = Enum.Font.Gotham, TextTransparency = 0.25, TextXAlignment = Enum.TextXAlignment.Left, Text = "Loading your progress..." })
 
-	self.loadoutButton = UIKit.button(lobby, { Name = "LoadoutButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -143, 0, 216), Size = UDim2.fromOffset(121, 44), Text = "LOADOUT" }, palette.Violet)
-	self.settingsButton = UIKit.button(lobby, { Name = "SettingsButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 216), Size = UDim2.fromOffset(121, 44), Text = "SETTINGS" }, palette.Cyan)
+	self.loadoutButton = UIKit.button(lobby, { Name = "LoadoutButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -143, 0, 216), Size = UDim2.fromOffset(121, 44), Text = "ABILITIES" }, palette.Violet)
+	self.garageButton = UIKit.button(lobby, { Name = "GarageButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 216), Size = UDim2.fromOffset(121, 44), Text = "GARAGE" }, palette.Cyan)
+	self.questsButton = UIKit.button(lobby, { Name = "QuestsButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -143, 0, 268), Size = UDim2.fromOffset(121, 44), Text = "QUESTS" }, palette.Yellow)
+	self.moreButton = UIKit.button(lobby, { Name = "MoreButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 268), Size = UDim2.fromOffset(121, 44), Text = "MORE" }, palette.White)
+	local more = UIKit.panel(lobby, { Name = "MoreMenu", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -278, 0, 268), Size = UDim2.fromOffset(250, 104), Visible = false })
+	self.moreMenu = more
+	self.boardsButton = UIKit.button(more, { Name = "BoardsButton", Position = UDim2.fromOffset(6, 6), Size = UDim2.new(1, -12, 0, 44), Text = "LEADERBOARDS" }, palette.Violet)
+	self.settingsButton = UIKit.button(more, { Name = "SettingsButton", Position = UDim2.fromOffset(6, 54), Size = UDim2.new(1, -12, 0, 44), Text = "SETTINGS" }, palette.Cyan)
+	maid:Give(self.garageButton.Activated:Connect(function()
+		self.GarageRequested:Fire()
+	end))
+	maid:Give(self.questsButton.Activated:Connect(function()
+		self.QuestsRequested:Fire()
+	end))
+	maid:Give(self.moreButton.Activated:Connect(function()
+		more.Visible = not more.Visible
+	end))
+	maid:Give(self.boardsButton.Activated:Connect(function()
+		more.Visible = false
+		self.BoardsRequested:Fire()
+	end))
 	maid:Give(self.loadoutButton.Activated:Connect(function()
 		self.LoadoutRequested:Fire()
 	end))
 	maid:Give(self.settingsButton.Activated:Connect(function()
+		more.Visible = false
 		self.SettingsRequested:Fire()
 	end))
 
@@ -145,7 +169,7 @@ end
 
 -- e.g. "BOOST + SHIELD": the equipped pair, shown on the LOADOUT button itself
 function MatchUI:SetLoadoutText(text)
-	UIKit.setText(self.loadoutButton, "LOADOUT\n" .. text)
+	UIKit.setText(self.loadoutButton, "ABILITIES\n" .. text)
 end
 
 function MatchUI:SetLobbyVisible(visible)

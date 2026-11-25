@@ -163,16 +163,31 @@ end
 
 -- A6 finish celebration: a short, cheap confetti burst (18 anchored bits moved by Step).
 -- Skipped with Reduced Motion or the Low graphics preset.
-function VFXController:Confetti(position)
+-- B3 finish bursts (catalog ids): colours, piece shape, count, launch speed
+VFXController.Bursts = {
+	burst_confetti = { colors = { palette.Cyan, palette.Coral, palette.Yellow, palette.Violet, palette.Mint }, count = 18, up = 18, out = 6 },
+	burst_stars = { colors = { palette.Yellow, palette.White }, count = 16, up = 20, out = 7, ball = true },
+	burst_bubbles = { colors = { Color3.fromRGB(200, 240, 255), Color3.fromRGB(255, 200, 240) }, count = 12, up = 10, out = 4, ball = true, glass = true },
+	burst_sparks = { colors = { palette.Yellow, palette.Coral }, count = 22, up = 24, out = 10, thin = true },
+	burst_snowflakes = { colors = { palette.White, Color3.fromRGB(190, 240, 255) }, count = 18, up = 12, out = 5 },
+	burst_fireworks = { colors = { palette.Coral, palette.Mint, palette.Violet, palette.Yellow }, count = 26, up = 28, out = 9, ball = true },
+	burst_lightning = { colors = { palette.Yellow, palette.Violet }, count = 14, up = 32, out = 3, thin = true },
+	burst_supernova = { colors = { palette.Cyan, palette.Coral, palette.Yellow, palette.Violet, palette.Mint, palette.White }, count = 32, up = 24, out = 12, ball = true },
+}
+
+function VFXController:Confetti(position, burstId)
 	if self.reducedMotion or self.low or typeof(position) ~= "Vector3" then
 		return
 	end
 	local t = workspace:GetServerTimeNow()
-	local colors = { palette.Cyan, palette.Coral, palette.Yellow, palette.Violet, palette.Mint }
-	for i = 1, 18 do
-		local bit = effectPart({ Size = Vector3.new(0.5, 0.12, 0.35), Color = colors[(i - 1) % #colors + 1] })
-		local angle = i / 18 * math.pi * 2
-		local velocity = Vector3.new(math.cos(angle) * (6 + (i % 4)), 18 + (i % 5) * 2, math.sin(angle) * (6 + (i % 3)))
+	local style = VFXController.Bursts[burstId] or VFXController.Bursts.burst_confetti
+	local colors = style.colors
+	local n = style.count
+	for i = 1, n do
+		local size = style.ball and Vector3.new(0.45, 0.45, 0.45) or style.thin and Vector3.new(0.12, 0.12, 0.9) or Vector3.new(0.5, 0.12, 0.35)
+		local bit = effectPart({ Size = size, Shape = style.ball and Enum.PartType.Ball or Enum.PartType.Block, Color = colors[(i - 1) % #colors + 1], Material = style.glass and Enum.Material.Glass or Enum.Material.Neon, Transparency = style.glass and 0.4 or 0 })
+		local angle = i / n * math.pi * 2
+		local velocity = Vector3.new(math.cos(angle) * (style.out + (i % 4)), style.up + (i % 5) * 2, math.sin(angle) * (style.out + (i % 3)))
 		bit.CFrame = CFrame.new(position)
 		self:_add({ startedAt = t, endsAt = t + 1.6, part = bit, cleanup = { bit }, confetti = { origin = position, velocity = velocity, spin = i } })
 	end
@@ -193,7 +208,28 @@ function VFXController:SetSlipstream(localUserId, active)
 	end
 end
 
+-- B3: equipped trails are server Trails on each marble; Low graphics / reduced motion turn them
+-- off on this device only (checked every 2 s, cheap)
+function VFXController:_trailsLocal(now)
+	if now < (self.nextTrailCheck or 0) then
+		return
+	end
+	self.nextTrailCheck = now + 2
+	local folder = self.marbles
+	if not folder then
+		return
+	end
+	local on = not (self.low or self.reducedMotion)
+	for _, ball in ipairs(folder:GetChildren()) do
+		local trail = ball:FindFirstChild("TC_Trail")
+		if trail and trail.Enabled ~= on then
+			trail.Enabled = on
+		end
+	end
+end
+
 function VFXController:Step()
+	self:_trailsLocal(os.clock())
 	local t = workspace:GetServerTimeNow()
 	for i = #self.effects, 1, -1 do
 		local e = self.effects[i]

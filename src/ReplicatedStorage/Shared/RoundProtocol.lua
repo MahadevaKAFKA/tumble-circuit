@@ -51,12 +51,15 @@
 	AbilityState adds owned (all twelve possible) and practice (hub try-it set);
 	EffectState adds statuses = {{kind, endsAt, ...}} (GravityGlide, Anchor, Phase, BounceBurst,
 	Chilled); ApplyImpulse adds source and cap.
+	B3 (v9): CosmeticState, RequestEquipCosmetic(kind, id, slot), RequestFavorite(id, on),
+	QuestState, RequestQuestClaim(scope, index), RequestLeaderboard(kind, worldId, seedClass),
+	LeaderboardData, ProgressionNotice; EmoteShown adds emoteId (the slot's equipped emote).
 	Snapshot adds chaosModifier = {kind, startsAt, endsAt} while a voted modifier is pending/active.
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 8
+RoundProtocol.Version = 9
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -98,6 +101,15 @@ RoundProtocol.Remotes = {
 	GhostPath = { Direction = "ServerToClient" }, -- to owner: their PB ghost for this world + variation
 	-- B2
 	RequestUnlockAbility = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 16 } }, MinInterval = 0.5 },
+	-- B3
+	CosmeticState = { Direction = "ServerToClient" }, -- owner: owned / equipped / favorites / claimed level rewards
+	RequestEquipCosmetic = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 8 }, { type = "string", maxLength = 40 }, { type = "number", min = 0, max = 3, integer = true } }, MinInterval = 0.25 },
+	RequestFavorite = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 }, "boolean" }, MinInterval = 0.2 },
+	QuestState = { Direction = "ServerToClient" },
+	RequestQuestClaim = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 8 }, { type = "number", min = 1, max = 4, integer = true } }, MinInterval = 0.4 },
+	RequestLeaderboard = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 8 }, { type = "string", maxLength = 40 }, { type = "number", min = 0, max = 2, integer = true } }, MinInterval = 1.0 },
+	LeaderboardData = { Direction = "ServerToClient" },
+	ProgressionNotice = { Direction = "ServerToClient" }, -- owner: LevelReward / QuestDone / QuestClaimed / Denied
 }
 
 RoundProtocol.States = {

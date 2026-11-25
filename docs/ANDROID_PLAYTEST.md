@@ -23,6 +23,23 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
+## Phase B3 — garage, quests, leaderboards
+
+The hub column is now: **ABILITIES / GARAGE**, **QUESTS / MORE** (leaderboards, settings),
+**TIME TRIAL / PARTY**, then your three emotes.
+- **GARAGE**: 35 marble looks, 12 trails, 8 finish bursts, 8 emotes. You start with a few; every
+  5 levels unlocks another. Locked ones say how you'll get them. Looks only — every marble rolls
+  the same.
+- **QUESTS**: 3 daily + 4 weekly. Tap CLAIM when one is done for Coins and XP.
+- **LEADERBOARDS** (in MORE): best times per world and weekly wins, real players only.
+
+### What to check (B3)
+- [ ] GARAGE: preview spins, EQUIP changes your marble right away, trail shows while rolling,
+      FAVORITE + filters work; an emote set to SLOT 2 appears on the emote row.
+- [ ] Finish a race: your burst plays. Reach level 5 / 10: a reward message + the item is owned.
+- [ ] QUESTS: progress moves after races; CLAIM pays once.
+- [ ] LEADERBOARDS: opens; after a PB your time appears (may take a minute).
+
 ## Phase B2 — nine more abilities
 
 LOADOUT now lists twelve abilities. The nine new ones unlock for free at **level 3 / 6 / 10**, or
