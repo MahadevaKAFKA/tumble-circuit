@@ -36,6 +36,10 @@ function BotService.new(deps)
 	self.bots = {}
 	self.maid = Utility.Maid.new()
 	self.BotSpawned = Utility.Signal.new() -- (bot, ball, reason) like MarbleCharacterService.MarbleSpawned
+	-- Playtest diagnostics (owner report 2026-11-25: bots vanished at GO and all showed DNF).
+	-- Published every second as workspace attribute Bots_Status, shown in the stats box.
+	self.diag = { respawns = {}, errors = 0, lastError = nil, lastWarn = 0 }
+	self.statusTimer = 0
 	return self
 end
 
@@ -83,6 +87,7 @@ end
 
 -- A fresh roster for one round (deterministic names/skills per round).
 function BotService:CreateRoster(count, roundId)
+	self.diag.respawns, self.diag.errors, self.diag.lastError = {}, 0, nil -- per-round diagnostics
 	local roster = {}
 	local rng = BotBrain.Rng(roundId * 7919 + 13)
 	for i = 1, count do
@@ -107,6 +112,7 @@ function BotService:Spawn(bot, reason)
 	self.bots[bot] = entry
 	entry.generation = entry.generation + 1
 	entry.pending = false
+	self.diag.respawns[reason] = (self.diag.respawns[reason] or 0) + 1
 	self:_destroyBall(bot, entry)
 	local spot = self.round:ResolveSpawn(bot, reason)
 	if not spot or spot.Zone ~= Protocol.Zones.Race then
@@ -150,17 +156,17 @@ function BotService:_endProtectionLater(bot, ball)
 	end)
 end
 
+-- GO: replace the frozen grid ball with a fresh free one on the same slot (the spawn resolver
+-- returns the grid slot, unfrozen, once Racing). Unanchoring the grid ball in place is what left
+-- human marbles unable to move at GO (owner playtest 2026-11-23); bots used that path until the
+-- owner saw them stay at the start and vanish (2026-11-25). Same fix for both now.
 function BotService:Release(bot)
 	local entry = self.bots[bot]
 	local ball = entry and entry.ball
 	if ball and ball.Parent and ball.Anchored then
-		ball.Anchored = false
-		ball:SetAttribute(Protocol.BallAttributes.Frozen, false)
-		pcall(function()
-			ball:SetNetworkOwner(nil)
-		end)
-		self:_endProtectionLater(bot, ball)
+		return self:Spawn(bot, Protocol.SpawnReasons.Go) ~= nil
 	end
+	return false
 end
 
 function BotService:ScheduleRespawn(bot, reason, delaySeconds)
@@ -279,6 +285,63 @@ function BotService:_step(dt)
 	local hazardTime = self.hazards:Time()
 	local cfgBumper = PhysicsConfig.Hazards.PulseBumper
 	for bot, entry in pairs(self.bots) do
+		-- one failing bot must not stop the others (an error used to abort the whole loop every
+		-- frame); the error is counted, shown in the stats box and warned at most every 10 s
+		local ok, err = pcall(self._stepBot, self, bot, entry, dt, now, hazardTime, cfgBumper)
+		if not ok then
+			self.diag.errors = self.diag.errors + 1
+			self.diag.lastError = tostring(err)
+			if now - self.diag.lastWarn > 10 then
+				self.diag.lastWarn = now
+				warn("[Bots] step error (" .. bot.Name .. "): " .. tostring(err))
+			end
+		end
+	end
+	self.statusTimer = self.statusTimer + dt
+	if self.statusTimer >= 1 then
+		self.statusTimer = 0
+		self:_publishStatus()
+	end
+end
+
+-- One line for the stats box: how many bots race, how many actually move, how far the best got,
+-- and why they respawned. Tells a phone playtest where bots go wrong.
+function BotService:_publishStatus()
+	if next(self.bots) == nil then
+		workspace:SetAttribute("Bots_Status", "") -- no bots (hub / between rounds): no stats line
+		return
+	end
+	local racing, moving, bestCp = 0, 0, 0
+	for bot, entry in pairs(self.bots) do
+		local ball = entry.ball
+		if self.round and self.round:IsActiveRacer(bot) then
+			racing = racing + 1
+			if ball and ball.Parent and not ball.Anchored and ball.AssemblyLinearVelocity.Magnitude > 5 then
+				moving = moving + 1
+			end
+		end
+		if self.round and self.round.checkpoints then
+			bestCp = math.max(bestCp, self.round.checkpoints:GetConfirmed(bot))
+		end
+	end
+	local r = self.diag.respawns
+	local status = string.format(
+		"%d racing, %d moving, best CP %d/%d | fell %d stuck %d audit %d | errors %d",
+		racing,
+		moving,
+		bestCp,
+		#self.layout.Checkpoints,
+		r.Fell or 0,
+		r.Reset or 0,
+		r.Movement or 0,
+		self.diag.errors
+	)
+	workspace:SetAttribute("Bots_Status", status)
+	workspace:SetAttribute("Bots_LastError", self.diag.lastError and string.sub(self.diag.lastError, 1, 120) or "")
+end
+
+function BotService:_stepBot(bot, entry, dt, now, hazardTime, cfgBumper)
+	do
 		local ball = entry.ball
 		if ball and ball.Parent and entry.motor then
 			local info = entry.tracker:Update(ball.Position)

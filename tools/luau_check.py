@@ -905,6 +905,12 @@ def server_wait_check(files: list[str]) -> dict[str, list[str]]:
             lines = f.read().split("\n")
         for line, text in enumerate(lines, start=1):
             text = re.sub(r"--.*", "", text)
+            # Unanchoring a frozen marble in place left it unable to move at GO, for humans
+            # (2026-11-23) and bots (2026-11-25); GO must spawn a fresh free marble instead.
+            if re.search(r"\b\w*[Bb]all\w*\s*\.\s*Anchored\s*=\s*false\b", text):
+                problems.setdefault(path, []).append(
+                    f"line {line}: a marble is unanchored in place (it may not move); "
+                    "respawn a fresh free marble instead (see BUILD_STATUS 2026-11-25)")
             for m in re.finditer(r"\bworkspace\s*:\s*WaitForChild\s*\(([^()]*)\)", text):
                 if "," in m.group(1):
                     continue

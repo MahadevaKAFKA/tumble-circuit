@@ -274,7 +274,8 @@ function HUD.new(input)
 	self.perfLabel = label(root, {
 		Name = "Perf",
 		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.fromOffset(540, 60),
+		Size = UDim2.fromOffset(560, 60),
+		AutomaticSize = Enum.AutomaticSize.Y,
 		TextScaled = false,
 		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -508,7 +509,17 @@ function HUD:RecordFrame(dt)
 		attr("Perf_Bots")
 	)
 	local line3 = #self.hitches > 0 and ("hitches: " .. table.concat(self.hitches, " | ")) or "hitches: none"
-	self.perfLabel.Text = line1 .. "\n" .. line2 .. "\n" .. line3
+	local text = line1 .. "\n" .. line2 .. "\n" .. line3
+	-- bot diagnostics from BotService (owner report 2026-11-25: bots vanished at GO)
+	local bots = workspace:GetAttribute("Bots_Status")
+	if type(bots) == "string" and bots ~= "" then
+		text = text .. "\nBOTS " .. bots
+		local botError = workspace:GetAttribute("Bots_LastError")
+		if type(botError) == "string" and botError ~= "" then
+			text = text .. "\nBOT ERROR " .. botError
+		end
+	end
+	self.perfLabel.Text = text
 end
 
 -- state = { speed, recoverProgress }
