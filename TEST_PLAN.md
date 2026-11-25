@@ -175,3 +175,27 @@ there is no remote for them. (Blocked here: no client exploit harness; verify by
 - [ ] Both clients see the sweeper arm, hammer and tiles in the same place at the same time (hazards are computed from the shared server clock, no per-frame network traffic).
 - [ ] Two marbles side by side in the split lane (one inside, one outside) show placements that match who is actually ahead.
 - [ ] A Chaos Gate collected by client A flashes a shell on A's marble on B's screen too.
+
+## 8. A4 owner requests — free look and READY vote
+
+**Automated:** `A4 ready vote specs` (offline and in Studio), `A4 free look specs (offline only)`:
+the real CameraController against a fake camera — look right/left, held vs released, return after
+1.5 s, pitch limits −10°..75°, reset on respawn, motor never reads the camera.
+
+**Free look**
+- [ ] Phone: steer with the left thumb and drag anywhere else (not on a button) with the right
+      thumb → the camera orbits around the marble; the marble keeps going where you steer.
+- [ ] Let go → about 1.5 s later the camera swings back behind the marble.
+- [ ] PC: hold the right mouse button and move → same; release → same return.
+- [ ] Drag up/down → the camera rises to almost overhead / drops to just below the marble, never flips.
+- [ ] Respawn (fall or hold RESET) while looking → camera is behind the marble again.
+
+**READY vote**
+- [ ] Solo (or any race that isn't full): hub and HUD show `NEXT RACE` with
+      "Waiting for players (n/16)" under it; no READY button; the timer runs as before.
+- [ ] Full race (16 queued, or a test build with `RaceConfig.Ready.CapacityOverride`): READY
+      button under SIT OUT shows `READY? r/N`; tapping it → `READY r/N` (mint); tapping again takes
+      it back. When the last player taps READY the 3-2-1 starts at once.
+- [ ] Someone leaves or sits out while the race is full → the button disappears and the message
+      goes back to "Waiting for players".
+

@@ -13,6 +13,10 @@
 	  ignored by that ray so the camera does not twitch against them.
 	* All smoothing is exponential with exact dt (same feel at any frame rate).
 	* Respawn / big jumps snap instead of swooping. Destroy() restores the default camera.
+	* Free look (A4, owner request): AddLook() orbits the view around the marble (yaw any amount,
+	  total pitch within FreeLook.Min/MaxPitchDeg). It is display only; the chase heading keeps
+	  following the route underneath, and the view eases back behind the marble ReturnDelaySeconds
+	  after the last look input. A new marble (Bind) resets it. Input lives in FreeLookController.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -45,6 +49,10 @@ function CameraController.new()
 	self.ModeChanged = Utility.Signal.new()
 	self.fovTarget = cfg.FieldOfView
 	self.fov = cfg.FieldOfView
+	self.lookYaw = 0 -- degrees, positive = look right
+	self.lookPitch = 0 -- degrees added to the chase pitch, positive = camera higher, looking down
+	self.lookHeld = false
+	self.lookIdle = math.huge
 
 	self.maid:Give(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 		self.camera = workspace.CurrentCamera
@@ -70,6 +78,7 @@ function CameraController:Bind(ball, route, ignoreInstances)
 	self.params.FilterDescendantsInstances = ignoreInstances or {}
 	self.active = true
 	self.snapNext = true
+	self:ResetLook()
 	self:_takeControl()
 	if self.camera then
 		self.camera.CameraSubject = ball
@@ -84,6 +93,36 @@ end
 -- A3: boost FOV pulse (70 -> up to 82). The caller passes the base FOV under Reduced Motion.
 function CameraController:SetFovTarget(fov)
 	self.fovTarget = math.clamp(fov, 60, 82)
+end
+
+-- Free look -------------------------------------------------------------------------------
+local function wrapDeg(angle)
+	return (angle + 180) % 360 - 180
+end
+
+function CameraController:AddLook(yawDeg, pitchDeg)
+	local look = GameConfig.Camera.FreeLook
+	self.lookYaw = wrapDeg(self.lookYaw + yawDeg)
+	-- keep the total pitch inside the free-look limits, whatever the chase pitch is right now
+	local total = Utility.clamp(self.pitch + self.lookPitch + pitchDeg, look.MinPitchDeg, look.MaxPitchDeg)
+	self.lookPitch = total - self.pitch
+	self.lookIdle = 0
+end
+
+-- A finger, the right mouse button or the right stick is currently looking (no return yet).
+function CameraController:SetLookHeld(held)
+	self.lookHeld = held
+	self.lookIdle = 0
+end
+
+function CameraController:ResetLook()
+	self.lookYaw = 0
+	self.lookPitch = 0
+	self.lookIdle = math.huge
+end
+
+function CameraController:IsLooking()
+	return math.abs(self.lookYaw) > 0.5 or math.abs(self.lookPitch) > 0.5
 end
 
 function CameraController:GetMode()
@@ -141,9 +180,34 @@ function CameraController:Step(dt, progressS)
 		self.focusY = Utility.lerp(self.focusY, position.Y, Utility.expAlpha(cfg.FocusVerticalResponse, dt))
 	end
 
+	-- free look: ease back behind the marble once nobody has looked for ReturnDelaySeconds
+	local look = cfg.FreeLook
+	if self.lookHeld then
+		self.lookIdle = 0
+	else
+		self.lookIdle = self.lookIdle + dt
+		if self.lookIdle >= look.ReturnDelaySeconds then
+			local alpha = Utility.expAlpha(look.ReturnResponse, dt)
+			self.lookYaw = Utility.lerp(self.lookYaw, 0, alpha)
+			self.lookPitch = Utility.lerp(self.lookPitch, 0, alpha)
+			if math.abs(self.lookYaw) < 0.05 and math.abs(self.lookPitch) < 0.05 then
+				self.lookYaw, self.lookPitch = 0, 0
+			end
+		end
+	end
+	local viewHeading = self.heading
+	if self.lookYaw ~= 0 then
+		-- Ry(-yaw): positive yaw turns the view to the right (heading -Z -> +X at 90 degrees)
+		viewHeading = CFrame.Angles(0, -math.rad(self.lookYaw), 0):VectorToWorldSpace(self.heading)
+	end
+	local viewPitch = self.pitch
+	if self.lookPitch ~= 0 then
+		viewPitch = Utility.clamp(self.pitch + self.lookPitch, look.MinPitchDeg, look.MaxPitchDeg)
+	end
+
 	local focus = Vector3.new(position.X, self.focusY + cfg.FocusHeight, position.Z)
-	local pitchRad = math.rad(self.pitch)
-	local offsetDir = (-self.heading * math.cos(pitchRad)) + UP * math.sin(pitchRad)
+	local pitchRad = math.rad(viewPitch)
+	local offsetDir = (-viewHeading * math.cos(pitchRad)) + UP * math.sin(pitchRad)
 
 	local desired = modeCfg.Distance
 	local allowed = desired
@@ -160,7 +224,7 @@ function CameraController:Step(dt, progressS)
 	end
 
 	local cameraPosition = focus + offsetDir * self.distance
-	local aim = focus + self.heading * cfg.AimAheadStuds
+	local aim = focus + viewHeading * cfg.AimAheadStuds
 	self.fov = Utility.lerp(self.fov, self.fovTarget, Utility.expAlpha(6, dt))
 	camera.FieldOfView = self.fov
 	camera.CFrame = CFrame.lookAt(cameraPosition, aim, UP)

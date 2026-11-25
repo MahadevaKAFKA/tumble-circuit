@@ -58,6 +58,19 @@ GameConfig.Camera = {
 	MinDistance = 7,
 	ObstructionPadding = 0.8,
 	SnapDistance = 60, -- marble moved farther than this between frames (respawn) => snap, no swoop
+	-- Free look (owner request 2026-11-25): right mouse drag, finger drag outside the stick zone,
+	-- or gamepad right stick orbit the camera around the marble. Steering never uses the camera,
+	-- so looking around does not change where the marble goes.
+	FreeLook = {
+		MouseDegPerPixel = 0.3,
+		TouchDegPerScreenHeight = 220, -- a drag across the full screen height turns this far
+		GamepadDegPerSecond = 160,
+		GamepadDeadzone = 0.2,
+		MinPitchDeg = -10, -- total camera pitch while looking (camera slightly below the marble)
+		MaxPitchDeg = 75, -- ...up to nearly overhead (look vector stays far from vertical)
+		ReturnDelaySeconds = 1.5, -- after the last look input the camera eases back behind the marble
+		ReturnResponse = 4,
+	},
 }
 
 GameConfig.UI = {

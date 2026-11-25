@@ -203,7 +203,16 @@ function RaceHUD:Update(ctx)
 		status, sub = "WAITING FOR RACERS", "Roll down the practice chute"
 	elseif snap.state == S.Intermission then
 		status = "NEXT RACE  " .. Utility.formatTime(left or 0):gsub("%.%d+$", "")
-		sub = ctx.queued and "You're in the next race" or "Sitting out - tap JOIN RACE to race"
+		-- owner request 2026-11-25: the timer keeps running with "Waiting for players" under it
+		-- until the race is full; then READY can start it early
+		if snap.readyOpen then
+			sub = string.format("Race full - tap READY to start now (%d/%d ready)", snap.readyCount or 0, snap.queuedCount or 0)
+		else
+			sub = string.format("Waiting for players (%d/%d)", snap.queuedCount or 0, snap.raceCapacity or 16)
+		end
+		if not ctx.queued then
+			sub = sub .. " - tap JOIN RACE to race"
+		end
 	elseif snap.state == S.Preparing then
 		status, sub = "GET READY", me and "To the start grid!" or "Racers to the grid"
 	elseif snap.state == S.Countdown then

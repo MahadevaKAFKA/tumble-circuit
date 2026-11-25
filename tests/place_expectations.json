@@ -263,6 +263,18 @@
     {
       "path": "StarterPlayer/StarterPlayerScripts/Controllers",
       "class": "Folder"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/FreeLook.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/ReadyVote.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController",
+      "class": "ModuleScript"
     }
   ],
   "properties": [

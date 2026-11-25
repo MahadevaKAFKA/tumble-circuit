@@ -70,6 +70,43 @@ do
 	modules.HazardControllerPure = controller -- SweeperArmCFrame / HammerHeadCFrame are pure
 end
 
+-- A4 free look: the real CameraController against a fake camera/workspace (offline only).
+do
+	local motorFile = assert(io.open(root .. "/src/ReplicatedStorage/Shared/MarbleMotorController.lua", "r"))
+	modules.MotorSource = motorFile:read("a")
+	motorFile:close()
+	local function connection()
+		return { Disconnect = function() end }
+	end
+	modules.CameraHarness = {
+		new = function()
+			local camera = { FieldOfView = 70 }
+			local fakeWorkspace = {
+				CurrentCamera = camera,
+				GetPropertyChangedSignal = function()
+					return { Connect = connection }
+				end,
+				Raycast = function()
+					return nil
+				end,
+			}
+			local env = setmetatable({
+				game = H.game,
+				require = H.require,
+				workspace = fakeWorkspace,
+				RaycastParams = { new = function() return {} end },
+				Enum = {
+					RaycastFilterType = { Exclude = "Exclude" },
+					CameraType = { Scriptable = "Scriptable", Custom = "Custom" },
+				},
+				math = setmetatable({ atan2 = math.atan2 or math.atan }, { __index = math }),
+			}, { __index = _G })
+			local chunk = assert(loadfile(root .. "/src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua", "t", env))
+			return chunk().new(), camera
+		end,
+	}
+end
+
 local suites = {
 	{ "A1 pure specs", root .. "/src/Tests/Unit/A1PureSpecs.lua" },
 	{ "A2 round specs", root .. "/src/Tests/Unit/RoundState.spec.lua" },
@@ -80,6 +117,8 @@ local suites = {
 	{ "A4 hazard reset specs", root .. "/src/Tests/Unit/HazardReset.spec.lua" },
 	{ "A4 bot navigation specs", root .. "/src/Tests/Unit/BotNavigation.spec.lua" },
 	{ "A4 chaos gate specs", root .. "/src/Tests/Unit/ChaosGate.spec.lua" },
+	{ "A4 ready vote specs", root .. "/src/Tests/Unit/ReadyVote.spec.lua" },
+	{ "A4 free look specs (offline only)", root .. "/src/Tests/Unit/FreeLook.spec.lua" },
 }
 local passed, failed = 0, 0
 for _, suite in ipairs(suites) do

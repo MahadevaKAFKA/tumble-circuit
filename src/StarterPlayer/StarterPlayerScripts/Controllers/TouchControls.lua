@@ -252,15 +252,25 @@ function TouchControls:_toLocal(position)
 	return Vector2.new(position.X - origin.X, position.Y - origin.Y)
 end
 
+-- True for a screen position where a new touch grabs the steering stick (lower-left area).
+-- FreeLookController uses the rest of the screen for looking around.
+function TouchControls:IsStickZone(position)
+	if not self.visible then
+		return false
+	end
+	local size = self.stickLayer.AbsoluteSize
+	local p = self:_toLocal(position)
+	return p.X <= size.X * STICK_ZONE_MAX_X and p.Y >= size.Y * STICK_ZONE_MIN_Y
+end
+
 function TouchControls:_onTouchStarted(touch, gameProcessed)
 	if not self.visible or gameProcessed or self.stickTouch then
 		return
 	end
-	local size = self.stickLayer.AbsoluteSize
-	local p = self:_toLocal(touch.Position)
-	if p.X > size.X * STICK_ZONE_MAX_X or p.Y < size.Y * STICK_ZONE_MIN_Y then
+	if not self:IsStickZone(touch.Position) then
 		return
 	end
+	local p = self:_toLocal(touch.Position)
 	self.stickTouch = touch
 	self.stickCenter = p
 	self.base.Position = UDim2.fromOffset(p.X, p.Y)

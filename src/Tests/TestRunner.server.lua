@@ -88,6 +88,7 @@ report("A4 track validation specs", require(Unit:WaitForChild("TrackValidation.s
 report("A4 hazard reset specs", require(Unit:WaitForChild("HazardReset.spec")).run(modules))
 report("A4 bot navigation specs", require(Unit:WaitForChild("BotNavigation.spec")).run(modules))
 report("A4 chaos gate specs", require(Unit:WaitForChild("ChaosGate.spec")).run(modules))
+report("A4 ready vote specs", require(Unit:WaitForChild("ReadyVote.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

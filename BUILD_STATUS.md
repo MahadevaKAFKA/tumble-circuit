@@ -1,13 +1,45 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** A3 — abilities and micro-skills (owner: "proceed to the next phase", 2026-11-25)
-**State:** A1 and A2 played and approved on the owner's phone (2026-11-23 / 2026-11-25). A3 source
-(written 2026-11-21/22) merged with the phone build, offline-verified (140 specs), built by Rojo in
-GitHub Actions and published privately — **A3 has not been played in Roblox yet**.
+**Active milestone:** A4 — Neon Foundry, hazards, bots, Chaos Gates + owner requests (free look,
+READY vote) (owner: "proceed to the next phase", 2026-11-25)
+**State:** A1, A2, A3 played and approved on the owner's phone (A3 after the start-up fix). A4
+source (written 2026-11-22) merged with the phone build, plus two owner requests, offline-verified
+(227 specs), built by Rojo in GitHub Actions and published privately — **A4 has not been played
+in Roblox yet**.
 **Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — A4 merged onto the phone build, plus two owner requests
+
+Three-way merge (base = A3 upload, ours = this repo, theirs = A4 upload). A4 moved
+`MarbleMotorController` to `ReplicatedStorage/Shared` (bots run it too); we had not changed it, so
+the move was taken as is. Two conflicts, both resolved keeping both sides:
+- `RoundService` GO: humans get a fresh free marble (our A2 playtest fix), bots use A4's release;
+  checkpoint records still begin first.
+- stats box: three lines — client (FPS, p95, worst frame, memory, ping), server (A4 PerfService
+  attributes), hitches. The phone ABILITIES panel moved down to y 84 to clear it.
+A4 still had the A3 start-up wait in `MicroSkillService` (our fix kept) and added two more
+unbounded waits on the marbles folder (`BotService`, `PerfService`) — caught by the new luau_check
+rule; both now read the folder MarbleCharacterService.new creates.
+
+**Owner request 1 — free look** (not in the A4 upload). `FreeLookController` + `CameraController`
+orbit offsets: hold the right mouse button and move, drag a finger anywhere outside the
+steering-stick area (lower left) and off the buttons, or use the gamepad right stick. Yaw any
+amount, total pitch −10°..75°. While looking, the view stays; 1.5 s after the last look input it
+eases back behind the marble; a respawn resets it. Display only: the motor never reads the camera
+(steering follows the track). Offline specs drive the real CameraController against a fake camera
+(11 checks, mutation-tested: wrong yaw sign and no return delay both fail).
+
+**Owner request 2 — READY vote** (not in the A4 upload). Server-judged, new remote
+`RequestReady(boolean)` (schema-checked, rate limited). The race is full at min(grid slots,
+server size) queued players — 16 on the Foundry — so nobody else can join. Until then the
+intermission timer runs and the HUD + hub board say "Waiting for players (n/16)". When full, a
+READY button appears under SIT OUT; once every queued player is READY the intermission ends at
+once (Preparing → 3-2-1 as usual). Votes reset every intermission and when a player leaves or sits
+out. Bots do not count as players. `RaceConfig.Ready.CapacityOverride` (0 = off) exists only to
+make a private test build where fewer players count as full. 14 pure specs (rules + payloads).
 
 ## 2026-11-25 — A3 merged onto the phone build
 
@@ -108,6 +140,18 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | Charge | First valid trick / slipstream acquisition / near miss: −1.5 s on cooling slots, clamped at now, 3 s global lockout, no lockout if nothing was cooling. |
 | UX | Two ability buttons with cooldown fill (Q/E, LB/RB, tap), TRICK button on touch, hub loadout panel, quiet toasts, 3 skippable hints, Reduced Motion switch (FOV pulse + spin off). |
 
+## A4 decisions
+| Topic | Decision |
+|---|---|
+| Course | `TrackDefinitions.Race` = Neon Foundry v2: 16 modules (ROUTE_MAP.md), 2931 studs, 8 checkpoints, 16 grid slots, 184-stud drop. Lengthened from 1830 studs toward the 90–150 s target; 1-D model perfect run ≈ 64 s (not a measurement). Training stays as the A1 reference definition. |
+| Module contract | Module = pieces sharing a `Segment`; generator returns Entry/Exit ports (position, forward, up, width, S), route length, elevation delta. TrackValidator checks ports, widths, facing, dividers, hazard controllers, hammer-in-lane and tile passability **for every seed**. Ribbon self-clearance and hub clearance tested. |
+| Hazards | Pure functions of (seed class = roundId mod 3, t = serverTime − epoch), epoch = scheduled GO time in the snapshot. Moving parts are anchored, non-colliding, unqueryable visuals CFramed by clients; contact is HazardSim on the marble's owner (bots: server). Falling tiles are the only server-toggled parts (identical floor for everyone). Kicks ≤ 45 studs/s (KickCap 30 + 15 for the pad). |
+| Bots | Server-owned spheres, identical body (BotFactory), **the same MarbleMotorController module humans run** (moved to Shared), same AbilityService cooldowns, same checkpoint judging, same hazard model. BotBrain skill 0.8/1.0/1.2 changes decision interval, aim noise, route choice and ability timing only — never speed. `[BOT]` nameplates, negative ids, names from a fixed safe list. Fill to 8 racers only when ≥ 1 human races; never in the hub; despawned at Cleanup; isBot carried to results for A5 reward exclusion. Humans never wait: after the last human finishes, bots get 10 s. |
+| Chaos Gates | 4 half-lane gates. Server-observed crossing (continuous sweep + lateral span), once per gate per racer per round. Tier: top 3 → +8%/1 s; else bottom half → +22%/2 s + 1 s shield; else +14%/1.5 s. Uses the single strongest-wins modifier slot (no stacking, hard cap 96). No client remote exists for gates. |
+| Shield priority | A shield absorbs the next Pulse / active bumper / sweeper / hammer hit (server spends it on the first observed contact); never blocks the trampoline, fans or conveyors. Chaos Gate shields extend, never shorten, an active shield. |
+| Split lanes | Progress = projection onto the centreline (checkpoint + route distance), so inside/outside lanes level with each other score the same (tested ±2 studs). |
+| Perf | PerfService publishes server frame avg/p95, physics step, moving parts, instances, memory, marbles and bots every 2 s as workspace attributes; F2 overlay shows them. No FPS claim is made. |
+
 ## Ledger
 ### Done (verified by tests that ran here)
 - [x] A1: config ranges, smoothing, course generator/validator, floor geometry exactness (mutation-tested), steering-frame stability, route tracking, spawn clearance, hazard cycle, no invented ids
@@ -120,7 +164,12 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 - [x] A3: config values, cooldown readiness, charge (−1.5 s, clamp, 3 s lockout, no lockout when idle), non-stacking modifiers, hard cap, Pulse falloff/targets/bounds, loadout validation
 - [x] A3: trick (early/late press, no press, flat lane, beside kicker, too slow, duplicate, no landing, respawn), slipstream (hold, single acquisition, grace, loss, no oscillation farming), near miss (once per pass, idle hazard, hit, boundary bobbing)
 - [x] A3: malformed/out-of-range/NaN/inf/server-only requests rejected; every client argument bounded; no client remote names targets/positions/impulses/cooldowns
-- [x] 47 files parse; Rojo builds the place in CI (44 scripts, every lookup resolves)
+- [x] A4: Foundry validates with 0 errors; 16 modules, ports meet with same facing, metadata present, 1500–3500 studs, ordered checkpoints (max gap ≤ 650 studs), 16 grid slots, 4 gates, all 7 hazard kinds; ribbon never self-intersects; clear of the hub; 5 mutation tests caught (hammer out of lane, impassable tiles, unknown hazard, divider never rejoins, too few slots); split-lane progress unbiased
+- [x] A4: hazard determinism (same seed + t identical; seeds differ; Params never mutates definitions), every kick ≤ cap, fan/conveyor only inside their zones and calm while off, sweeper/hammer visuals sit where contact is judged
+- [x] A4: BotBrain steering, bumper/hammer/sweeper/tile avoidance, divider clearance, no hidden throttle above 1, deterministic RNG, ability choice only from ready slots; kinematic lane model over the whole Foundry (3 skills × 3 seeds × 3 runs): stays on course, never hits the divider, ≤ 4 hazard hits + tile drops per run at skill 1.0 (**model, not physics**)
+- [x] A4: Chaos Gate tiers for 1/2/8/12 racers, one payout despite bouncing, lateral span enforced, reset per round, VFX per payout, no client claim remote; bot fill rule (0 humans → 0 bots, 1 → 7, 7 → 1, 8+ → 0, grid cap, kill switch)
+- [x] A4 owner requests: free look (11 offline checks on the real CameraController), READY vote rules + RequestReady payloads (14)
+- [x] 61 files parse; Rojo builds the place in CI (59 scripts, every lookup resolves)
 
 ### Implemented, untested (needs Studio — TEST_PLAN sections 3 and 5)
 - [ ] Everything engine-side from A1 (feel, camera, devices, UI)
@@ -131,6 +180,9 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 
 - [ ] A3 on the phone: every docs/ANDROID_PLAYTEST.md A3 item (feel of Boost/Shield, trick timing, near miss, VFX cleanup); Pulse and Slipstream need 2 players (TEST_PLAN §6)
 
+- [ ] A4 on the phone / in Studio: every TEST_PLAN §7 item — real race time (90–150 s target), bots finishing/recovering with 1, 3, 8 racers, server p95 with 8 racers, 3-race leak check, hazards in sync on 2 clients
+- [ ] Free look on the phone (finger drag beside the stick) and READY vote with a full race (needs 16 players or a CapacityOverride test build)
+
 ### Blocked
 - [ ] **2-client network verification** — no Studio here. Steps + expected log order: TEST_PLAN §5.
 - [ ] FPS/frame time — no device. F2 overlay + MicroProfiler procedure in TEST_PLAN §3G.
@@ -138,7 +190,9 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 ## Known risks
 1. Never run in Studio; expect first-run errors (Output will name file and line).
 2. Client-owned marbles colliding is resolved per-client; bumps may look asymmetric under latency.
-3. Course likely short for the 35–75 s target (1-D model ~18 s perfect run).
+3. Race length unproven: Foundry 1-D model ≈ 64 s perfect run vs the 90–150 s target (hazards, braking and recoveries add time, by how much is a playtest question). Lengthening is a data change.
+6. Bots run the motor on the server at Heartbeat; 7 bots = 7 server-simulated spheres. Not profiled. `RaceConfig.Bots.FillTo` is the safety valve.
+7. Sweeper/hammer contact for human marbles is judged on their own client (ownership); a modified client could ignore hazard kicks. Logged limitation, same as A3 Pulse.
 4. A cheating client can still drive its own marble anywhere physically plausible (that is the ownership trade-off); impossible movement is rejected and logged.
 5. Same-sample finish ordering assumes Heartbeat samples; extreme server hitches coarsen timing.
 
@@ -149,6 +203,7 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-21 | `texlua tools/offline/run_tests.lua .` (A1+A2) | 37 files parse; **83 passed, 0 failed** (A1 56 + A2 27) |
 | 2026-11-21 | `python3 tools/build_rbxlx.py . TumbleCircuit.rbxlx` + XML parse | well-formed |
 | 2026-11-22 | `texlua tools/offline/run_tests.lua .` (A1–A3, original A3 upload) | 47 files parse; **131 passed, 0 failed** |
+| 2026-11-22 | `texlua tools/offline/run_tests.lua .` (A1–A4, original A4 upload) | 60 files parse; **193 passed, 0 failed** |
 | 2026-11-23 | `python3 tools/luau_check.py src PLACEHOLDER_IDS.lua` (Linux, Python 3.13) | 23 files: 0 errors, 0 warnings; injected typos caught |
 | 2026-11-23 | Offline place build (Rojo-compatible) + `tests/verify_place.py` (Python 3.13) | 35 instances, 23 scripts, all references resolve |
 | 2026-11-23 | `python3 tests/test_publish.py` (Python 3.13) | 10 passed, 0 failed |
@@ -169,5 +224,7 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | Cloud build run 45595559373 | **failed at Selene**: 2 `if_same_then_else` errors in `AbilitySecurity.spec.lua` (three branches all set `constrained = false`); folded into one condition, same meaning; nothing published |
 | 2026-11-25 | GitHub Actions **Deploy** run 45595693660 (A3, commit f77686c: Rojo, Selene, Lune, 140 specs, publish) | **success**: Selene 0 errors; **version 9** published, visibility PRIVATE |
 | 2026-11-25 | **A3 first phone playtest** (owner, v9, Roblox Android app) | **server never finished starting**: phone stuck on "Building the Orbital Garage...", then "Could not start: server remotes missing or protocol mismatch". Cause (found by reading the boot order): `MicroSkillService:Start()` did `workspace:WaitForChild("TumbleMarbles")` with no timeout, but that folder was only created by `MarbleCharacterService:Start()`, which ServerBootstrap runs after it → the boot script yielded forever (A3 upload bug; offline specs don't run services). Fix: folder created in `MarbleCharacterService.new`; MicroSkillService uses `marbles.folder`. New `luau_check` rule: server code may not `workspace:WaitForChild(x)` without a timeout (catches the original A3 file). Client failure message now names the real cause (missing remotes list / protocol versions / server not finished). All 60 client method calls and every A3 service dependency checked to exist. |
-| — | A3 phone re-test after the start-up fix | **pending owner** |
+| 2026-11-25 | A3 phone re-test of v10 (owner) | **"All works fine now"** — A3 approved, go to A4 |
+| 2026-11-25 | A4 merge + owner requests: `luau_check` (59 files) + offline specs + offline place build + `verify_place.py` | 0 errors (3 unused-local warnings); **227 passed, 0 failed** (A1–A4 202, READY 14, free look 11); 73 instances, 59 scripts, all references resolve; smoothed heading on the Foundry defined everywhere (worst 1.00 °/stud) |
+| — | A4 first phone playtest (solo with 7 bots) | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

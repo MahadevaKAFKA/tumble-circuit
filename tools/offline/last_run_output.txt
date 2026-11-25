@@ -35,6 +35,7 @@ ok    src/ServerStorage/ProceduralBuilders/TrainingTrackBuilder.lua
 ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/AbilityController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
@@ -51,8 +52,10 @@ ok    src/Tests/Unit/Ability.spec.lua
 ok    src/Tests/Unit/AbilitySecurity.spec.lua
 ok    src/Tests/Unit/BotNavigation.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
+ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
 ok    src/Tests/Unit/MicroSkill.spec.lua
+ok    src/Tests/Unit/ReadyVote.spec.lua
 ok    src/Tests/Unit/RoundState.spec.lua
 ok    src/Tests/Unit/TrackValidation.spec.lua
 ok    tools/offline/harness.lua
@@ -291,4 +294,34 @@ PASS  bot fill: 0 humans -> no bots (bots never race alone)
 PASS  bot fill: 1 human -> 7 bots, 7 -> 1, 8+ -> 0
 PASS  bot fill respects the grid size and the kill switch
 
-202 passed, 0 failed (+ 0 syntax failures)
+-- A4 ready vote specs --
+PASS  race capacity = grid slots on a big server
+PASS  race capacity = server size when the server is smaller than the grid
+PASS  race capacity ignores an unknown server size
+PASS  test override replaces capacity
+PASS  shipping config has no capacity override
+PASS  1 player of 16: vote closed, no early start (timer + Waiting for players)
+PASS  one slot still free: vote closed
+PASS  race full, one player not READY: vote open, no start
+PASS  race full and everyone READY: start now
+PASS  more queued than slots: every queued player must be READY
+PASS  nobody queued: never open
+PASS  ready count never exceeds queued
+PASS  RequestReady accepts exactly one boolean
+PASS  RequestReady is client->server and rate limited
+
+-- A4 free look specs (offline only) --
+PASS  no look input: camera behind the marble
+PASS  look right 90: view faces right of the track
+PASS  held: view stays turned (no return while looking)
+PASS  released: still turned before ReturnDelaySeconds
+PASS  released: eased back behind the marble
+PASS  270 wraps to -90: view faces left of the track
+PASS  pitch never above FreeLook.MaxPitchDeg
+PASS  pitch never below FreeLook.MinPitchDeg
+PASS  pitch range actually reachable (looked well up and down)
+PASS  new marble (respawn) resets the look
+PASS  marble motor never reads the camera (looking cannot steer)
+info  free look pitch range seen: -10.0 .. 75.0 deg
+
+227 passed, 0 failed (+ 0 syntax failures)

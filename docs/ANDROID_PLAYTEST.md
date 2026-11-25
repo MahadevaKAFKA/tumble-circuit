@@ -23,7 +23,32 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
-## Current build: A3 — abilities and micro-skills
+## Current build: A4 — Neon Foundry, hazards, bots, Chaos Gates
+
+The race is now the full **Neon Foundry** (16 sections, see ROUTE_MAP.md): moving hazards
+(bumpers, a rotating sweeper, fans, a trampoline, falling tiles, a swinging hammer, a conveyor),
+a split lane, a drop shaft, and four **Chaos Gates** (half-lane arches: drive through for a speed
+surge, bigger if you're behind). When you race alone, **7 bots** (`[BOT]` names) fill the grid.
+
+Your two requests are in this build too:
+- **Look around:** steer with your left thumb and drag anywhere else on the screen (not on a
+  button) with your right thumb. The camera swings back behind the marble 1.5 s after you let go.
+  Looking never changes where the marble goes.
+- **READY vote:** while the race isn't full, the countdown runs with "Waiting for players (n/16)"
+  under it. When every slot is taken, a **READY** button appears under SIT OUT; when everyone is
+  READY the race starts straight away.
+
+### What to check (A4, solo with bots)
+- [ ] The grid has you + 7 `[BOT]` marbles; GO releases everyone and your marble moves at once.
+- [ ] Ride the whole Foundry: does each hazard read clearly (colour warns before it acts)?
+- [ ] Race time for 3 runs (target 90–150 s). Tell me if it's much shorter.
+- [ ] Drive through a Chaos Gate → surge message; driving back through gives nothing more.
+- [ ] Bots finish or recover; none sit stuck for long. After you finish, results come within ~10 s.
+- [ ] Look around while racing (right thumb drag) — smooth, no fighting with the stick.
+- [ ] Hub/HUD say "Waiting for players (1/16)" under the countdown; no READY button solo.
+- [ ] Stats box: second line = server numbers; note FPS and hitches with 8 marbles.
+
+## A3 — abilities and micro-skills
 
 Everything from A2 still applies (hub, automatic rounds, results). A3 adds:
 

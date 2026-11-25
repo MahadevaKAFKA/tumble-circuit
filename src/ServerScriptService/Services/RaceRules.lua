@@ -111,4 +111,30 @@ function RaceRules.BotFillCount(humans, slots, fillTo, enabled)
 	return math.max(0, math.min(fillTo, slots) - humans)
 end
 
+-- READY vote (owner request 2026-11-25) --------------------------------------------------------
+-- How many queued players make the race "full": every grid slot taken, or every server slot taken
+-- if the server is smaller than the grid (then nobody else can join). override > 0 replaces it.
+function RaceRules.RaceCapacity(gridSlots, maxPlayers, override)
+	if override and override > 0 then
+		return math.floor(override)
+	end
+	local capacity = gridSlots
+	if maxPlayers and maxPlayers > 0 then
+		capacity = math.min(capacity, maxPlayers)
+	end
+	return math.max(1, capacity)
+end
+
+-- open: the vote is offered (race full). allReady: every queued player voted, so start now.
+function RaceRules.ReadyVote(queuedCount, readyCount, capacity)
+	local open = queuedCount > 0 and queuedCount >= capacity
+	return {
+		open = open,
+		allReady = open and readyCount >= queuedCount,
+		ready = open and math.min(readyCount, queuedCount) or 0,
+		needed = queuedCount,
+		capacity = capacity,
+	}
+end
+
 return RaceRules

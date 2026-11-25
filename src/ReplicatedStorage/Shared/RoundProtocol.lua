@@ -20,6 +20,9 @@
 	AbilityState / AbilityOutcome / EffectState / ApplyImpulse / SkillEvent   server->client
 	A4:
 	ChaosGateVFX          server->client   {userId, gateId, tier, label, place, count}
+	RequestReady          client->server   (boolean)           READY vote; only counted while the
+	                                                            race is full during Intermission
+	Snapshot adds queuedCount, raceCapacity, readyOpen, readyCount, ready = {[tostring(userId)]=true}.
 	Snapshot adds hazardSeed (0..2) and hazardEpoch (server time of GO) so every machine
 	evaluates the same deterministic hazard state; racers[i].isBot marks [BOT] entries.
 ]]
@@ -47,6 +50,8 @@ RoundProtocol.Remotes = {
 	SkillEvent = { Direction = "ServerToClient" }, -- to owner: trick/slipstream/near-miss/charge feedback
 	-- A4
 	ChaosGateVFX = { Direction = "ServerToClient" }, -- to all: someone collected a Chaos Gate surge
+	-- READY vote (owner request 2026-11-25)
+	RequestReady = { Direction = "ClientToServer", Args = { "boolean" }, MinInterval = 0.3 },
 }
 
 RoundProtocol.States = {

@@ -52,6 +52,15 @@ RaceConfig.Collisions = {
 	BumpProximity = 5.5, -- centres within this distance = marble contact
 }
 
+-- READY vote (owner request, 2026-11-25). Open only while the race is full: the queued players
+-- fill every slot humans can take (min(grid slots, server size)), so nobody else can join. Once
+-- every queued player is READY the intermission ends at once. Otherwise the timer runs and the
+-- HUD says "Waiting for players".
+RaceConfig.Ready = {
+	Enabled = true,
+	CapacityOverride = 0, -- > 0: count the race as full at this many queued players (test builds only)
+}
+
 -- A4 bots (ADR-08): fill the grid to FillTo racers when 1-7 humans are queued. Bots never
 -- start a round on their own, never enter the hub, and are excluded from human records.
 RaceConfig.Bots = {

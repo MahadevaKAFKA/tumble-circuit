@@ -8,7 +8,9 @@
     Taps update the button at once; the next snapshot confirms.
   * PLAY AGAIN / SIT OUT on the results panel also close the panel (the round timer is fixed,
     so the buttons only choose the next race; closing shows they worked)
-	  * spectate controls when a race is running and you are not (or no longer) racing
+	  * READY button (owner request 2026-11-25) under the queue button during the intermission, only
+    while the race is full; every queued player READY = the race starts without the timer
+  * spectate controls when a race is running and you are not (or no longer) racing
 	  * the hub's holographic board (updated locally from the snapshot; no server writes)
 	No reward/currency placeholders (economy arrives in A5).
 ]]
@@ -36,6 +38,9 @@ function MatchUI.new()
 	self.pendingQueue = nil -- { value, untilClock }: a tap the server has not confirmed yet
 	self.dismissedRound = nil -- results panel closed by the player for this round id
 	self.JoinRequested = Utility.Signal.new() -- (wantsToRace)
+	self.ReadyRequested = Utility.Signal.new() -- (ready)
+	self.amReady = false
+	self.pendingReady = nil -- { value, untilClock }
 	self.SpectateToggled = Utility.Signal.new()
 	self.SpectateCycle = Utility.Signal.new() -- (direction)
 
@@ -49,6 +54,23 @@ function MatchUI.new()
 	}, palette.White)
 	maid:Give(self.queueButton.Activated:Connect(function()
 		self:_requestQueue(not self.queued)
+	end))
+
+	-- READY vote (under the queue button; only while the race is full)
+	self.readyButton = UIKit.button(root, {
+		Name = "Ready",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -14, 0, 166),
+		Size = UDim2.fromOffset(190, 56),
+		Text = "READY",
+		Visible = false,
+	}, palette.Mint)
+	maid:Give(self.readyButton.Activated:Connect(function()
+		local wants = not self.amReady
+		self.amReady = wants
+		self.pendingReady = { value = wants, untilClock = os.clock() + 2 }
+		self.ReadyRequested:Fire(wants)
+		self:_renderReady()
 	end))
 
 	-- Spectate controls (bottom centre, above the speed readout)
@@ -135,6 +157,7 @@ function MatchUI:_requestQueue(wants)
 	self.queued = wants
 	self.pendingQueue = { value = wants, untilClock = os.clock() + 2 }
 	self.JoinRequested:Fire(wants)
+	self:_renderReady()
 end
 
 -- Close the results panel for the current round (it opens again for the next round's results).
@@ -156,7 +179,33 @@ function MatchUI:ApplySnapshot(snapshot, localUserId)
 		self.pendingQueue = nil
 		self.queued = serverQueued
 	end
+	local serverReady = snapshot.ready ~= nil and snapshot.ready[tostring(localUserId)] == true
+	local pendingReady = self.pendingReady
+	if pendingReady and os.clock() < pendingReady.untilClock and serverReady ~= pendingReady.value then
+		self.amReady = pendingReady.value -- snapshot predates the tap
+	else
+		self.pendingReady = nil
+		self.amReady = serverReady
+	end
 	self:_renderResults()
+	self:_renderReady()
+end
+
+-- READY button: shown in the intermission while the race is full and you are racing next.
+function MatchUI:_renderReady()
+	local snap = self.snapshot
+	local show = snap ~= nil and snap.state == S.Intermission and snap.readyOpen == true and self.queued
+	self.readyButton.Visible = show
+	if not show then
+		return
+	end
+	local count = snap.readyCount or 0
+	if self.amReady and not (snap.ready and snap.ready[tostring(self.localUserId)]) then
+		count = count + 1 -- the tap is on its way
+	end
+	local needed = snap.queuedCount or 0
+	UIKit.setText(self.readyButton, string.format("%s %d/%d", self.amReady and "READY" or "READY?", math.min(count, needed), needed))
+	self.readyButton.TextColor3 = self.amReady and palette.Mint or palette.Yellow
 end
 
 function MatchUI:_renderResults()
@@ -230,7 +279,11 @@ function MatchUI:UpdateBoard(board, ctx)
 	local left = snap.stateEndsAt and math.max(0, math.ceil(snap.stateEndsAt - ctx.now)) or nil
 	if snap.state == S.Intermission and left then
 		UIKit.setText(main, "NEXT RACE IN " .. left)
-		UIKit.setText(sub, string.format("%d racer(s) queued - practice chute is open", self:_queuedCount()))
+		if snap.readyOpen then
+			UIKit.setText(sub, string.format("Race full - %d/%d READY", snap.readyCount or 0, snap.queuedCount or 0))
+		else
+			UIKit.setText(sub, string.format("Waiting for players (%d/%d)", snap.queuedCount or self:_queuedCount(), snap.raceCapacity or 16))
+		end
 	elseif snap.state == S.Racing then
 		UIKit.setText(main, "RACE IN PROGRESS")
 		UIKit.setText(sub, "Spectate from the HUD, or keep practising")

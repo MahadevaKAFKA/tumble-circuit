@@ -59,6 +59,7 @@ function RoundService.new(deps)
 	self.racers = {} -- array of racer records (this round)
 	self.racerByPlayer = {}
 	self.queued = {} -- [player] = bool
+	self.ready = {} -- [player] = true: READY vote for the current intermission (owner request)
 	self.ordinals = {} -- [player] = stable join ordinal
 	self.nextOrdinal = 0
 	self.finishCounter = 0
@@ -100,6 +101,9 @@ function RoundService:Start()
 	end)
 	self:_connectRemote("RequestJoinRace", function(player, wants)
 		self:TryJoin(player, wants)
+	end)
+	self:_connectRemote("RequestReady", function(player, wants)
+		self:TryReady(player, wants)
 	end)
 	self.maid:Give(self.marbles.PlayerJoined:Connect(function(player)
 		self.nextOrdinal = self.nextOrdinal + 1
@@ -211,6 +215,7 @@ function RoundService:_enterLobby()
 end
 
 function RoundService:_enterIntermission()
+	self.ready = {} -- every intermission starts with no READY votes
 	self.track:SetStartGateClosed(true)
 	self:_setTimer(T.IntermissionSeconds)
 end
@@ -339,6 +344,45 @@ local function anyHumans()
 	return #Players:GetPlayers() > 0
 end
 
+-- READY vote state for the current intermission (RaceRules.ReadyVote shape).
+function RoundService:GetReadyVote()
+	local queued, ready = 0, 0
+	for player, wants in pairs(self.queued) do
+		if wants and player.Parent then
+			queued = queued + 1
+			if self.ready[player] then
+				ready = ready + 1
+			end
+		end
+	end
+	local capacity = RaceRules.RaceCapacity(self.track:GetGridSlotCount(), Players.MaxPlayers, RaceConfig.Ready.CapacityOverride)
+	return RaceRules.ReadyVote(queued, ready, capacity)
+end
+
+-- A queued player votes READY (true) or takes it back (false). Only counted during Intermission
+-- while the race is full; once every queued player is READY the race starts without waiting.
+function RoundService:TryReady(player, wants)
+	if not RaceConfig.Ready.Enabled or self.state ~= S.Intermission or not self.queued[player] then
+		self:SendSnapshot(player)
+		return false
+	end
+	if not self:GetReadyVote().open then
+		self.ready[player] = nil
+		self:SendSnapshot(player)
+		return false
+	end
+	self.ready[player] = wants == true or nil
+	local vote = self:GetReadyVote()
+	if vote.allReady then
+		if GameConfig.Debug.VerboseLogging then
+			print(string.format("[Round] all %d racers READY: starting without the timer", vote.needed))
+		end
+		return self:_transition(S.Preparing)
+	end
+	self:Broadcast()
+	return true
+end
+
 function RoundService:_queuedCount()
 	local n = 0
 	for player, wants in pairs(self.queued) do
@@ -401,6 +445,9 @@ end
 ---------------------------------------------------------------------------------------------
 function RoundService:TryJoin(player, wants)
 	self.queued[player] = wants == true
+	if not wants then
+		self.ready[player] = nil
+	end
 	if wants and self.state == S.Lobby then
 		self:_transition(S.Intermission)
 	else
@@ -550,6 +597,7 @@ end
 
 function RoundService:_onPlayerLeaving(player)
 	self.queued[player] = nil
+	self.ready[player] = nil
 	self.ordinals[player] = nil
 	local racer = self.racerByPlayer[player]
 	if racer then
@@ -611,6 +659,13 @@ function RoundService:GetSnapshot()
 			queued[tostring(player.UserId)] = true
 		end
 	end
+	local vote = self:GetReadyVote()
+	local ready = {}
+	for player in pairs(self.ready) do
+		if player.Parent and self.queued[player] then
+			ready[tostring(player.UserId)] = true
+		end
+	end
 	return {
 		v = RoundProtocol.Version,
 		roundId = self.roundId,
@@ -624,6 +679,11 @@ function RoundService:GetSnapshot()
 		racers = racers,
 		queued = queued,
 		humanCount = #Players:GetPlayers(),
+		queuedCount = vote.needed,
+		raceCapacity = vote.capacity,
+		readyOpen = self.state == S.Intermission and RaceConfig.Ready.Enabled and vote.open,
+		readyCount = vote.ready,
+		ready = ready,
 		hazardSeed = self.hazards and self.hazards:GetSeed() or 0,
 		hazardEpoch = self.hazards and self.hazards:GetEpoch() or 0,
 	}
