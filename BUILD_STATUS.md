@@ -393,6 +393,7 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | GitHub Actions **Deploy** run 45609934353 (B1, Rojo, Selene 0 errors, Lune, 398 specs, publish) | **success**: **version 16** published, visibility PRIVATE |
 | 2026-11-25 | B2: `luau_check` (90 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **428 passed, 0 failed** (B2 abilities 30 new); 104 instances, 90 scripts, all references resolve |
 | — | B1 phone playtest (3 worlds, Time Trial) | **pending owner** |
+| 2026-11-25 | GitHub Actions **Deploy** run 45611643242 (B2, Selene 0 errors, 428 specs, publish) | **success**: **version 17** published, visibility PRIVATE |
 | — | B2 phone playtest (abilities) | **pending owner** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |
