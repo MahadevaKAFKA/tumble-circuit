@@ -13,6 +13,7 @@ ok    src/ReplicatedStorage/Shared/RaceConfig.lua
 ok    src/ReplicatedStorage/Shared/RoundProtocol.lua
 ok    src/ReplicatedStorage/Shared/RouteTracker.lua
 ok    src/ReplicatedStorage/Shared/SocialConfig.lua
+ok    src/ReplicatedStorage/Shared/TimeTrialRules.lua
 ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
 ok    src/ReplicatedStorage/Shared/Utility.lua
 ok    src/ServerScriptService/ServerBootstrap.server.lua
@@ -24,8 +25,11 @@ ok    src/ServerScriptService/Services/CheckpointService.lua
 ok    src/ServerScriptService/Services/DevService.lua
 ok    src/ServerScriptService/Services/EconomyService.lua
 ok    src/ServerScriptService/Services/HazardService.lua
+ok    src/ServerScriptService/Services/MapVoteRules.lua
 ok    src/ServerScriptService/Services/MarbleCharacterService.lua
 ok    src/ServerScriptService/Services/MicroSkillService.lua
+ok    src/ServerScriptService/Services/PartyRules.lua
+ok    src/ServerScriptService/Services/PartyService.lua
 ok    src/ServerScriptService/Services/PerfService.lua
 ok    src/ServerScriptService/Services/PlayerDataService.lua
 ok    src/ServerScriptService/Services/ProfileStore.lua
@@ -36,6 +40,7 @@ ok    src/ServerScriptService/Services/RewardRules.lua
 ok    src/ServerScriptService/Services/RoundService.lua
 ok    src/ServerScriptService/Services/SkillRules.lua
 ok    src/ServerScriptService/Services/SocialService.lua
+ok    src/ServerScriptService/Services/TimeTrialService.lua
 ok    src/ServerScriptService/Services/TrackValidator.lua
 ok    src/ServerScriptService/Services/TrainingTrackService.lua
 ok    src/ServerScriptService/Services/VoteRules.lua
@@ -50,6 +55,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ModesController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ResultsController.lua
@@ -66,6 +72,7 @@ ok    src/Tests/TestRunner.server.lua
 ok    src/Tests/Unit/A1PureSpecs.lua
 ok    src/Tests/Unit/Ability.spec.lua
 ok    src/Tests/Unit/AbilitySecurity.spec.lua
+ok    src/Tests/Unit/B1Rules.spec.lua
 ok    src/Tests/Unit/BotNavigation.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
@@ -79,6 +86,7 @@ ok    src/Tests/Unit/RoundState.spec.lua
 ok    src/Tests/Unit/Social.spec.lua
 ok    src/Tests/Unit/TrackValidation.spec.lua
 ok    src/Tests/Unit/UIState.spec.lua
+ok    src/Tests/Unit/Worlds.spec.lua
 ok    tools/offline/harness.lua
 ok    tools/offline/roblox_shim.lua
 ok    tools/offline/route_map.lua
@@ -356,6 +364,73 @@ PASS  free roam: diagonal stick is capped (no faster diagonals)
 PASS  free roam: no auto-align pulling sideways motion back
 PASS  track steering unchanged off the platform (stick up = along the track)
 
+-- B1 world specs --
+PASS  three worlds in rotation: Foundry, Sky Carnival, Volcano Vault
+PASS  Neon Foundry: stable unique id
+PASS  Neon Foundry: TrackValidator 0 errors (all 3 hazard seeds)
+PASS  Neon Foundry: 12-16 modules
+PASS  Neon Foundry: 8 ordered checkpoints
+PASS  Neon Foundry: checkpoints ascend along the route
+PASS  Neon Foundry: 16 grid slots, trick ramp, 4 chaos gates
+PASS  Neon Foundry: modelled clean run 45-150 s (real times need a playtest)
+PASS  Neon Foundry: every new-world hazard names its look (Style)
+PASS  Sky Carnival: stable unique id
+PASS  Sky Carnival: TrackValidator 0 errors (all 3 hazard seeds)
+PASS  Sky Carnival: 12-16 modules
+PASS  Sky Carnival: 8 ordered checkpoints
+PASS  Sky Carnival: checkpoints ascend along the route
+PASS  Sky Carnival: 16 grid slots, trick ramp, 4 chaos gates
+PASS  Sky Carnival: modelled clean run 45-150 s (real times need a playtest)
+PASS  Sky Carnival: every new-world hazard names its look (Style)
+PASS  Volcano Vault: stable unique id
+PASS  Volcano Vault: TrackValidator 0 errors (all 3 hazard seeds)
+PASS  Volcano Vault: 12-16 modules
+PASS  Volcano Vault: 8 ordered checkpoints
+PASS  Volcano Vault: checkpoints ascend along the route
+PASS  Volcano Vault: 16 grid slots, trick ramp, 4 chaos gates
+PASS  Volcano Vault: modelled clean run 45-150 s (real times need a playtest)
+PASS  Volcano Vault: every new-world hazard names its look (Style)
+PASS  Neon Foundry: builds (all part sizes valid)
+PASS  Sky Carnival: builds (all part sizes valid)
+PASS  Volcano Vault: builds (all part sizes valid)
+PASS  theme overrides floor colour, keeps hazard warning colours
+PASS  worlds stay >= 200 studs apart
+PASS  no world comes within 150 studs of the hub
+info  Neon Foundry: 2931 studs, 16 modules, drop 184, 1-D model clean run 64 s (a model, not a measurement)
+info  Sky Carnival: 2530 studs, 14 modules, drop 162, 1-D model clean run 54 s (a model, not a measurement)
+info  Volcano Vault: 2300 studs, 14 modules, drop 158, 1-D model clean run 49 s (a model, not a measurement)
+info  Neon Foundry: 2016 parts, 1270 collidable
+info  Sky Carnival: 1821 parts, 1141 collidable
+info  Volcano Vault: 1779 parts, 1127 collidable
+
+-- B1 rules specs --
+PASS  rotation: nothing raced -> world 1, then 2, 3, back to 1
+PASS  vote opens with >= 2 queued humans and > 1 world only
+PASS  vote window is 8 s
+PASS  valid vote counts
+PASS  one vote per human (no changing)
+PASS  non-queued / bots cannot vote
+PASS  bad option refused (4, 1.5)
+PASS  vote after the 8 s window refused
+PASS  most votes wins
+PASS  tie -> first tied world in rotation order from the candidate (B? no votes; C before A)
+PASS  no votes -> rotation candidate
+PASS  a leaver's vote stops counting
+PASS  party of 5 here is capped at 4 (join order)
+PASS  a party with 1 member here is not a group
+PASS  every racer still on the grid exactly once
+PASS  party members on neighbouring slots, at the first member's place
+PASS  non-party racers keep their shuffled order
+PASS  can start when idle in the hub
+PASS  not while in the race / on the grid / twice
+PASS  best: faster only, never under 8 s or NaN
+PASS  ghost sampled at 5 Hz (2.5 s -> 13 points)
+PASS  ghost positions rounded to 0.1 stud
+PASS  stored ghost must match the key
+PASS  ghost playback interpolates between samples
+PASS  ghost ends after its last sample
+PASS  ghost capped at 180 s worth of samples
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
 PASS  defaults carry every v1 field
@@ -469,4 +544,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-341 passed, 0 failed (+ 0 syntax failures)
+398 passed, 0 failed (+ 0 syntax failures)

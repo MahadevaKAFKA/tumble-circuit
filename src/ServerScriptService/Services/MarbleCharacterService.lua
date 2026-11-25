@@ -251,7 +251,9 @@ function MarbleCharacterService:SpawnMarble(player, reason)
 	end)
 
 	-- Spawn protection (frozen grid balls stay protected until shortly after release).
-	if not frozen then
+	-- B1 Time Trial marbles stay protected (ghost: never touch racers) for the whole run.
+	ball:SetAttribute("TC_TimeTrial", spot.Ghost == true or nil)
+	if not frozen and not spot.Ghost then
 		self:_scheduleProtectionEnd(player, ball, RaceConfig.Recovery.ProtectionSeconds)
 	end
 

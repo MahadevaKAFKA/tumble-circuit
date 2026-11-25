@@ -58,6 +58,12 @@ end
 
 function ChaosGateService:Start()
 	self.gates = self.track:GetLayout(Protocol.Zones.Race).ChaosGates or {}
+	if self.track.WorldChanged then
+		self.maid:Give(self.track.WorldChanged:Connect(function(_, layout)
+			self.gates = layout.ChaosGates or {}
+			self.collected = {}
+		end))
+	end
 	self.maid:Give(self.round.StateChanged:Connect(function(state)
 		if state == RoundProtocol.States.Racing or state == RoundProtocol.States.Cleanup then
 			self.collected = {}

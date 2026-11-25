@@ -43,11 +43,7 @@ function BotService.new(deps)
 	return self
 end
 
-function BotService:Start()
-	-- MarbleCharacterService.new creates this folder before any service starts; never wait for it
-	-- (an unbounded wait here could stall server start-up, see BUILD_STATUS 2026-11-25).
-	self.folder = workspace:FindFirstChild(Protocol.MarblesFolderName)
-	assert(self.folder, "[Bots] marbles folder missing: MarbleCharacterService.new must run first")
+function BotService:_bindWorld()
 	local layout = self.track:GetLayout(Protocol.Zones.Race)
 	self.layout = layout
 	self.bumpers = {}
@@ -57,14 +53,31 @@ function BotService:Start()
 		end
 	end
 	self.splitRanges, self.dropRanges = {}, {}
+	local segmentKind = {} -- B1: module kind by segment (new worlds name their segments differently)
+	for _, piece in ipairs(layout.Pieces) do
+		segmentKind[piece.Segment] = segmentKind[piece.Segment] or piece.Definition.Kind
+	end
 	for _, piece in ipairs(layout.Pieces) do
 		local a, b = layout.Sections[piece.FirstSection].S, layout.Sections[piece.LastSection].S
 		if piece.Definition.Divider then
 			table.insert(self.splitRanges, { a - 30, b })
 		end
-		if piece.Segment == "DropShaft" then
+		if segmentKind[piece.Segment] == "DropShaft" then
 			table.insert(self.dropRanges, { a - 30, b })
 		end
+	end
+end
+
+function BotService:Start()
+	-- MarbleCharacterService.new creates this folder before any service starts; never wait for it
+	-- (an unbounded wait here could stall server start-up, see BUILD_STATUS 2026-11-25).
+	self.folder = workspace:FindFirstChild(Protocol.MarblesFolderName)
+	assert(self.folder, "[Bots] marbles folder missing: MarbleCharacterService.new must run first")
+	self:_bindWorld()
+	if self.hazards.WorldBound then
+		self.maid:Give(self.hazards.WorldBound:Connect(function()
+			self:_bindWorld()
+		end))
 	end
 	self.abilities:SetBotHooks({
 		applyEffects = function(bot, effects)

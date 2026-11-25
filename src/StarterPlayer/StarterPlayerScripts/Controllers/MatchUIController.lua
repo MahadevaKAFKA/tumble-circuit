@@ -18,6 +18,13 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local UIKit = require(script.Parent:WaitForChild("UIKit"))
+local TrackDefinitions = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("TrackDefinitions"))
+
+-- B1: display name of the world the next race uses
+local function nextWorldName(snap)
+	local def = snap and snap.nextWorldId and TrackDefinitions.WorldsById[snap.nextWorldId]
+	return def and def.DisplayName or nil
+end
 
 local MatchUI = {}
 MatchUI.__index = MatchUI
@@ -52,7 +59,8 @@ function MatchUI.new()
 	--   y  72  [READY?] [SIT OUT / JOIN RACE]
 	--   y 124  profile: LEVEL + XP, bar, Coins/races/wins, save status
 	--   y 216  [LOADOUT] [SETTINGS]
-	--   y 268  emotes (SocialController)
+	--   y 268  [TIME TRIAL] [PARTY] (B1, ModesController)
+	--   y 320  emotes (SocialController)
 	-- Clear of Roblox's top bar and chat (top left), the stick (left) and RESET/BRAKE (bottom right).
 	local status = UIKit.panel(lobby, { Name = "Status", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 8), Size = UDim2.fromOffset(250, 58) })
 	UIKit.new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, status)
@@ -228,6 +236,10 @@ function MatchUI:_statusText(ctx)
 		if not self.queued then
 			sub = "Sitting out - tap JOIN RACE"
 		end
+		local world = nextWorldName(snap)
+		if world then
+			sub = (snap.mapVote and snap.mapVote.open and "Vote the world! " or (world .. " - ")) .. sub
+		end
 		return "NEXT RACE  " .. clock(left), sub
 	elseif snap.state == S.Preparing or snap.state == S.Countdown then
 		return "STARTING", self.queued and "Next one is yours" or "Racers on the grid"
@@ -268,7 +280,8 @@ function MatchUI:UpdateBoard(board, ctx)
 	end
 	local left = snap.stateEndsAt and math.max(0, math.ceil(snap.stateEndsAt - ctx.now)) or nil
 	if snap.state == S.Intermission and left then
-		UIKit.setText(main, "NEXT RACE IN " .. left)
+		local world = nextWorldName(snap)
+		UIKit.setText(main, world and string.format("NEXT: %s IN %d", string.upper(world), left) or ("NEXT RACE IN " .. left))
 		if snap.readyOpen then
 			UIKit.setText(sub, string.format("Race full - %d/%d READY", snap.readyCount or 0, snap.queuedCount or 0))
 		else

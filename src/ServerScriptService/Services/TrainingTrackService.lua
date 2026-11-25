@@ -1,9 +1,11 @@
 --[[
-	TrainingTrackService — builds and owns every course (A2, A4):
-	  zone "Race": TrackDefinitions.Race = the Neon Foundry (A4, 16 modules, checkpoints, grid,
-	               start gate, hazards, Chaos Gates); validated by TrackValidator before use
+	TrainingTrackService — builds and owns every course (A2, A4, B1):
+	  zone "Race": the ACTIVE world, one of TrackDefinitions.Worlds (Neon Foundry, Sky Carnival,
+	               Volcano Vault). All worlds are built once at boot under workspace.TrainingCourse
+	               /<worldId> (pooled, never rebuilt); SetActiveWorld switches which one the Race
+	               zone means and fires WorldChanged. Each is validated by TrackValidator.
 	  zone "Hub" : the Orbital Garage platform + Practice Chute
-	Both are built ONCE at boot and reused every round (only the start gate toggles).
+	Reused every round (only the start gates toggle).
 	Exposes layouts, spawn CFrames, kill heights and the gate to the other services.
 ]]
 
@@ -20,6 +22,7 @@ local Builders = ServerStorage:WaitForChild("ProceduralBuilders")
 local Builder = require(Builders:WaitForChild("TrainingTrackBuilder"))
 local HubBuilder = require(Builders:WaitForChild("HubBuilder"))
 local TrackValidator = require(script.Parent:WaitForChild("TrackValidator"))
+local Utility = require(Shared:WaitForChild("Utility"))
 
 local TrainingTrackService = {}
 TrainingTrackService.__index = TrainingTrackService
@@ -31,6 +34,9 @@ function TrainingTrackService.new()
 	self.layouts = {}
 	self.killY = {}
 	self.validationErrors = {}
+	self.worlds = {} -- [worldId] = { def, layout, root, killY, startGate }
+	self.activeWorldId = nil
+	self.WorldChanged = Utility.Signal.new() -- (worldId, layout)
 	return self
 end
 
@@ -79,15 +85,27 @@ function TrainingTrackService:Build()
 		end
 	end
 
-	-- Race track
-	local raceDef = TrackDefinitions.Race
-	local race = TrackDefinitions.Generate(raceDef, radius)
-	validate(self, raceDef, race, true)
-	local raceRoot, raceCount = Builder.Build(race, workspace, Protocol.CourseModelName)
-	self.layouts[ZONES.Race] = race
-	self.raceRoot = raceRoot
-	self.killY[ZONES.Race] = race.MinY - PhysicsConfig.Server.KillDepthBelowCourse
-	self.startGate = raceRoot:FindFirstChild("Gates") and raceRoot.Gates:FindFirstChild("StartGate")
+	-- Race worlds (B1): every world built once; the first is active until a round picks one
+	local courseFolder = Instance.new("Folder")
+	courseFolder.Name = Protocol.CourseModelName
+	local raceCount = 0
+	for _, def in ipairs(TrackDefinitions.Worlds) do
+		local layout = TrackDefinitions.Generate(def, radius)
+		validate(self, def, layout, true)
+		local root, count = Builder.Build(layout, courseFolder, def.Id)
+		raceCount = raceCount + count
+		self.worlds[def.Id] = {
+			def = def,
+			layout = layout,
+			root = root,
+			killY = layout.MinY - PhysicsConfig.Server.KillDepthBelowCourse,
+			startGate = root:FindFirstChild("Gates") and root.Gates:FindFirstChild("StartGate"),
+		}
+	end
+	courseFolder.Parent = workspace
+	self:SetActiveWorld(TrackDefinitions.Worlds[1].Id)
+	local raceDef = TrackDefinitions.Worlds[1]
+	local race = self.layouts[ZONES.Race]
 
 	-- Hub + practice chute
 	local hub = TrackDefinitions.Hub
@@ -107,9 +125,51 @@ function TrainingTrackService:Build()
 	end
 	workspace:SetAttribute(Protocol.WorkspaceAttributes.CourseReady, true)
 	print(string.format(
-		"[Track] built race %s (%d parts, %.0f studs, %d checkpoints) + hub (%d parts) + chute (%d parts) in %.1f ms",
-		raceDef.Id, raceCount, race.Route.total, #race.Checkpoints, hubCount, chuteCount, (os.clock() - started) * 1000
+		"[Track] built %d worlds (%d parts; active %s, %.0f studs, %d checkpoints) + hub (%d parts) + chute (%d parts) in %.1f ms",
+		#TrackDefinitions.Worlds, raceCount, raceDef.Id, race.Route.total, #race.Checkpoints, hubCount, chuteCount, (os.clock() - started) * 1000
 	))
+end
+
+-- B1: switch the world the Race zone means. Only RoundService calls this, between races
+-- (Preparing). Every start gate except the active one stays closed.
+function TrainingTrackService:SetActiveWorld(worldId)
+	local world = self.worlds[worldId]
+	if not world then
+		warn("[Track] unknown world " .. tostring(worldId))
+		return false
+	end
+	if self.activeWorldId == worldId then
+		return true
+	end
+	self.activeWorldId = worldId
+	self.layouts[ZONES.Race] = world.layout
+	self.raceRoot = world.root
+	self.killY[ZONES.Race] = world.killY
+	self.startGate = world.startGate
+	for _, other in pairs(self.worlds) do
+		if other ~= world and other.startGate then
+			other.startGate.CanCollide = true
+			other.startGate.CanQuery = true
+			other.startGate.Transparency = 0.35
+		end
+	end
+	workspace:SetAttribute(Protocol.WorkspaceAttributes.ActiveWorld, worldId)
+	self.WorldChanged:Fire(worldId, world.layout)
+	return true
+end
+
+function TrainingTrackService:GetActiveWorldId()
+	return self.activeWorldId
+end
+
+function TrainingTrackService:GetWorldIds()
+	local ids = {}
+	for _, def in ipairs(TrackDefinitions.Worlds) do
+		if self.worlds[def.Id] then
+			ids[#ids + 1] = def.Id
+		end
+	end
+	return ids
 end
 
 function TrainingTrackService:GetLayout(zone)
@@ -155,6 +215,13 @@ function TrainingTrackService:GetFinishRespawnCFrame()
 	local layout = self.layouts[ZONES.Race]
 	local frame = TrackDefinitions.SampleAtH(layout, layout.FinishLineFrame.H + 10)
 	return frameToCFrame(frame, 0)
+end
+
+-- B1 Time Trial: a solo start just past the start gate (the gate stays closed between races)
+function TrainingTrackService:GetTimeTrialStart()
+	local layout = self.layouts[ZONES.Race]
+	local frame = TrackDefinitions.SampleAtH(layout, layout.StartLineFrame.H + 6)
+	return frameToCFrame(frame, 0), frame.S
 end
 
 function TrainingTrackService:SetStartGateClosed(closed)

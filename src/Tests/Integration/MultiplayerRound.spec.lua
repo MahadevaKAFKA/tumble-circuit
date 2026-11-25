@@ -62,7 +62,8 @@ function Spec.run(ctx)
 
 	-- Hub geometry and gate
 	check("hub and practice chute exist", workspace:FindFirstChild("OrbitalGarage") ~= nil and workspace.OrbitalGarage:FindFirstChild("PracticeChute") ~= nil)
-	local gate = workspace:FindFirstChild("TrainingCourse") and workspace.TrainingCourse:FindFirstChild("Gates") and workspace.TrainingCourse.Gates:FindFirstChild("StartGate")
+	local active = workspace:FindFirstChild("TrainingCourse") and workspace.TrainingCourse:FindFirstChild(workspace:GetAttribute("TC_ActiveWorld") or "")
+	local gate = active and active:FindFirstChild("Gates") and active.Gates:FindFirstChild("StartGate")
 	check("start gate exists", gate ~= nil)
 	if gate and snap.state ~= RP.States.Racing then
 		check("start gate closed outside Racing", gate.CanCollide == true)

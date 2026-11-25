@@ -85,7 +85,11 @@ function HazardController.new(courseRoot, motor, sound, layout)
 				cueText.Parent = cue
 				cue.Adornee = base
 				cue.Parent = base
+				local rock = folder:FindFirstChild("Rock")
 				table.insert(self.bumpers, {
+					idleColor = base.Color, -- B1: themed worlds keep their own bumper colour
+					rock = rock, -- B1 Volcano: boulder that drops while the bumper warns
+					rockRest = rock and rock.CFrame,
 					cue = cue,
 					cueText = cueText,
 					id = base:GetAttribute("HazardId") or folder.Name,
@@ -111,8 +115,27 @@ function HazardController.new(courseRoot, motor, sound, layout)
 			end
 		end
 	end
+	for _, hz in ipairs(self.resolved) do
+		for _, disc in ipairs(hz.parts.FanDisc or {}) do
+			disc:SetAttribute("TC_IdleColor", disc.Color) -- B1 theme colour to return to
+		end
+	end
 	self:SetRound(0, 0)
 	return self
+end
+
+-- B1: the course switched to another world; leave this one's parts quiet.
+function HazardController:Destroy()
+	for _, bumper in ipairs(self.bumpers) do
+		bumper.cue.Enabled = false
+		bumper.base.Color = bumper.idleColor
+		if bumper.rock then
+			bumper.rock.CFrame = bumper.rockRest
+			bumper.rock.Transparency = 0
+		end
+	end
+	self.bumpers = {}
+	self.resolved = {}
 end
 
 -- A3: while the local marble's server-confirmed Shield is up, hits are absorbed.
@@ -202,7 +225,8 @@ function HazardController:_animate(t)
 						arrow.Transparency = arrow:GetAttribute("Shown") and arrowAlpha or 1
 					end
 					for _, disc in ipairs(hz.parts.FanDisc or {}) do
-						disc.Color = turbo and palette.Coral or state == "On" and palette.Cyan or state == "Warning" and palette.Yellow or palette.NavyRail
+						local idle = disc:GetAttribute("TC_IdleColor") or palette.Cyan
+						disc.Color = turbo and palette.Coral or state == "On" and idle or state == "Warning" and palette.Yellow or palette.NavyRail
 					end
 				end
 				if state == "On" and not self.reducedMotion then
@@ -230,13 +254,14 @@ function HazardController:Step(ball)
 		local key = state .. math.floor(blend * 20) .. (bouncy and "B" or "") -- colour changes in 5% steps
 		if bumper.lastKey ~= key then
 			bumper.lastKey = key
-			local color = palette.Cyan
+			local idle = bumper.idleColor or palette.Cyan
+			local color = idle
 			if state == "Telegraph" then
-				color = palette.Cyan:Lerp(palette.Yellow, blend)
+				color = idle:Lerp(palette.Yellow, blend)
 			elseif state == "Active" then
 				color = palette.Coral
 			end
-			bumper.base.Color = state == "Active" and palette.Coral or palette.Cyan
+			bumper.base.Color = state == "Active" and palette.Coral or idle
 			if bumper.ring then
 				bumper.ring.Color = color
 			end
@@ -246,6 +271,19 @@ function HazardController:Step(ball)
 			bumper.cue.Enabled = state ~= "Idle"
 			bumper.cueText.Text = state == "Active" and (bouncy and "BOUNCY!" or "KICK") or "!"
 			bumper.cueText.TextColor3 = state == "Active" and palette.Coral or palette.Yellow
+		end
+		if bumper.rock then
+			-- B1 rockfall: hidden while idle, drops during the warning, rests on the post while it kicks
+			local rock = bumper.rock
+			if state == "Idle" then
+				rock.Transparency = 1
+			elseif state == "Telegraph" and not self.reducedMotion then
+				rock.Transparency = 0
+				rock.CFrame = bumper.rockRest + bumper.axis * (18 * (1 - blend) ^ 2)
+			else
+				rock.Transparency = 0
+				rock.CFrame = bumper.rockRest
+			end
 		end
 		if ball and ball.Parent and state == "Active" and now >= bumper.cooldownUntil then
 			local rel = ball.Position - bumper.floorPoint

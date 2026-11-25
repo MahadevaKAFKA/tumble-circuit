@@ -37,6 +37,7 @@ Protocol.BallAttributes = {
 Protocol.WorkspaceAttributes = {
 	CourseReady = "TC_CourseReady",
 	CourseError = "TC_CourseError",
+	ActiveWorld = "TC_ActiveWorld", -- B1: id of the world the Race zone uses right now
 }
 
 Protocol.SpawnReasons = {
@@ -48,6 +49,7 @@ Protocol.SpawnReasons = {
 	Go = "Go", -- GO: the frozen grid marble is swapped for a free one on the same slot
 	ToHub = "ToHub", -- round over / practice chute loop
 	Movement = "Movement", -- server rejected implausible movement
+	TimeTrial = "TimeTrial", -- B1: placed on the start for a solo Time Trial
 }
 
 function Protocol.MarbleName(userId)

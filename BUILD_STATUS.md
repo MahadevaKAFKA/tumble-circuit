@@ -1,15 +1,55 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** A6 — Phase A closing build (spectator Chaos Vote, quick emotes, hub podium
-and decor, accessibility cues). Phase B not started (needs the owner's Phase A approval).
-**State:** A1–A5 played on the owner's phone (Roblox Android app) and approved; bots fixed. A6
-merged and published (v14); on the owner's first A6 look the hub was messy and the marble would not
-drive freely on the platform → hub rework (below), offline-verified (341 specs) — **not yet played
-in Roblox**.
+**Active milestone:** B1 — three worlds, map vote, Time Trial with PB ghost, Party Race (Phase B
+started on the owner's go-ahead, 2026-11-25). Plan: docs/PHASE_BCD_PLAN.md.
+**State:** A1–A6 played on the owner's phone and approved (A6 hub fixes in v15). B1 offline-verified
+(398 specs) and published privately — **B1 has not been played in Roblox yet**.
 **Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — Phase B1: Sky Carnival, Volcano Vault, map vote, Time Trial, Party Race
+
+Owner: "proceed to the last phases, re-check if everything from the A phases is in order, check
+the references and then proceed with BCD if everything corresponds".
+
+**A re-check against Build Pack v3** (A1–A6 prompts, MASTER_REFERENCE_v3, ADR): every A tuning
+value matches the pack (accel 35, lateral 22, terminal 80, air 40%, brake 0.65, deadzone 0.12;
+15/3/180/12 s round timers; Boost 20 s/+30%/1.6 s, Shield 28 s/2.5 s, Pulse 26 s/12 studs/18;
+trick +15%/1.2 s; slipstream 12 studs/1.5 s/+12%; charge 1.5 s/3 s lockout; gate tiers; bot skills
+0.8/1.0/1.2; A5 pay table; A6 vote 20 s / emotes 5 s) and is pinned by specs. One deliberate
+difference: the owner's READY vote can start a full race early (A2 asked for a fixed timer; owner
+request wins). Still open from A: real race times (the pack wants 90–150 s), 2-player tests.
+**References re-checked** (official docs, 2026-11-25): ProcessReceipt is still the receipt API
+(no BindReceiptHandler), paid-random odds rules, PolicyService fields, GetProductInfoAsync for
+regional prices, party/invite APIs, Roblox AnalyticsService. The pack's service names
+`CollectionService` / `AnalyticsService` clash with built-in Roblox services → ours are
+CosmeticService / TelemetryService (docs/PHASE_BCD_PLAN.md).
+
+**B1 built:**
+- **Sky Carnival** (14 modules, 2530 studs) and **Volcano Vault** (14 modules, 2300 studs), each
+  with 8 checkpoints, 16 grid slots, a trick ramp, 4 Chaos Gates, 3 hazard variations, own
+  colours/materials. New looks on the proven hazard kinds (same contact model, bots understand
+  them): balloon bumpers, ring carousel, wind lanes (open air), bouncy drum, pinball flipper
+  (Sky); geyser vents, pistons, rockfall (boulders drop while the bumper warns), crumbling basalt,
+  magma conveyor, stone spiral, lava sheet below (falling = respawn) (Volcano). Both pass the
+  same TrackValidator as the Foundry for all 3 seeds; worlds ≥ 200 studs apart, ≥ 150 from the hub.
+- All three worlds built once (pooled, ~5,600 parts total); `SetActiveWorld` switches the Race zone
+  at Preparing; hazards, bots, micro-skills and Chaos Gates rebind; clients follow `worldId`.
+- **Map vote**: first 8 s of Intermission when ≥ 2 humans are queued; one vote each; tie → first in
+  rotation from the candidate; no votes / solo → rotation Foundry → Sky → Volcano.
+- **Time Trial** (lobby button): solo run on the current world for anyone not in the race; 3 s
+  frozen start past the gate; ghost marble (never touches racers); server checkpoints/finish;
+  PB per world|layout|variation|TimeTrial; no Coins/XP; PB ghost = server-recorded positions (5 Hz)
+  stored in DataStore TumbleGhosts_v1, replayed as a labelled non-colliding "PB GHOST". Ends with a
+  reason if the course changes, after 180 s, or on JOIN RACE.
+- **Party Race**: members of one Roblox party in this server (Player.PartyId, max 4) start on
+  neighbouring slots; PARTY card + INVITE FRIENDS (native prompt when allowed).
+- Protocol v7: RequestMapVote, RequestTimeTrial, TimeTrialState, GhostPath; snapshot worldId,
+  nextWorldId, mapVote, party.
+- Offline: Worlds.spec (31) + B1Rules.spec (27). Not testable here: real traversal of the new
+  worlds, 2-client map vote, party (needs real Roblox parties), ghost DataStore.
 
 ## 2026-11-25 — Hub rework (owner feedback on v14)
 
@@ -325,6 +365,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | **A6 first look on the phone** (owner, v14, two hub screenshots) | hub buttons overlapping (race status over the board, emote row over CAM/LIST, huge podium tags, own name mid-screen); marble on the platform "just going left or right", won't go to the middle → hub rework above |
 | 2026-11-25 | Hub rework: `luau_check` (80 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **341 passed, 0 failed** (hub free roam 9 new); 94 instances, 80 scripts, all references resolve |
 | 2026-11-25 | GitHub Actions **Deploy** run 45606050159 (hub rework, commit 41a534c: Rojo, Selene, Lune, 341 specs, publish) | **success**: **version 15** published, visibility PRIVATE |
+| 2026-11-25 | B1: `luau_check` (88 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **398 passed, 0 failed** (worlds 31, B1 rules 27 new); 102 instances, 88 scripts, all references resolve; 1-D model clean runs Foundry 64 s / Sky 54 s / Volcano 49 s (models, not measurements) |
 | — | Hub rework phone playtest | **pending owner** |
+| — | B1 phone playtest (3 worlds, Time Trial) | **pending owner** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

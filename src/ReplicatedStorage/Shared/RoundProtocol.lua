@@ -39,12 +39,19 @@
 	VoteState             server->client   Open / Voted / Result (+modifier timestamps) / NoVotes / Closed
 	QuickEmote            client->server   (id 1|2|3)          preset bubbles only, 5 s server cooldown
 	EmoteShown            server->client   {userId, id}
+	B1 (v7):
+	RequestMapVote        client->server   (option 1..3)       map vote, first 8 s of Intermission, >= 2 humans
+	RequestTimeTrial      client->server   (boolean)           start (true) / quit (false) a solo Time Trial
+	TimeTrialState        server->client   {phase, ...}        to the runner only
+	GhostPath             server->client   {key, seconds, hz, points}  the runner's own PB ghost
+	Snapshot adds worldId, nextWorldId, mapVote = {open, endsAt, options, counts},
+	party = {available, tags = {[tostring(userId)] = group}, maxSize}.
 	Snapshot adds chaosModifier = {kind, startsAt, endsAt} while a voted modifier is pending/active.
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 6
+RoundProtocol.Version = 7
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -79,6 +86,11 @@ RoundProtocol.Remotes = {
 	VoteState = { Direction = "ServerToClient" },
 	QuickEmote = { Direction = "ClientToServer", Args = { { type = "number", oneOf = { 1, 2, 3 } } }, MinInterval = 0.5 },
 	EmoteShown = { Direction = "ServerToClient" },
+	-- B1
+	RequestMapVote = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 3, integer = true } }, MinInterval = 0.3 },
+	RequestTimeTrial = { Direction = "ClientToServer", Args = { "boolean" }, MinInterval = 1.0 },
+	TimeTrialState = { Direction = "ServerToClient" }, -- to owner: Countdown / Running / Checkpoint / Finished / Ended / Refused
+	GhostPath = { Direction = "ServerToClient" }, -- to owner: their PB ghost for this world + variation
 }
 
 RoundProtocol.States = {

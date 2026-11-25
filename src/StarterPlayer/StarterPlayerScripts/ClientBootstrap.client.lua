@@ -75,6 +75,7 @@ local StarterLoadoutController = require(Controllers:WaitForChild("StarterLoadou
 local ResultsController = require(Controllers:WaitForChild("ResultsController"))
 local DevPanelController = require(Controllers:WaitForChild("DevPanelController"))
 local SocialController = require(Controllers:WaitForChild("SocialController"))
+local ModesController = require(Controllers:WaitForChild("ModesController"))
 local Lighting = game:GetService("Lighting")
 
 local ATTR = Protocol.PlayerAttributes
@@ -191,14 +192,23 @@ if not remotesOk or not course or not marblesFolder then
 	hud:ShowMessage("Could not start: " .. tostring(reason) .. "\nOpen /console (Log, Server) for [TumbleCircuit] errors, then rejoin.", true)
 	return
 end
-course:WaitForChild("Hazards", 5)
 hubRoot:WaitForChild("PracticeChute", 5)
 
+-- B1: every world's layout (the server built them all); the Race zone means the active one.
+local worldLayouts = {}
+for _, def in ipairs(TrackDefinitions.Worlds) do
+	worldLayouts[def.Id] = TrackDefinitions.Generate(def, PhysicsConfig.Ball.Radius)
+end
+local activeWorldId = workspace:GetAttribute(Protocol.WorkspaceAttributes.ActiveWorld)
+if not worldLayouts[activeWorldId] then
+	activeWorldId = TrackDefinitions.Worlds[1].Id
+end
+course:WaitForChild(activeWorldId, 5)
 local layouts = {
-	[ZONES.Race] = TrackDefinitions.Generate(TrackDefinitions.Race, PhysicsConfig.Ball.Radius), -- A4 Neon Foundry
+	[ZONES.Race] = worldLayouts[activeWorldId],
 	[ZONES.Hub] = TrackDefinitions.Generate(TrackDefinitions.PracticeChute, PhysicsConfig.Ball.Radius),
 }
-local hazards = HazardController.new(course, motor, sound, layouts[ZONES.Race])
+local hazards = HazardController.new(course:FindFirstChild(activeWorldId) or course, motor, sound, layouts[ZONES.Race])
 motor:SetMarblesFolder(marblesFolder)
 local currentZone -- declared early: the environment push below only applies on the race course
 motor:SetEnvironmentAccel(function(position)
@@ -207,8 +217,7 @@ motor:SetEnvironmentAccel(function(position)
 	end
 	return nil
 end)
-do
-	local raceLayout = layouts[ZONES.Race]
+local function setCheckpointMarks(raceLayout)
 	local total = raceLayout.Route.total
 	local marks = {}
 	for i, cp in ipairs(raceLayout.Checkpoints) do
@@ -216,6 +225,7 @@ do
 	end
 	raceHud:SetCheckpointMarks(marks)
 end
+setCheckpointMarks(layouts[ZONES.Race])
 
 -- A3 abilities + micro-skills (display/requests only; the server judges everything)
 local abilities = maid:Give(AbilityController.new({
@@ -251,6 +261,16 @@ local loadout = maid:Give(StarterLoadoutController.new({ remotes = remote }))
 local results = maid:Give(ResultsController.new())
 maid:Give(DevPanelController.new(remotes))
 local social = maid:Give(SocialController.new({ remotes = remote, marblesFolder = marblesFolder, localUserId = player.UserId }))
+-- B1 modes: map vote, Time Trial (+ PB ghost), Party Race
+local modes = maid:Give(ModesController.new({
+	remotes = remote,
+	toast = function(text, seconds)
+		hud:Toast(text, seconds)
+	end,
+	flash = function(text, color, seconds)
+		raceHud:Flash(text, color, seconds)
+	end,
+}))
 maid:Give(social.ModifierChanged:Connect(function(modifier)
 	hazards:SetModifier(modifier) -- A6 voted modifier: same timestamps as the server
 end))
@@ -334,6 +354,9 @@ local function canSteer()
 	if currentZone == ZONES.Hub then
 		return true
 	end
+	if modes:IsInTrial() then
+		return true -- B1 Time Trial (the server froze the marble during its countdown)
+	end
 	local me = myEntry()
 	return roundState() == S.Racing and me ~= nil and not me.finished
 end
@@ -345,12 +368,16 @@ local function canRecover()
 	if currentZone == ZONES.Hub then
 		return true
 	end
+	if modes:IsInTrial() then
+		return true -- B1: back to your last Time Trial checkpoint
+	end
 	local state = roundState()
 	return state == S.Racing or state == S.Results
 end
 
 -- UIController layers: each ScreenGui shows only when the current screen / modal lists it.
 ui:Register("Title", function() end) -- the title overlay is driven by the PLAY flow below
+modes:RegisterLayers(ui) -- B1: "Modes" (lobby) and "TimeTrial"
 ui:Register("Hud", function(visible)
 	hud:SetHudVisible(visible)
 end)
@@ -389,6 +416,7 @@ local function refreshGates()
 	ui:Refresh({
 		started = uiState == "Live",
 		spectating = spectate.active,
+		timeTrial = modes:IsInTrial(), -- B1
 		roundState = roundState(),
 		inRace = me ~= nil,
 		resultsDismissed = snapshot ~= nil and resultsDismissedRound == snapshot.roundId,
@@ -571,11 +599,39 @@ end))
 -- Round snapshots and server notices
 ---------------------------------------------------------------------------------------------
 local lastState = nil
+maid:Give(modes.Changed:Connect(function()
+	refreshGates() -- B1: Time Trial started / ended changes the screen
+end))
+
+-- B1: the server switched the Race zone to another world (between races)
+local function setWorld(worldId)
+	local layout = worldLayouts[worldId]
+	if not layout or worldId == activeWorldId then
+		return
+	end
+	activeWorldId = worldId
+	layouts[ZONES.Race] = layout
+	local old = hazards
+	hazards = HazardController.new(course:FindFirstChild(worldId) or course, motor, sound, layout)
+	hazards:SetShieldQuery(function()
+		return abilities:IsShielded()
+	end)
+	hazards:SetReducedMotion(reducedMotion)
+	hazards:SetModifier(social.modifier)
+	old:Destroy()
+	trickZones = layout.TrickZones or {}
+	spectate.tracker = RouteTracker.new(layout.Route)
+	setCheckpointMarks(layout)
+end
+
 maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 	if type(snap) ~= "table" or snap.v ~= RoundProtocol.Version then
 		return
 	end
 	snapshot = snap
+	if snap.worldId then
+		setWorld(snap.worldId)
+	end
 	hazards:SetRound(snap.hazardSeed, snap.hazardEpoch)
 	local mod = snap.chaosModifier
 	if (mod and mod.startsAt) ~= (social.modifier and social.modifier.startsAt) then
@@ -583,6 +639,7 @@ maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 	end
 	raceHud:ApplySnapshot(snap, player.UserId)
 	matchUi:ApplySnapshot(snap, player.UserId)
+	modes:ApplySnapshot(snap)
 	results:ApplySnapshot(snap, player.UserId)
 	if snap.state ~= lastState then
 		if snap.state == S.Racing and myEntry() then
@@ -850,6 +907,7 @@ end)
 local RENDER_STEP = "TumbleCircuitClient"
 local reportedRound = nil -- A5 AFK guard: one ReportActive per race, on the first real input
 local rivalTrackers = {}
+local rivalWorld = nil
 local rivalTimer = 0
 local rivalFractions = {}
 local steerRequired = GameConfig.Tutorial.SteerSecondsRequired
@@ -881,6 +939,7 @@ end
 
 RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, function(dt)
 	hud:RecordFrame(dt)
+	modes:Step(workspace:GetServerTimeNow()) -- B1: Time Trial timer + PB ghost
 	local ball = currentBall
 	if ball and ball.Anchored ~= lastAnchored then
 		lastAnchored = ball.Anchored -- released at GO
@@ -1022,6 +1081,9 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 			if entry.userId ~= player.UserId and not entry.finished then
 				local ball = marblesFolder:FindFirstChild(Protocol.MarbleName(entry.userId))
 				if ball and ball:GetAttribute(BALL.Zone) == ZONES.Race then
+					if rivalWorld ~= activeWorldId then
+						rivalTrackers, rivalWorld = {}, activeWorldId -- B1: new world, new routes
+					end
 					local t = rivalTrackers[entry.userId] or RouteTracker.new(layouts[ZONES.Race].Route)
 					rivalTrackers[entry.userId] = t
 					seen[entry.userId] = true

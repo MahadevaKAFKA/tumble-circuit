@@ -66,7 +66,7 @@ function MicroSkillService:_reset(player)
 	self.players[player] = nil
 end
 
-function MicroSkillService:Start()
+function MicroSkillService:_bindWorld()
 	local layout = self.track:GetLayout(Protocol.Zones.Race)
 	self.trickZones = layout.TrickZones or {}
 	self.bumpers, self.movers = {}, {}
@@ -83,6 +83,15 @@ function MicroSkillService:Start()
 		elseif (hz.Kind == "Sweeper" or hz.Kind == "Hammer") and hz.Frame then
 			table.insert(self.movers, hz)
 		end
+	end
+end
+
+function MicroSkillService:Start()
+	self:_bindWorld()
+	if self.hazardService and self.hazardService.WorldBound then
+		self.maid:Give(self.hazardService.WorldBound:Connect(function()
+			self:_bindWorld()
+		end))
 	end
 	-- Never wait here: ServerBootstrap starts this service before MarbleCharacterService:Start(),
 	-- so an unbounded WaitForChild on the marbles folder stalled the whole server (2026-11-25).

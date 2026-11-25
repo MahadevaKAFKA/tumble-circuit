@@ -26,16 +26,29 @@ function HazardService.new(track)
 	self.epoch = 0
 	self.maid = Utility.Maid.new()
 	self.tiles = {}
+	self.WorldBound = Utility.Signal.new() -- B1: fired after a world (re)bind
 	return self
 end
 
-function HazardService:Start()
+-- B1: (re)bind to the active world's hazards. Called at start and on every world change;
+-- the previous world's tiles are restored to solid first. Fires WorldBound afterwards so
+-- services that read GetResolved() (bots, micro-skills) rebind after us.
+function HazardService:_bindWorld()
+	for _, tile in ipairs(self.tiles) do
+		local part = tile.part
+		part.CanCollide = true
+		part.CanQuery = true
+		part.Transparency = 0
+		part.Color = tile.baseColor
+		part.Material = tile.baseMaterial
+	end
+	self.tiles = {}
 	local layout = self.track:GetLayout(Protocol.Zones.Race)
 	self.resolved = {}
 	for _, hz in ipairs(layout.Hazards) do
 		self.resolved[#self.resolved + 1] = { Kind = hz.Kind, Id = hz.Id, Definition = hz.Definition, Frame = hz.Frame, FromFrame = hz.FromFrame, Length = hz.Length, Offset = hz.Offset, Piece = hz.Piece }
 	end
-	self:SetRound(0, 0)
+	self:SetRound(self.seed or 0, self.epoch or 0)
 	local root = self.track:GetRaceRoot()
 	local hazards = root and root:FindFirstChild("Hazards")
 	for _, hz in ipairs(self.resolved) do
@@ -43,11 +56,19 @@ function HazardService:Start()
 			local folder = hazards and hazards:FindFirstChild(hz.Id)
 			for _, tile in ipairs(folder and folder:GetChildren() or {}) do
 				if tile:IsA("BasePart") and tile:GetAttribute("Role") == "Tile" then
-					table.insert(self.tiles, { part = tile, hazard = hz, row = tile:GetAttribute("Row"), col = tile:GetAttribute("Col"), baseColor = tile.Color, state = "Solid" })
+					table.insert(self.tiles, { part = tile, hazard = hz, row = tile:GetAttribute("Row"), col = tile:GetAttribute("Col"), baseColor = tile.Color, baseMaterial = tile.Material, state = "Solid" })
 				end
 			end
 		end
 	end
+	self.WorldBound:Fire(layout)
+end
+
+function HazardService:Start()
+	self:_bindWorld()
+	self.maid:Give(self.track.WorldChanged:Connect(function()
+		self:_bindWorld()
+	end))
 	local accumulated = 0
 	self.maid:Give(RunService.Heartbeat:Connect(function(dt)
 		accumulated = accumulated + dt
@@ -114,7 +135,7 @@ function HazardService:_updateTiles()
 				part.Transparency = 0
 				part.Color = state == "Telegraph" and palette.Yellow or tile.baseColor
 				-- A6 colour-blind cue: a telegraphing tile also changes texture
-				part.Material = state == "Telegraph" and Enum.Material.DiamondPlate or Enum.Material.SmoothPlastic
+				part.Material = state == "Telegraph" and Enum.Material.DiamondPlate or tile.baseMaterial
 			end
 		end
 	end

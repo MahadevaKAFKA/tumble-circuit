@@ -34,6 +34,8 @@ local PlayerDataService = require(Services:WaitForChild("PlayerDataService"))
 local EconomyService = require(Services:WaitForChild("EconomyService"))
 local DevService = require(Services:WaitForChild("DevService"))
 local SocialService = require(Services:WaitForChild("SocialService"))
+local PartyService = require(Services:WaitForChild("PartyService"))
+local TimeTrialService = require(Services:WaitForChild("TimeTrialService"))
 local HubBuilder = require(game:GetService("ServerStorage"):WaitForChild("ProceduralBuilders"):WaitForChild("HubBuilder"))
 
 local existing = ReplicatedStorage:FindFirstChild(RoundProtocol.FolderName)
@@ -91,6 +93,10 @@ local playerData = PlayerDataService.new({ remotes = remotes })
 local economy = EconomyService.new({ round = round, playerData = playerData, track = track, hazards = hazards, remotes = remotes })
 local dev = DevService.new({ round = round, bots = bots, playerData = playerData, remotes = remotes })
 local social = SocialService.new({ round = round, hazards = hazards, remotes = remotes, hubBuilder = HubBuilder })
+local party = PartyService.new({ marbles = marbles }) -- B1
+round.party = party
+local timeTrial = TimeTrialService.new({ track = track, marbles = marbles, physics = physics, round = round, remotes = remotes, data = playerData, hazards = hazards }) -- B1
+round.timeTrial = timeTrial
 playerData.ProfileLoaded:Connect(function(player, profile)
 	abilities:SetLoadout(player, profile.data.equippedAbilityIds) -- saved starter loadout
 end)
@@ -105,6 +111,7 @@ playerData:Start() -- loads profiles as players join (does not block the course)
 physics:Start()
 hazards:Start()
 round:Start()
+timeTrial:Start()
 abilities:Start()
 micro:Start()
 chaos:Start()
@@ -116,6 +123,6 @@ bots:Start() -- bots only spawn at Preparing, so they can start after the folder
 perf:Start()
 
 -- Studio integration tests can reach the live services through this table (never replicated).
-_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev, social = social }
+_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev, social = social, party = party, timeTrial = timeTrial }
 
 print(string.format("[TumbleCircuit] server ready (%s, protocol v%d)", GameConfig.Version, RoundProtocol.Version))

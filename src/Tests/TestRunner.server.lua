@@ -58,6 +58,9 @@ local modules = {
 	ProfileStore = require(Services:WaitForChild("ProfileStore")),
 	RewardRules = require(Services:WaitForChild("RewardRules")),
 	VoteRules = require(Services:WaitForChild("VoteRules")),
+	MapVoteRules = require(Services:WaitForChild("MapVoteRules")),
+	PartyRules = require(Services:WaitForChild("PartyRules")),
+	TimeTrialRules = require(Shared:WaitForChild("TimeTrialRules")),
 	SocialConfig = require(Shared:WaitForChild("SocialConfig")),
 }
 do
@@ -114,6 +117,8 @@ if modules.UIController then
 	report("A5 UI state specs", require(Unit:WaitForChild("UIState.spec")).run(modules))
 end
 report("A6 social specs", require(Unit:WaitForChild("Social.spec")).run(modules))
+report("B1 world specs", require(Unit:WaitForChild("Worlds.spec")).run(modules))
+report("B1 rules specs", require(Unit:WaitForChild("B1Rules.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }
@@ -131,7 +136,9 @@ local deadline = os.clock() + 20
 while not workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseReady) and os.clock() < deadline do
 	task.wait(0.2)
 end
-local course = workspace:FindFirstChild(Protocol.CourseModelName)
+local courseFolder = workspace:FindFirstChild(Protocol.CourseModelName)
+-- B1: every world is built under TrainingCourse/<worldId>; check the active one here
+local course = courseFolder and courseFolder:FindFirstChild(workspace:GetAttribute(Protocol.WorkspaceAttributes.ActiveWorld) or "")
 check("world built and CourseReady published", course ~= nil and workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseReady) == true)
 check("no course validation errors", workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseError) == nil, workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseError))
 

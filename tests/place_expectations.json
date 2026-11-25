@@ -425,6 +425,12 @@
     "VoteState",
     "QuickEmote",
     "EmoteShown",
-    "TC_Emote"
+    "TC_Emote",
+    "GhostPath",
+    "RequestTimeTrial",
+    "TimeTrialState",
+    "RequestMapVote",
+    "Rock",
+    "TC_PBGhost"
   ]
 }

@@ -32,6 +32,7 @@ local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local RaceRules = require(script.Parent:WaitForChild("RaceRules"))
+local MapVoteRules = require(script.Parent:WaitForChild("MapVoteRules"))
 
 local RoundService = {}
 RoundService.__index = RoundService
@@ -60,6 +61,10 @@ function RoundService.new(deps)
 	self.racerByPlayer = {}
 	self.queued = {} -- [player] = bool
 	self.ready = {} -- [player] = true: READY vote for the current intermission (owner request)
+	self.lastWorldIndex = 0 -- B1: world rotation (0 = nothing raced yet → first world next)
+	self.nextWorldIndex = 1
+	self.mapVote = nil -- B1: MapVoteRules vote during the first 8 s of Intermission
+	self.party = deps.party -- B1 (optional): keeps Roblox party members on neighbouring slots
 	self.ordinals = {} -- [player] = stable join ordinal
 	self.nextOrdinal = 0
 	self.finishCounter = 0
@@ -104,6 +109,9 @@ function RoundService:Start()
 	end)
 	self:_connectRemote("RequestReady", function(player, wants)
 		self:TryReady(player, wants)
+	end)
+	self:_connectRemote("RequestMapVote", function(player, optionIndex)
+		self:TryMapVote(player, optionIndex)
 	end)
 	-- A5 AFK guard: real input during Racing marks the racer active (rewards need it).
 	self:_connectRemote("ReportActive", function(player, roundId)
@@ -232,9 +240,50 @@ function RoundService:_enterIntermission()
 	self.ready = {} -- every intermission starts with no READY votes
 	self.track:SetStartGateClosed(true)
 	self:_setTimer(T.IntermissionSeconds)
+	-- B1 map: rotation candidate, and a vote when at least two humans are queued
+	local ids = self.track.GetWorldIds and self.track:GetWorldIds() or {}
+	self.nextWorldIndex = MapVoteRules.NextInRotation(self.lastWorldIndex, #ids) or 1
+	self.mapVote = nil
+	if MapVoteRules.ShouldOpen(self:_queuedCount(), #ids) then
+		self.mapVote = MapVoteRules.NewVote(ids, self.nextWorldIndex, workspace:GetServerTimeNow())
+	end
+end
+
+-- B1: close the map vote (when its 8 s end, or the race starts early) and lock in the winner.
+function RoundService:_closeMapVote()
+	local vote = self.mapVote
+	if vote and vote.open then
+		vote.open = false
+		self.nextWorldIndex = MapVoteRules.Winner(vote)
+		if GameConfig.Debug.VerboseLogging then
+			print(string.format("[Round] map vote: %s (%s)", tostring(vote.options[self.nextWorldIndex]), table.concat(vote.counts, "/")))
+		end
+		self:Broadcast()
+	end
+end
+
+function RoundService:TryMapVote(player, optionIndex)
+	local ok, reason = MapVoteRules.Cast(self.mapVote, player.UserId, optionIndex, self.state == S.Intermission and self.queued[player] == true, workspace:GetServerTimeNow())
+	if ok then
+		self:Broadcast()
+	else
+		self:SendSnapshot(player)
+	end
+	return ok, reason
+end
+
+function RoundService:GetNextWorldId()
+	local ids = self.track.GetWorldIds and self.track:GetWorldIds() or {}
+	return ids[self.nextWorldIndex] or ids[1]
 end
 
 function RoundService:_enterPreparing()
+	self:_closeMapVote()
+	local worldId = self:GetNextWorldId()
+	if worldId and self.track.SetActiveWorld then
+		self.track:SetActiveWorld(worldId) -- B1: hazards / bots / gates rebind via WorldChanged
+		self.lastWorldIndex = self.nextWorldIndex
+	end
 	self.roundId = self.roundId + 1
 	self.racers, self.racerByPlayer = {}, {}
 	self.finishCounter = 0
@@ -248,6 +297,9 @@ function RoundService:_enterPreparing()
 		end
 	end
 	local order = RaceRules.ShuffleGrid(ids, self.roundId)
+	if self.party then
+		order = self.party:GroupGridOrder(order) -- B1: party members on neighbouring slots
+	end
 	local slots = self.track:GetGridSlotCount()
 	for i, userId in ipairs(order) do
 		if i > slots then
@@ -412,6 +464,9 @@ end
 
 function RoundService:_tick(dt)
 	local state = self.state
+	if state == S.Intermission and self.mapVote and self.mapVote.open and workspace:GetServerTimeNow() >= self.mapVote.endsAt then
+		self:_closeMapVote()
+	end
 	if state == S.Racing then
 		self.standingsTimer = self.standingsTimer + dt
 		if self.standingsTimer >= 1 / RaceConfig.Snapshot.StandingsHz then
@@ -461,6 +516,9 @@ end
 -- Requests
 ---------------------------------------------------------------------------------------------
 function RoundService:TryJoin(player, wants)
+	if wants and self.timeTrial and self.timeTrial:IsRunning(player) then
+		self.timeTrial:Stop(player, "You joined the next race") -- B1: JOIN RACE ends a Time Trial
+	end
 	self.queued[player] = wants == true
 	if not wants then
 		self.ready[player] = nil
@@ -498,6 +556,12 @@ end
 
 -- Where a player's next marble appears (called by MarbleCharacterService for every spawn).
 function RoundService:ResolveSpawn(player, reason)
+	if self.timeTrial and not isBot(player) then
+		local spot = self.timeTrial:ResolveSpawn(player, reason) -- B1: solo Time Trial
+		if spot then
+			return spot
+		end
+	end
 	local racer = self.racerByPlayer[player]
 	local state = self.state
 	if isBot(player) and (not racer or reason == REASONS.ToHub) then
@@ -614,6 +678,7 @@ function RoundService:_checkRaceComplete()
 end
 
 function RoundService:_onPlayerLeaving(player)
+	MapVoteRules.Remove(self.mapVote, player.UserId) -- B1: a leaver's map vote stops counting
 	self.queued[player] = nil
 	self.ready[player] = nil
 	self.ordinals[player] = nil
@@ -708,6 +773,15 @@ function RoundService:GetSnapshot()
 		hazardSeed = self.hazards and self.hazards:GetSeed() or 0,
 		chaosModifier = self.chaosModifier,
 		hazardEpoch = self.hazards and self.hazards:GetEpoch() or 0,
+		worldId = self.track.GetActiveWorldId and self.track:GetActiveWorldId() or nil, -- B1
+		nextWorldId = self:GetNextWorldId(),
+		mapVote = self.mapVote and {
+			open = self.mapVote.open,
+			endsAt = self.mapVote.endsAt,
+			options = self.mapVote.options,
+			counts = self.mapVote.counts,
+		} or nil,
+		party = self.party and self.party:SnapshotFor() or nil,
 	}
 end
 

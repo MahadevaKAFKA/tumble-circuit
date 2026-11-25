@@ -66,6 +66,9 @@ local modules = {
 	RewardRules = H.module("ServerScriptService/Services/RewardRules"),
 	UIController = H.module("StarterPlayer/StarterPlayerScripts/Controllers/UIController"),
 	VoteRules = H.module("ServerScriptService/Services/VoteRules"),
+	MapVoteRules = H.module("ServerScriptService/Services/MapVoteRules"),
+	PartyRules = H.module("ServerScriptService/Services/PartyRules"),
+	TimeTrialRules = H.module("ReplicatedStorage/Shared/TimeTrialRules"),
 	SocialConfig = H.module("ReplicatedStorage/Shared/SocialConfig"),
 }
 -- A5 client modules: load-time references to client services are stubbed; only their pure
@@ -214,6 +217,8 @@ local suites = {
 	{ "A4 ready vote specs", root .. "/src/Tests/Unit/ReadyVote.spec.lua" },
 	{ "A4 free look specs (offline only)", root .. "/src/Tests/Unit/FreeLook.spec.lua" },
 	{ "Hub free roam specs (offline only)", root .. "/src/Tests/Unit/HubFreeRoam.spec.lua" },
+	{ "B1 world specs", root .. "/src/Tests/Unit/Worlds.spec.lua" },
+	{ "B1 rules specs", root .. "/src/Tests/Unit/B1Rules.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

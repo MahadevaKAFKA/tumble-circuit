@@ -149,9 +149,29 @@ local function physics(friction, elasticity, elasticityWeight)
 	return { Density = 0.7, Friction = friction, Elasticity = elasticity, FrictionWeight = 1, ElasticityWeight = elasticityWeight or 1 }
 end
 
+-- B1: a world's Theme overrides palette keys (floor, rails, accents) and materials; every other
+-- colour comes from GameConfig.Palette. Hazard warning colours (Coral / Yellow) never change.
+function Builder.ThemePalette(theme)
+	local base = GameConfig.Palette
+	if not theme then
+		return base
+	end
+	return setmetatable({}, {
+		__index = function(_, key)
+			local v = theme[key]
+			if typeof(v) == "Color3" then
+				return v
+			end
+			return base[key]
+		end,
+	})
+end
+
 function Builder.ComputeSpecs(layout)
 	local def = layout.Definition
-	local palette = GameConfig.Palette
+	local palette = Builder.ThemePalette(def.Theme)
+	local floorMaterial = def.Theme and def.Theme.FloorMaterial or "SmoothPlastic"
+	local railMaterial = def.Theme and def.Theme.RailMaterial or "SmoothPlastic"
 	local trackPhysics = PhysicsConfig.Track
 	local specs = {}
 	local function add(spec)
@@ -182,7 +202,7 @@ function Builder.ComputeSpecs(layout)
 			q.Name = "Floor_" .. piece.Name
 			q.Folder = "Floor"
 			q.Color = color
-			q.Material = "SmoothPlastic"
+			q.Material = floorMaterial
 			q.Physics = floorPhysics
 			add(q)
 		end
@@ -198,7 +218,7 @@ function Builder.ComputeSpecs(layout)
 				wall.Name = w.name .. "_" .. piece.Name
 				wall.Folder = "Rails"
 				wall.Color = palette.NavyRail
-				wall.Material = "SmoothPlastic"
+				wall.Material = railMaterial
 				wall.Physics = railPhysics
 				add(wall)
 				-- neon cap strip on top of the rail (visual edge cue, no collision)
@@ -230,7 +250,7 @@ function Builder.ComputeSpecs(layout)
 		wall.Name = name
 		wall.Folder = "Rails"
 		wall.Color = palette.NavyRail
-		wall.Material = "SmoothPlastic"
+		wall.Material = railMaterial
 		wall.Physics = railPhysics
 		add(wall)
 		add({
@@ -450,14 +470,35 @@ function Builder.ComputeSpecs(layout)
 		elseif hz.Kind == "Hammer" then
 			local cf = frameCFrame(f, 0)
 			local span = f.Width / 2 + railT + 1
-			for _, side in ipairs({ -1, 1 }) do
-				add({ Class = "Part", Name = "HammerPillar", Folder = "Decor", Size = Vector3.new(1.4, 14, 1.4), CFrame = cf * CFrame.new(side * span, 7, 0), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false })
+			if d.Style == "Piston" then
+				-- B1 Volcano: piston housings in both walls, the head slides between them
+				for _, side in ipairs({ -1, 1 }) do
+					add({ Class = "Part", Name = "PistonHousing", Folder = "Decor", Size = Vector3.new(2.4, 6, d.HeadSize + 2), CFrame = cf * CFrame.new(side * span, 3, 0), Color = palette.NavyRail, Material = railMaterial, Collide = false })
+					add({ Class = "Part", Name = "PistonGlow", Folder = "Decor", Size = Vector3.new(0.3, 4, d.HeadSize), CFrame = cf * CFrame.new(side * (span - 1.3), 3, 0), Color = palette.Cyan, Material = "Neon", Collide = false })
+				end
+			elseif d.Style == "Flipper" then
+				-- B1 Sky Carnival: pinball flipper posts with a striped bar overhead
+				for _, side in ipairs({ -1, 1 }) do
+					add({ Class = "Part", Shape = "Cylinder", Name = "FlipperPost", Folder = "Decor", Size = Vector3.new(8, 2.2, 2.2), CFrame = CFrame.fromMatrix(cf.Position + cf.RightVector * (side * span) + cf.UpVector * 4, cf.UpVector, cf.LookVector), Color = palette.Violet, Material = "SmoothPlastic", Collide = false })
+				end
+				add({ Class = "Part", Name = "FlipperBar", Folder = "Decor", Size = Vector3.new(span * 2 + 2.2, 0.8, 0.8), CFrame = cf * CFrame.new(0, 8, 0), Color = palette.White, Material = "Neon", Collide = false })
+			else
+				for _, side in ipairs({ -1, 1 }) do
+					add({ Class = "Part", Name = "HammerPillar", Folder = "Decor", Size = Vector3.new(1.4, 14, 1.4), CFrame = cf * CFrame.new(side * span, 7, 0), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false })
+				end
+				add({ Class = "Part", Name = "HammerBeam", Folder = "Decor", Size = Vector3.new(span * 2 + 1.4, 1.4, 1.4), CFrame = cf * CFrame.new(0, 14, 0), Color = palette.Yellow, Material = "Neon", Collide = false })
 			end
-			add({ Class = "Part", Name = "HammerBeam", Folder = "Decor", Size = Vector3.new(span * 2 + 1.4, 1.4, 1.4), CFrame = cf * CFrame.new(0, 14, 0), Color = palette.Yellow, Material = "Neon", Collide = false })
 			add({ Class = "Part", Name = "Head", Folder = folder, Size = Vector3.new(d.HeadSize, d.HeadSize, d.HeadSize), CFrame = cf * CFrame.new(0, d.HeadSize / 2 + 0.2, 0), Color = palette.Coral, Material = "SmoothPlastic", Collide = false, Attributes = { HazardId = hz.Id, Role = "Head", Kind = "Hammer" } })
 			add({ Class = "Part", Name = "SwingPath", Folder = folder, Size = Vector3.new(d.Amplitude * 2 + d.HeadSize, 0.1, d.HeadSize), CFrame = cf * CFrame.new(0, 0.05, 0), Color = palette.Yellow, Material = "Neon", Transparency = 0.6, Collide = false })
 		elseif hz.Kind == "Trampoline" then
 			add({ Class = "Part", Name = "Pad", Folder = folder, Size = Vector3.new(d.Width, 0.4, d.Length), CFrame = frameCFrame(f, 0.2) * CFrame.new(hz.Offset or 0, 0, 0), Color = palette.Mint, Material = "Neon", Physics = { Density = 0.7, Friction = 0.4, Elasticity = 0.9, FrictionWeight = 1, ElasticityWeight = 50 }, Attributes = { HazardId = hz.Id, Role = "Pad" } })
+			if d.Style == "Drum" then
+				-- B1 Sky Carnival: drum shell around the pad (decor; the pad is the bouncy part)
+				for _, side in ipairs({ -1, 1 }) do
+					add({ Class = "Part", Name = "DrumShell", Folder = "Decor", Size = Vector3.new(0.6, 1.2, d.Length + 1), CFrame = frameCFrame(f, 0.6) * CFrame.new((hz.Offset or 0) + side * (d.Width / 2 + 0.3), 0, 0), Color = palette.Violet, Material = "SmoothPlastic", Collide = false })
+					add({ Class = "Part", Name = "DrumShell", Folder = "Decor", Size = Vector3.new(d.Width + 1.2, 1.2, 0.6), CFrame = frameCFrame(f, 0.6) * CFrame.new(hz.Offset or 0, 0, side * (d.Length / 2 + 0.3)), Color = palette.White, Material = "SmoothPlastic", Collide = false })
+				end
+			end
 		elseif hz.Kind == "Tiles" then
 			local piece = hz.Piece
 			local rowLength = piece.Definition.Length / d.Rows
@@ -466,7 +507,7 @@ function Builder.ComputeSpecs(layout)
 				local colWidth = rf.Width / d.Cols
 				for col = 1, d.Cols do
 					local x = -rf.Width / 2 + (col - 0.5) * colWidth
-					add({ Class = "Part", Name = "Tile", Folder = folder, Size = Vector3.new(colWidth - 0.25, thickness, rowLength - 0.25), CFrame = frameCFrame(rf, -thickness / 2) * CFrame.new(x, 0, 0), Color = palette.NavyFloor:Lerp(palette.Cyan, 0.15), Material = "SmoothPlastic", Physics = floorPhysics, Attributes = { HazardId = hz.Id, Role = "Tile", Row = row, Col = col } })
+					add({ Class = "Part", Name = "Tile", Folder = folder, Size = Vector3.new(colWidth - 0.25, thickness, rowLength - 0.25), CFrame = frameCFrame(rf, -thickness / 2) * CFrame.new(x, 0, 0), Color = palette.NavyFloor:Lerp(palette.Cyan, 0.15), Material = floorMaterial, Physics = floorPhysics, Attributes = { HazardId = hz.Id, Role = "Tile", Row = row, Col = col } })
 				end
 			end
 		elseif hz.Kind == "Fan" or hz.Kind == "Conveyor" then
@@ -484,7 +525,16 @@ function Builder.ComputeSpecs(layout)
 				end
 				if hz.Kind == "Fan" then
 					for _, side in ipairs({ -1, 1 }) do
-						add({ Class = "Part", Shape = "Cylinder", Name = "FanDisc", Folder = folder, Size = Vector3.new(0.6, 6, 6), CFrame = CFrame.fromMatrix(zf.Position + zf.Right * (side * (zf.Width / 2 + railT + 0.4)) + zf.Up * 4, zf.Right, zf.Up), Color = palette.Cyan, Material = "Neon", Transparency = 0.4, Collide = false, Attributes = { HazardId = hz.Id, Role = "FanDisc", Side = side } })
+						local edge = zf.Position + zf.Right * (side * (zf.Width / 2 + railT + 0.4))
+						if d.Style == "Geyser" then
+							-- B1 Volcano: vents just outside the lane edge (axis = up), glow while bursting
+							add({ Class = "Part", Shape = "Cylinder", Name = "FanDisc", Folder = folder, Size = Vector3.new(0.6, 4, 4), CFrame = CFrame.fromMatrix(edge + zf.Up * 0.3, zf.Up, zf.Forward), Color = palette.Cyan, Material = "Neon", Transparency = 0.2, Collide = false, Attributes = { HazardId = hz.Id, Role = "FanDisc", Side = side } })
+						elseif d.Style == "Wind" then
+							-- B1 Sky Carnival: open-air wind puffs (no tunnel)
+							add({ Class = "Part", Shape = "Ball", Name = "FanDisc", Folder = folder, Size = Vector3.new(5, 5, 5), CFrame = CFrame.fromMatrix(edge + zf.Up * 3, zf.Right, zf.Up), Color = palette.Cyan, Material = "SmoothPlastic", Transparency = 0.45, Collide = false, Attributes = { HazardId = hz.Id, Role = "FanDisc", Side = side } })
+						else
+							add({ Class = "Part", Shape = "Cylinder", Name = "FanDisc", Folder = folder, Size = Vector3.new(0.6, 6, 6), CFrame = CFrame.fromMatrix(edge + zf.Up * 4, zf.Right, zf.Up), Color = palette.Cyan, Material = "Neon", Transparency = 0.4, Collide = false, Attributes = { HazardId = hz.Id, Role = "FanDisc", Side = side } })
+						end
 					end
 				end
 				at = at + (hz.Kind == "Fan" and 16 or 10)
@@ -594,6 +644,44 @@ function Builder.ComputeSpecs(layout)
 				Transparency = 0.55,
 				Collide = false,
 			})
+			local style = hz.Definition and hz.Definition.Style
+			if style == "Balloon" then
+				-- B1 Sky Carnival: a balloon tied to the bumper post (decor; the post is the collider)
+				add({ Class = "Part", Shape = "Ball", Name = "Balloon", Folder = "Decor", Size = Vector3.new(d + 1, d + 1, d + 1), CFrame = CFrame.new(base + f.Up * (hz.Height + 4 + d / 2)), Color = palette.Violet, Material = "SmoothPlastic", Collide = false })
+				add({ Class = "Part", Name = "BalloonString", Folder = "Decor", Size = Vector3.new(0.15, 4, 0.15), CFrame = CFrame.fromMatrix(base + f.Up * (hz.Height + 2), f.Right, f.Up), Color = palette.White, Material = "SmoothPlastic", Collide = false })
+			elseif style == "Rock" then
+				-- B1 Volcano: the boulder that falls onto the post while it warns (client animates
+				-- it from the same bumper timing; contact is still the bumper's kick)
+				add({ Class = "Part", Shape = "Ball", Name = "Rock", Folder = folder, Size = Vector3.new(d + 0.6, d + 0.6, d + 0.6), CFrame = CFrame.new(base + f.Up * (hz.Height + d / 2)), Color = palette.NavyRail, Material = "Slate", Collide = false, Attributes = { HazardId = hz.Id, Role = "Rock" } })
+			end
+		end
+	end
+
+	-- B1 world decor (never collides, never queried)
+	local decor = def.Theme and def.Theme.Decor
+	if decor == "Clouds" then
+		for i = 1, #sections, 9 do
+			local sec = sections[i]
+			local side = (i % 2 == 0) and 1 or -1
+			local size = 16 + (i * 7) % 14
+			add({ Class = "Part", Shape = "Ball", Name = "Cloud", Folder = "Decor", Size = Vector3.new(size, size * 0.6, size), CFrame = CFrame.new(sec.Position + sec.Right * side * (sec.Width / 2 + 18 + size / 2) - sec.Up * 10), Color = palette.White, Material = "SmoothPlastic", Transparency = 0.15, Collide = false })
+		end
+	elseif decor == "Lava" then
+		local minX, maxX, minZ, maxZ = math.huge, -math.huge, math.huge, -math.huge
+		for _, sec in ipairs(sections) do
+			minX, maxX = math.min(minX, sec.Position.X), math.max(maxX, sec.Position.X)
+			minZ, maxZ = math.min(minZ, sec.Position.Z), math.max(maxZ, sec.Position.Z)
+		end
+		local y = layout.MinY - 45
+		local pad = 120
+		local x0, z0 = minX - pad, minZ - pad
+		local w, l = maxX - minX + pad * 2, maxZ - minZ + pad * 2
+		local nx, nz = math.ceil(w / 2000), math.ceil(l / 2000)
+		for ix = 0, nx - 1 do
+			for iz = 0, nz - 1 do
+				local sx, sz = w / nx, l / nz
+				add({ Class = "Part", Name = "LavaSheet", Folder = "Decor", Size = Vector3.new(sx, 1, sz), CFrame = CFrame.new(x0 + sx * (ix + 0.5), y, z0 + sz * (iz + 0.5)), Color = palette.Violet, Material = "Neon", Transparency = 0.1, Collide = false })
+			end
 		end
 	end
 

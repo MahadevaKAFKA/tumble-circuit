@@ -23,6 +23,24 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
+## Phase B1 — three worlds, Time Trial, Party
+
+- Races now rotate through **Neon Foundry → Sky Carnival → Volcano Vault**. With 2+ people in the
+  server, a **world vote** appears for the first 8 s of the countdown.
+- **TIME TRIAL** (lobby column): a solo run on the current world. 3-2-1, then race the clock; your
+  best time is saved, and next time a green **PB GHOST** marble shows your best run. You're see-
+  through to racers and can't bump them. QUIT ends it; joining the race ends it too.
+- **PARTY**: if you're in a Roblox party with friends in this server, you start next to each other.
+  INVITE FRIENDS opens Roblox's invite screen.
+
+### What to check (B1, solo)
+- [ ] Race 3 times in a row: Foundry, then Sky Carnival, then Volcano Vault. Each can be finished;
+      note anything that throws you off unfairly, and your finish time on each.
+- [ ] Sky: balloons kick when coral, wind gusts push sideways, the drum bounces, the flipper
+      sweeps; Volcano: rocks drop on the posts before they kick, geysers puff, tiles crumble.
+- [ ] TIME TRIAL: countdown, timer, checkpoints, finish → best time; second run shows the ghost.
+- [ ] The bots race every world.
+
 ## Latest fix: hub rework (on top of A6)
 
 - **Driving on the hub platform:** push the stick (or W) and the marble rolls the way the camera

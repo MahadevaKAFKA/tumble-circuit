@@ -74,7 +74,7 @@ function Social.new(deps)
 	self.banner = UIKit.label(root, { Name = "ChaosBanner", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 104), Size = UDim2.fromOffset(640, 26), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, TextStrokeTransparency = 0.3, Visible = false })
 
 	-- emote bar: last row of the compact lobby column (MatchUIController lists the column layout)
-	local bar = UIKit.new("Frame", { Name = "Emotes", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 268), Size = UDim2.fromOffset(250, 40), BackgroundTransparency = 1, Visible = false }, root)
+	local bar = UIKit.new("Frame", { Name = "Emotes", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 320), Size = UDim2.fromOffset(250, 40), BackgroundTransparency = 1, Visible = false }, root)
 	self.emoteButtons = {}
 	for i, emote in ipairs(SocialConfig.Emotes.List) do
 		local b = UIKit.button(bar, { Position = UDim2.fromOffset((i - 1) * 85, 0), Size = UDim2.fromOffset(80, 40), Text = emote.text }, palette.Mint)

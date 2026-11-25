@@ -287,3 +287,21 @@ the real CameraController against a fake camera — look right/left, held vs rel
 - [ ] Your own nameplate is not visible to you; a second client sees it. Podium tags shrink with
       distance.
 
+## 11. B1 — worlds, map vote, Time Trial, Party
+
+**Automated:** `B1 world specs` (TrackValidator for all three worlds and seeds, ports, overlap,
+builds) and `B1 rules specs` (map vote, party grouping, Time Trial + ghost rules) — 0 failed.
+
+**Play Solo / phone**
+- [ ] Rotation Foundry → Sky Carnival → Volcano Vault across three races; bots on every world.
+- [ ] Each world finishable on all three variations (hazard seed = roundId mod 3); record times.
+- [ ] Time Trial: start in the lobby → frozen 3 s → run → finish → PB; quit; fall respawns at the
+      last checkpoint; JOIN RACE ends it; a course change ends it with a message.
+- [ ] Second Time Trial on the same world/variation shows the PB ghost (ghost DataStore: live
+      store only).
+
+**Two clients**
+- [ ] Map vote panel on both, 8 s, one vote each, counts agree, winner raced; tie rule.
+- [ ] A Time Trial runner passes through racers (no contact), racers' results unaffected.
+- [ ] Party: two accounts in one Roblox party start on neighbouring slots; PARTY card count.
+
