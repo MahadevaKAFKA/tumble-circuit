@@ -47,7 +47,7 @@ function Spec.run(m)
 		if spec.Direction == "ClientToServer" then
 			for _, arg in ipairs(spec.Args) do
 				local rule = type(arg) == "table" and arg or { type = arg }
-				local unboundedNumber = rule.type == "number" and not rule.oneOf
+				local unboundedNumber = rule.type == "number" and not (rule.oneOf or (rule.min and rule.max))
 				local unboundedString = rule.type == "string" and not (rule.maxLength or rule.oneOf)
 				local otherType = rule.type ~= "number" and rule.type ~= "string" and rule.type ~= "boolean"
 				if unboundedNumber or unboundedString or otherType then
@@ -56,7 +56,7 @@ function Spec.run(m)
 			end
 		end
 	end
-	check("every client argument is bounded (numbers enumerated, strings length-capped, no tables)", constrained)
+	check("every client argument is bounded (numbers enumerated or ranged, strings length-capped, no tables)", constrained)
 	local noTargets = true
 	for name in pairs(m.RoundProtocol.Remotes) do
 		local lower = string.lower(name)

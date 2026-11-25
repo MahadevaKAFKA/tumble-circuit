@@ -105,6 +105,20 @@ function RoundService:Start()
 	self:_connectRemote("RequestReady", function(player, wants)
 		self:TryReady(player, wants)
 	end)
+	-- A5 AFK guard: real input during Racing marks the racer active (rewards need it).
+	self:_connectRemote("ReportActive", function(player, roundId)
+		if roundId == self.roundId then
+			self:MarkActive(player)
+		end
+	end)
+	for _, name in ipairs({ "RequestAbility", "RequestTrick" }) do
+		local remote = self.remotes:FindFirstChild(name)
+		if remote then
+			self.maid:Give(remote.OnServerEvent:Connect(function(player)
+				self:MarkActive(player)
+			end))
+		end
+	end
 	self.maid:Give(self.marbles.PlayerJoined:Connect(function(player)
 		self.nextOrdinal = self.nextOrdinal + 1
 		self.ordinals[player] = self.nextOrdinal
@@ -256,6 +270,9 @@ function RoundService:_enterPreparing()
 	local cfg = RaceConfig.Bots
 	if self.bots and cfg and cfg.Enabled and #self.racers > 0 then
 		local fill = RaceRules.BotFillCount(#self.racers, slots, cfg.FillTo, cfg.Enabled)
+		if cfg.FixedCount and #self.racers > 0 then -- dev panel override (Studio)
+			fill = math.max(0, math.min(cfg.FixedCount, slots - #self.racers))
+		end
 		for i, bot in ipairs(self.bots:CreateRoster(fill, self.roundId)) do
 			local racer = {
 				player = bot,
@@ -474,6 +491,7 @@ function RoundService:HandleRecover(player)
 	if not self.limiters.RecoverCooldown:Try(player) then
 		return false
 	end
+	self:MarkActive(player)
 	self.marbles:SpawnMarble(player, REASONS.Reset)
 	return true
 end
@@ -733,6 +751,17 @@ function RoundService:GetActiveRacers()
 		end
 	end
 	return out
+end
+
+function RoundService:MarkActive(player)
+	local racer = self.racerByPlayer[player]
+	if racer and self.state == S.Racing then
+		racer.active = true
+	end
+end
+
+function RoundService:GetPlayerByUserId(userId)
+	return Players:GetPlayerByUserId(userId)
 end
 
 function RoundService:IsFinishedRacer(entity)

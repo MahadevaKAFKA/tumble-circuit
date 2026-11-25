@@ -129,6 +129,14 @@ function CameraController:GetMode()
 	return self.mode
 end
 
+function CameraController:SetMode(mode)
+	if (mode == "Chase" or mode == "Wide") and mode ~= self.mode then
+		self.mode = mode
+		self.ModeChanged:Fire(self.mode)
+	end
+	return self.mode
+end
+
 function CameraController:ToggleMode()
 	self.mode = self.mode == "Chase" and "Wide" or "Chase"
 	self.ModeChanged:Fire(self.mode)

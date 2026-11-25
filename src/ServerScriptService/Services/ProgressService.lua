@@ -41,6 +41,7 @@ function ProgressService:Standings(racers)
 			finishOrdinal = racer.finishOrdinal or math.huge,
 			seconds = racer.seconds,
 			dnf = racer.dnf == true,
+			active = racer.active == true, -- A5 AFK guard (set by RoundService)
 			checkpoint = racer.player and self.checkpoints:GetConfirmed(racer.player) or (racer.checkpoint or 0),
 			progressS = s,
 		}

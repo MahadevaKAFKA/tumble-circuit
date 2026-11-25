@@ -21,7 +21,11 @@ function harness.new(root)
 		ReplicatedStorage = root .. "/src/ReplicatedStorage",
 		ServerStorage = root .. "/src/ServerStorage",
 		ServerScriptService = root .. "/src/ServerScriptService",
+		StarterPlayer = root .. "/src/StarterPlayer",
 	}
+	-- Services a module may *reference* at load time but must not use in the tested functions
+	-- (client controllers: Players, TweenService...). Opt-in per name from run_tests.lua.
+	self.stubServices = {}
 	local overrides = {
 		[root .. "/src/ReplicatedStorage/Shared/PlaceholderIds"] = root .. "/PLACEHOLDER_IDS.lua",
 	}
@@ -62,6 +66,9 @@ function harness.new(root)
 	local game = {
 		GetService = function(_, name)
 			local dir = serviceDirs[name]
+			if not dir and self.stubServices[name] then
+				return self.stubServices[name]
+			end
 			if not dir then
 				error("offline harness: service " .. name .. " is not available to pure modules")
 			end

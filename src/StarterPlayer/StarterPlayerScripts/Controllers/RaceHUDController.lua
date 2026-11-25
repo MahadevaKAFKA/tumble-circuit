@@ -55,7 +55,8 @@ function RaceHUD.new()
 
 	local badge = UIKit.panel(root, {
 		Name = "Placement",
-		Position = UDim2.fromOffset(14, 40),
+		AnchorPoint = Vector2.new(1, 0), -- top right: Roblox chat lives top left
+		Position = UDim2.new(1, -14, 0, 112),
 		Size = UDim2.fromOffset(150, 96),
 		Visible = false,
 	})
@@ -107,6 +108,14 @@ function RaceHUD.new()
 	UIKit.corner(self.progressFill, 0.5)
 	self.progressMarks = {}
 	self.progressBar = bar
+	self.rivalDots = {}
+	for i = 1, 12 do
+		local dot = UIKit.new("Frame", { Name = "Rival" .. i, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(9, 9), BackgroundColor3 = palette.Coral, BorderSizePixel = 0, Visible = false, ZIndex = 3 }, bar)
+		UIKit.corner(dot, 0.5)
+		self.rivalDots[i] = dot
+	end
+	self.youDot = UIKit.new("Frame", { Name = "You", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = palette.Mint, BorderSizePixel = 0, ZIndex = 4 }, bar)
+	UIKit.corner(self.youDot, 0.5)
 
 	local list = UIKit.panel(root, {
 		Name = "Standings",
@@ -186,7 +195,8 @@ function RaceHUD:SetCheckpointMarks(fractions)
 	end
 end
 
--- ctx = { now = serverTime, device, queued, spectatingName, stuck, progress (0..1 or nil) }
+-- ctx = { now = serverTime, device, queued, spectatingName, stuck, progress (0..1 or nil),
+--         rivals = { fraction, ... } (other racers' progress, computed locally from their marbles) }
 function RaceHUD:Update(ctx)
 	local snap = self.snapshot
 	if not snap then
@@ -250,7 +260,16 @@ function RaceHUD:Update(ctx)
 
 	self.progressBar.Visible = ctx.progress ~= nil and snap.state == S.Racing and me ~= nil and not me.finished
 	if self.progressBar.Visible then
-		self.progressFill.Size = UDim2.fromScale(math.clamp(ctx.progress, 0, 1), 1)
+		local f = math.clamp(ctx.progress, 0, 1)
+		self.progressFill.Size = UDim2.fromScale(f, 1)
+		self.youDot.Position = UDim2.fromScale(f, 0.5)
+		for i, dot in ipairs(self.rivalDots) do
+			local rf = ctx.rivals and ctx.rivals[i]
+			dot.Visible = rf ~= nil
+			if rf then
+				dot.Position = UDim2.fromScale(math.clamp(rf, 0, 1), 0.5)
+			end
+		end
 	end
 
 	-- 3-2-1-GO from the shared server clock

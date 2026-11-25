@@ -1,4 +1,4 @@
-# Tumble Circuit: Chaos Drop — Phase A4
+# Tumble Circuit: Chaos Drop — Phase A5
 
 A marble-racing Roblox game, built as a Rojo/Luau project.
 
@@ -15,7 +15,10 @@ A marble-racing Roblox game, built as a Rojo/Luau project.
 - **A4** — the full Neon Foundry (16 modules, ROUTE_MAP.md), seeded moving hazards, bots that
   fill the grid to 8 racers, Chaos Gates, server performance numbers. Owner requests added on top:
   **free look** (right mouse / finger drag / right stick) and a **READY vote** that starts a full
-  race without waiting for the timer.
+  race without waiting for the timer. Bots fixed after the owner's phone run (stuck at GO).
+- **A5** — UI flow (title, lobby column, race, spectate, results), profile with Coins/XP/level,
+  personal bests, settings and loadout saved to the player's account (session-locked DataStore),
+  idempotent race rewards, dev panel in Studio only.
 
 Two ways to work with it:
 
@@ -30,7 +33,7 @@ Manual playtest checklist: [TEST_PLAN.md](TEST_PLAN.md).
 ## The cloud pipeline
 
 - **Build** (`.github/workflows/build.yml`) — runs on every push. Checks every script
-  (syntax, globals, module/config references), runs the project's own offline specs (227 for A1–A4),
+  (syntax, globals, module/config references), runs the project's own offline specs (307 for A1–A5),
   lints with Selene, builds the place with **Rojo**, verifies the built place with **Lune**,
   and attaches `TumbleCircuit.rbxl` / `.rbxlx` as a downloadable artifact. Publishes nothing.
 - **Deploy to Roblox (private playtest)** (`.github/workflows/deploy.yml`) — started by hand

@@ -47,6 +47,11 @@ function VFXController:SetReducedMotion(value)
 	self.reducedMotion = value
 end
 
+-- A5 graphics preset: "Low" skips decorative extras (trails, streaks, stars, gate shells).
+function VFXController:SetQuality(mode)
+	self.low = mode == "Low"
+end
+
 local function ballFor(self, userId)
 	return self.marbles:FindFirstChild(Protocol.MarbleName(userId))
 end
@@ -58,7 +63,7 @@ end
 function VFXController:OnOutcome(outcome)
 	local t = workspace:GetServerTimeNow()
 	if outcome.abilityId == "Boost" then
-		local ball = ballFor(self, outcome.userId)
+		local ball = not self.low and ballFor(self, outcome.userId)
 		if ball then
 			local a0 = Instance.new("Attachment")
 			a0.Position = Vector3.new(0, 1.2, 0)
@@ -99,7 +104,7 @@ function VFXController:Trick(localUserId)
 	local shell = effectPart({ Shape = Enum.PartType.Ball, Size = Vector3.new(4.6, 4.6, 4.6), Color = palette.Mint, Material = Enum.Material.ForceField, Transparency = 0.1 })
 	local band = effectPart({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 4.9, 4.9), Color = palette.Yellow })
 	self:_add({ startedAt = t, endsAt = t + 0.45, follow = localUserId, part = shell, spin = band, cleanup = { shell, band } })
-	if not self.reducedMotion then
+	if not self.reducedMotion and not self.low then
 		for i = 1, 5 do
 			local star = effectPart({ Size = Vector3.new(0.5, 0.5, 0.5), Color = palette.Yellow })
 			local angle = i / 5 * math.pi * 2
@@ -110,7 +115,7 @@ end
 
 -- A4 Chaos Gate surge: a short coloured shell on whoever collected it (any racer, bots too).
 function VFXController:ChaosSurge(userId, tier)
-	if type(userId) ~= "number" or not ballFor(self, userId) then
+	if self.low or type(userId) ~= "number" or not ballFor(self, userId) then
 		return
 	end
 	local t = workspace:GetServerTimeNow()
@@ -120,7 +125,7 @@ function VFXController:ChaosSurge(userId, tier)
 end
 
 function VFXController:SetSlipstream(localUserId, active)
-	if active and not self.slipstream then
+	if active and not self.slipstream and not self.low then
 		local streaks = {}
 		for i = 1, 3 do
 			streaks[i] = effectPart({ Size = Vector3.new(0.15, 0.15, 6), Color = palette.Cyan, Transparency = 0.5 })

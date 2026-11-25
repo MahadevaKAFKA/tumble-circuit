@@ -25,11 +25,20 @@
 	Snapshot adds queuedCount, raceCapacity, readyOpen, readyCount, ready = {[tostring(userId)]=true}.
 	Snapshot adds hazardSeed (0..2) and hazardEpoch (server time of GO) so every machine
 	evaluates the same deterministic hazard state; racers[i].isBot marks [BOT] entries.
+	A5:
+	RequestSettings       client->server   (key, value) strings  one setting; sanitized by PlayerDataSchema
+	ReportActive          client->server   (roundId)           "I gave real input this race" (AFK guard only)
+	ProfileState          server->client   level/xp/coins/records/settings/loadout + honest save status
+	RewardNotice          server->client   one race's Coins/XP breakdown (granted once per raceId)
+	DevCommand / DevResult  Studio or authorized test accounts ONLY: the remotes are not even
+	                      created on a live server unless GameConfig.Dev.AuthorizedUserIds is set.
+	RequestEquip (A3) is the starter-ability equip request; the server refuses it mid-race.
+	There is NO remote that grants Coins/XP, sets a time, a best time or a placement.
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 4
+RoundProtocol.Version = 5
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -52,6 +61,13 @@ RoundProtocol.Remotes = {
 	ChaosGateVFX = { Direction = "ServerToClient" }, -- to all: someone collected a Chaos Gate surge
 	-- READY vote (owner request 2026-11-25)
 	RequestReady = { Direction = "ClientToServer", Args = { "boolean" }, MinInterval = 0.3 },
+	-- A5
+	RequestSettings = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 16 }, { type = "string", maxLength = 16 } }, MinInterval = 0.15 },
+	ReportActive = { Direction = "ClientToServer", Args = { { type = "number", min = 0, max = 2 ^ 31, integer = true } }, MinInterval = 2 },
+	ProfileState = { Direction = "ServerToClient" },
+	RewardNotice = { Direction = "ServerToClient" },
+	DevCommand = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 24 }, { type = "number", min = -1, max = 100000, integer = true } }, MinInterval = 0.3, StudioOnly = true },
+	DevResult = { Direction = "ServerToClient", StudioOnly = true },
 }
 
 RoundProtocol.States = {
@@ -112,6 +128,12 @@ function RoundProtocol.ValidateArgs(remoteName, ...)
 			if not found then
 				return false, string.format("argument %d not an allowed value", i)
 			end
+		end
+		if rule.min and (value < rule.min or (rule.max and value > rule.max)) then
+			return false, string.format("argument %d out of range", i)
+		end
+		if rule.integer and value % 1 ~= 0 then
+			return false, string.format("argument %d must be a whole number", i)
 		end
 		if rule.maxLength and #value > rule.maxLength then
 			return false, string.format("argument %d too long", i)

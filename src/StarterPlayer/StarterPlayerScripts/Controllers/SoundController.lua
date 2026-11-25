@@ -19,6 +19,15 @@ function SoundController.new(placeholderIds)
 	return self
 end
 
+-- A5 settings: music / sfx levels 0-1 (stored now; the build ships without audio files).
+function SoundController:SetVolumes(music, sfx)
+	self.music = tonumber(music) or 0.6
+	self.sfx = tonumber(sfx) or 0.8
+	for _, sound in pairs(self.cache) do
+		sound.Volume = GameConfig.Audio.MasterVolume * self.sfx
+	end
+end
+
 function SoundController:Play(name)
 	local id = self.ids[name]
 	if type(id) ~= "string" or not string.match(id, "^rbxassetid://%d+$") then
@@ -29,9 +38,12 @@ function SoundController:Play(name)
 		sound = Instance.new("Sound")
 		sound.Name = "TC_" .. name
 		sound.SoundId = id
-		sound.Volume = GameConfig.Audio.MasterVolume
+		sound.Volume = GameConfig.Audio.MasterVolume * (self.sfx or 0.8)
 		sound.Parent = SoundService
 		self.cache[name] = sound
+	end
+	if (self.sfx or 0.8) <= 0 then
+		return false
 	end
 	sound:Play()
 	return true

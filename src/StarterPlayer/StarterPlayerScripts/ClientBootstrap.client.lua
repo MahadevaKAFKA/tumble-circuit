@@ -1,5 +1,8 @@
 --[[
-	ClientBootstrap — wires the A2 client.
+	ClientBootstrap — wires the client (A1-A5).
+	A5: UIController owns which layer is visible (Title / Lobby / Race / Spectate / Results +
+	Settings / Loadout modals); ProfileState + RewardNotice drive the profile chip and results;
+	settings are applied locally and saved through RequestSettings.
 
 	Flow: Loading -> Title (PLAY) -> Live. In Live the server's round snapshot decides what you
 	can do: free practice in the hub, frozen on the grid, racing, finished/spectating, results.
@@ -66,6 +69,12 @@ local MatchUI = require(Controllers:WaitForChild("MatchUIController"))
 local SoundController = require(Controllers:WaitForChild("SoundController"))
 local AbilityController = require(Controllers:WaitForChild("AbilityController"))
 local VFXController = require(Controllers:WaitForChild("VFXController"))
+local UIController = require(Controllers:WaitForChild("UIController"))
+local SettingsController = require(Controllers:WaitForChild("SettingsController"))
+local StarterLoadoutController = require(Controllers:WaitForChild("StarterLoadoutController"))
+local ResultsController = require(Controllers:WaitForChild("ResultsController"))
+local DevPanelController = require(Controllers:WaitForChild("DevPanelController"))
+local Lighting = game:GetService("Lighting")
 
 local ATTR = Protocol.PlayerAttributes
 local BALL = Protocol.BallAttributes
@@ -110,8 +119,9 @@ local freeLook = maid:Give(FreeLookController.new(cameraController, function(pos
 end))
 local raceHud = maid:Give(RaceHUD.new())
 local matchUi = maid:Give(MatchUI.new())
+local ui = UIController.new()
 raceHud:SetVisible(false)
-matchUi:SetVisible(false)
+matchUi:SetLobbyVisible(false)
 
 hud:ShowMessage("Building the Orbital Garage and race track...")
 
@@ -142,13 +152,20 @@ local course, hubRoot, worldError = waitForWorld()
 local marblesFolder = course and workspace:WaitForChild(Protocol.MarblesFolderName, timeout)
 local remote = {}
 if remotes then
-	for name in pairs(RoundProtocol.Remotes) do
-		remote[name] = remotes:WaitForChild(name, 5)
+	for name, spec in pairs(RoundProtocol.Remotes) do
+		-- Studio/authorized-only remotes may legitimately be absent (live servers)
+		-- (written as an if: `a and b or c` would fall through to a 5 s WaitForChild whenever the
+		-- Studio-only remote is absent, i.e. on every live server - 10 s of extra loading)
+		if spec.StudioOnly then
+			remote[name] = remotes:FindFirstChild(name)
+		else
+			remote[name] = remotes:WaitForChild(name, 5)
+		end
 	end
 end
 local remotesOk = remotes ~= nil and remotes:GetAttribute("ProtocolVersion") == RoundProtocol.Version
-for name in pairs(RoundProtocol.Remotes) do
-	if not remote[name] then
+for name, spec in pairs(RoundProtocol.Remotes) do
+	if not remote[name] and not spec.StudioOnly then
 		remotesOk = false
 	end
 end
@@ -161,8 +178,8 @@ if not remotesOk or not course or not marblesFolder then
 		reason = string.format("protocol mismatch (server v%s, client v%s)", tostring(remotes:GetAttribute("ProtocolVersion")), tostring(RoundProtocol.Version))
 	elseif not reason and not remotesOk then
 		local missing = {}
-		for name in pairs(RoundProtocol.Remotes) do
-			if not remote[name] then
+		for name, spec in pairs(RoundProtocol.Remotes) do
+			if not remote[name] and not spec.StudioOnly then
 				missing[#missing + 1] = name
 			end
 		end
@@ -227,6 +244,11 @@ maid:Give(abilities.ReducedMotionChanged:Connect(function(value)
 	vfx:SetReducedMotion(value)
 	hazards:SetReducedMotion(value)
 end))
+-- A5 modals, results, dev panel
+local settings = maid:Give(SettingsController.new({ remotes = remote }))
+local loadout = maid:Give(StarterLoadoutController.new({ remotes = remote }))
+local results = maid:Give(ResultsController.new())
+maid:Give(DevPanelController.new(remotes))
 maid:Give(remote.SkillEvent.OnClientEvent:Connect(function(data)
 	if type(data) == "table" and (data.kind == "SlipstreamOn" or data.kind == "SlipstreamOff") then
 		vfx:SetSlipstream(player.UserId, data.kind == "SlipstreamOn")
@@ -263,6 +285,7 @@ end
 -- State
 ---------------------------------------------------------------------------------------------
 local uiState = "Title" -- "Title" | "Live"
+local resultsDismissedRound = nil -- PLAY AGAIN / SIT OUT close the results for that round
 local snapshot = nil
 local currentBall = nil
 currentZone = ZONES.Hub
@@ -300,7 +323,7 @@ local function raceRunning()
 end
 
 local function canSteer()
-	if uiState ~= "Live" or not currentBall or currentBall.Anchored or spectate.active then
+	if uiState ~= "Live" or not currentBall or currentBall.Anchored or spectate.active or ui:GetModal() then
 		return false
 	end
 	if currentZone == ZONES.Hub then
@@ -321,25 +344,49 @@ local function canRecover()
 	return state == S.Racing or state == S.Results
 end
 
+-- UIController layers: each ScreenGui shows only when the current screen / modal lists it.
+ui:Register("Title", function() end) -- the title overlay is driven by the PLAY flow below
+ui:Register("Hud", function(visible)
+	hud:SetHudVisible(visible)
+end)
+ui:Register("RaceHud", function(visible)
+	raceHud:SetVisible(visible)
+end)
+ui:Register("Lobby", function(visible)
+	matchUi:SetLobbyVisible(visible)
+end)
+ui:Register("Spectate", function(visible)
+	matchUi:SetSpectateVisible(visible)
+end)
+ui:Register("Results", function(visible)
+	results:SetVisible(visible)
+end)
+ui:Register("Settings", function(visible)
+	settings:SetVisible(visible)
+end)
+ui:Register("Loadout", function(visible)
+	loadout:SetVisible(visible)
+end)
+ui:Register("Touch", function(visible)
+	touch:SetVisible(visible and input.device == InputController.Devices.Touch)
+end)
+ui:Register("AbilitiesRace", function(visible)
+	local me = myEntry()
+	local live = visible and roundState() == S.Racing and me ~= nil and not me.finished and currentZone == ZONES.Race
+	abilities:SetMode(live and "Race" or "Hidden", input.device)
+end)
+
 local function refreshGates()
+	local me = myEntry()
+	ui:Refresh({
+		started = uiState == "Live",
+		spectating = spectate.active,
+		roundState = roundState(),
+		inRace = me ~= nil,
+		resultsDismissed = snapshot ~= nil and resultsDismissedRound == snapshot.roundId,
+	})
 	input:SetSteeringEnabled(canSteer())
 	input:SetRecoverEnabled(canRecover())
-	touch:SetVisible(input.device == InputController.Devices.Touch and uiState == "Live" and not spectate.active)
-	hud:SetHudVisible(uiState == "Live")
-	raceHud:SetVisible(uiState == "Live")
-	matchUi:SetVisible(uiState == "Live")
-	local abilityMode = "Hidden"
-	if uiState == "Live" and not spectate.active then
-		local me = myEntry()
-		if roundState() == S.Racing and me and not me.finished and currentZone == ZONES.Race then
-			abilityMode = "Race"
-		elseif not amRacing() then
-			abilityMode = "Hub"
-		end
-	end
-	if abilities then
-		abilities:SetMode(abilityMode, input.device)
-	end
 end
 
 local resetLimiter = Utility.RateLimiter.new(GameConfig.Spawn.ClientResetThrottleSeconds)
@@ -502,6 +549,7 @@ maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 	hazards:SetRound(snap.hazardSeed, snap.hazardEpoch)
 	raceHud:ApplySnapshot(snap, player.UserId)
 	matchUi:ApplySnapshot(snap, player.UserId)
+	results:ApplySnapshot(snap, player.UserId)
 	if snap.state ~= lastState then
 		if snap.state == S.Racing and myEntry() then
 			sound:Play("RunStart")
@@ -551,6 +599,93 @@ maid:Give(remote.ChaosGateVFX.OnClientEvent:Connect(function(data)
 		sound:Play("Checkpoint")
 	end
 end))
+-- A5 profile + rewards (server truth)
+local profileState = nil
+maid:Give(remote.ProfileState.OnClientEvent:Connect(function(p)
+	if type(p) ~= "table" then
+		return
+	end
+	profileState = p
+	matchUi:ApplyProfile(p)
+	results:ApplyProfile(p)
+	settings:ApplyServer(p.settings)
+end))
+maid:Give(remote.RewardNotice.OnClientEvent:Connect(function(notice)
+	if type(notice) == "table" and type(notice.coins) == "number" then
+		results:ApplyNotice(notice)
+		if notice.levelUp then
+			raceHud:Flash(string.format("LEVEL UP!  LEVEL %d", notice.level), GameConfig.Palette.Violet, 2.5)
+		end
+	end
+end))
+maid:Give(abilities.StateReceived:Connect(function(state)
+	if type(state.loadout) == "table" then
+		loadout:ApplyServer(state.loadout)
+		local AbilityConfig = require(Shared:WaitForChild("AbilityConfig"))
+		local a, b = AbilityConfig.Abilities[state.loadout[1]], AbilityConfig.Abilities[state.loadout[2]]
+		matchUi:SetLoadoutText((a and a.DisplayName or "?") .. " + " .. (b and b.DisplayName or "?"))
+	end
+end))
+
+-- Settings -> live effects (applied at once; saved through RequestSettings)
+local function applyGraphics(mode)
+	local low = mode == "Low" or (mode == "Auto" and input.device == InputController.Devices.Touch)
+	local bloom = Lighting:FindFirstChild("TC_Bloom")
+	if bloom then
+		bloom.Enabled = not low
+	end
+	vfx:SetQuality(low and "Low" or "High")
+end
+local function applySettings(s)
+	abilities:SetReducedMotion(s.reducedMotion == true)
+	results:SetReducedMotion(s.reducedMotion == true)
+	if cameraController:GetMode() ~= s.cameraMode then
+		hud:SetCameraMode(cameraController:SetMode(s.cameraMode))
+	end
+	input:SetSensitivity(s.sensitivity)
+	sound:SetVolumes(s.music, s.sfx)
+	applyGraphics(s.graphicsMode)
+end
+maid:Give(settings.Changed:Connect(applySettings))
+applySettings(settings:Get())
+
+-- Modals
+local function openModal(name)
+	if not ui:OpenModal(name) then
+		hud:Toast(name == "Loadout" and "Change abilities in the hub or on the results screen" or "Not now", 1.6)
+	end
+	refreshGates()
+end
+maid:Give(matchUi.LoadoutRequested:Connect(function()
+	openModal("Loadout")
+end))
+maid:Give(matchUi.SettingsRequested:Connect(function()
+	openModal("Settings")
+end))
+maid:Give(abilities.LoadoutRequested:Connect(function()
+	openModal("Loadout")
+end))
+maid:Give(results.LoadoutRequested:Connect(function()
+	openModal("Loadout")
+end))
+maid:Give(results.SettingsRequested:Connect(function()
+	openModal("Settings")
+end))
+maid:Give(settings.CloseRequested:Connect(function()
+	ui:CloseModal()
+	refreshGates()
+end))
+maid:Give(loadout.CloseRequested:Connect(function()
+	ui:CloseModal()
+	refreshGates()
+end))
+maid:Give(results.Dismissed:Connect(function()
+	if snapshot then
+		resultsDismissedRound = snapshot.roundId
+	end
+	refreshGates()
+end))
+
 remote.RequestSnapshot:FireServer()
 
 ---------------------------------------------------------------------------------------------
@@ -597,9 +732,12 @@ end))
 maid:Give(input.PrimaryActionRequested:Connect(function()
 	if hud:GetOverlay() == "Title" then
 		startPlaying()
-	elseif matchUi:IsResultsOpen() then
+	elseif ui:GetScreen() == "Results" and not ui:GetModal() then
 		requestJoin(true)
-		matchUi:DismissResults()
+		if snapshot then
+			resultsDismissedRound = snapshot.roundId
+		end
+		refreshGates()
 	end
 end))
 maid:Give(input.RecoverTriggered:Connect(requestRecover))
@@ -608,6 +746,7 @@ maid:Give(matchUi.ReadyRequested:Connect(function(ready)
 	remote.RequestReady:FireServer(ready == true)
 	sound:Play("UIClick")
 end))
+maid:Give(results.JoinRequested:Connect(requestJoin))
 maid:Give(matchUi.SpectateToggled:Connect(toggleSpectate))
 maid:Give(matchUi.SpectateCycle:Connect(function(direction)
 	if spectate.active then
@@ -637,6 +776,7 @@ local function toggleCamera()
 	local mode = cameraController:ToggleMode()
 	hud:SetCameraMode(mode)
 	hud:Toast("Camera: " .. mode, 1)
+	settings:SetLocal("cameraMode", mode) -- remembered in your profile
 end
 maid:Give(input.CameraToggleRequested:Connect(toggleCamera))
 maid:Give(hud.CameraPressed:Connect(toggleCamera))
@@ -645,6 +785,7 @@ maid:Give(input.PerfToggleRequested:Connect(function()
 end))
 maid:Give(input.DeviceChanged:Connect(function(device)
 	hud:SetDevice(device)
+	applyGraphics(settings:Get().graphicsMode)
 	refreshGates()
 end))
 hud:SetCameraMode(cameraController:GetMode())
@@ -669,6 +810,10 @@ end)
 -- Frame loop
 ---------------------------------------------------------------------------------------------
 local RENDER_STEP = "TumbleCircuitClient"
+local reportedRound = nil -- A5 AFK guard: one ReportActive per race, on the first real input
+local rivalTrackers = {}
+local rivalTimer = 0
+local rivalFractions = {}
 local steerRequired = GameConfig.Tutorial.SteerSecondsRequired
 local hitchThreshold = GameConfig.Debug.HitchThresholdSeconds
 local clientStart = os.clock()
@@ -737,6 +882,10 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 		-- Stuck hint: racing, trying to move, slow, and no route progress for a while.
 		local trying = input.steeringEnabled and (math.abs(input.steer.X) > 0.3 or input.steer.Y > 0.3) and not input.brake
 		local racingNow = currentZone == ZONES.Race and state == S.Racing and me and not me.finished
+		if racingNow and snapshot and reportedRound ~= snapshot.roundId and (math.abs(input.steer.X) > 0.3 or math.abs(input.steer.Y) > 0.3 or input.brake) then
+			reportedRound = snapshot.roundId
+			remote.ReportActive:FireServer(snapshot.roundId)
+		end
 		if racingNow and trying and speed < RaceConfig.Recovery.StuckMaxSpeed then
 			if stuck.seconds == 0 then
 				stuck.startS = progressS
@@ -799,8 +948,33 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	hud:Update({ speed = speed, recoverProgress = input.recoverProgress })
 	local now = workspace:GetServerTimeNow()
 	local queued = snapshot and snapshot.queued and snapshot.queued[tostring(player.UserId)] == true
-	local progressFraction = currentZone == ZONES.Race and progressS / layouts[ZONES.Race].Route.total or nil
-	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown, progress = progressFraction })
+	local raceTotal = layouts[ZONES.Race].Route.total
+	local progressFraction = currentZone == ZONES.Race and progressS / raceTotal or nil
+	-- rivals on the progress bar: tracked locally from their replicated marbles (no network)
+	rivalTimer = rivalTimer + dt
+	if rivalTimer >= 0.1 and progressFraction and snapshot then
+		rivalTimer = 0
+		local seen = {}
+		rivalFractions = {}
+		for _, entry in ipairs(snapshot.racers or {}) do
+			if entry.userId ~= player.UserId and not entry.finished then
+				local ball = marblesFolder:FindFirstChild(Protocol.MarbleName(entry.userId))
+				if ball and ball:GetAttribute(BALL.Zone) == ZONES.Race then
+					local t = rivalTrackers[entry.userId] or RouteTracker.new(layouts[ZONES.Race].Route)
+					rivalTrackers[entry.userId] = t
+					seen[entry.userId] = true
+					rivalFractions[#rivalFractions + 1] = t:Update(ball.Position).s / raceTotal
+				end
+			end
+		end
+		for id in pairs(rivalTrackers) do
+			if not seen[id] then
+				rivalTrackers[id] = nil
+			end
+		end
+	end
+	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown, progress = progressFraction, rivals = rivalFractions })
+	results:Update(now)
 	matchUi:Update({ now = now, racing = amRacing(), raceRunning = raceRunning(), spectating = spectate.active })
 	boardTimer = boardTimer + dt
 	if boardTimer >= 0.25 then

@@ -1,15 +1,36 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** A4 — Neon Foundry, hazards, bots, Chaos Gates + owner requests (free look,
-READY vote) (owner: "proceed to the next phase", 2026-11-25)
-**State:** A1, A2, A3 played and approved on the owner's phone (A3 after the start-up fix). A4
-source (written 2026-11-22) merged with the phone build, plus two owner requests, offline-verified
-(227 specs), built by Rojo in GitHub Actions and published privately — **A4 has not been played
-in Roblox yet**.
+**Active milestone:** A5 — UI flow, profile, Coins/XP, saving (owner: "After you fix the bots, you
+can start on A5", 2026-11-25)
+**State:** A1–A3 approved on the owner's phone; A4 played (bots stuck at GO → fixed, v12). A5 source
+(written 2026-11-22) merged with the phone build, offline-verified (307 specs), built by Rojo in
+GitHub Actions and published privately — **A5 has not been played in Roblox yet**. On the live
+private server A5 saves real profiles (DataStore `TumbleProfiles_v1`, owner only while private).
 **Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — A5 merged onto the phone build
+
+Three-way merge (base = A4 upload). Conflicts and how they were resolved:
+- `RoundProtocol` / `RoundService` / TestRunner / offline runner / TEST_PLAN: kept both sides
+  (RequestReady + A5's RequestSettings, ReportActive, ProfileState, RewardNotice, Dev remotes).
+- `AbilitySecurity.spec`: A5's ranged-number rule inside our Selene-clean single condition.
+- `MatchUIController`: A5 rebuilt it as the lobby/spectate layer (results moved to
+  `ResultsController`, which also closes on PLAY AGAIN / SIT OUT — our dismiss code dropped). Our
+  changes re-applied on A5's layout: queue button names its action (A5 had brought back the
+  IN NEXT RACE / SITTING OUT state label that confused the owner on 2026-11-23), instant tap
+  feedback, READY button on the same row left of it, "Waiting for players (n/16)" on the board.
+- `AbilityController`: our phone override that moved the hub loadout panel to the upper left was
+  removed — A5 moved it to the right column, clear of the stick.
+- Results: PLAY AGAIN always says PLAY AGAIN; DNF on the podium shows the checkpoint reached
+  (`DNF CP 3/8`) so a playtest shows how far bots got.
+Found while merging: the client waited for Studio-only remotes with
+`spec.StudioOnly and FindFirstChild(name) or WaitForChild(name, 5)` — when the remote is absent
+(every live server) `and/or` falls through to a 5 s wait each: 10 s of extra loading on the phone.
+Now an explicit if. luau_check: config helper functions (ProgressionConfig.LevelForXp) are
+recognised; `RaceConfig.Bots.FixedCount` (set by the Studio dev panel) is declared.
 
 ## 2026-11-25 — A4 merged onto the phone build, plus two owner requests
 
@@ -152,6 +173,15 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | Split lanes | Progress = projection onto the centreline (checkpoint + route distance), so inside/outside lanes level with each other score the same (tested ±2 studs). |
 | Perf | PerfService publishes server frame avg/p95, physics step, moving parts, instances, memory, marbles and bots every 2 s as workspace attributes; F2 overlay shows them. No FPS claim is made. |
 
+## A5 decisions
+| Topic | Decision |
+|---|---|
+| UI ownership | `UIController` is the single owner of visibility: screens Title / Lobby / Race / Spectate / Results, modals Settings / Loadout (allowed only on Lobby/Results, Settings also Spectate; auto-closed when the race starts). Every screen button is listed with an action (UIState.spec). Results moved to `ResultsController`; lobby = profile chip + LOADOUT + SETTINGS + queue chip in the right column (clear of chat and the touch stick). |
+| Profile | `PlayerDataSchema` (one module, schema v1 + migration from nil/garbage/v0, sanitizing, bounded 25-entry reward ledger, daily bot-practice counter). `ProfileStore` (pure): session lock in `meta.jobId`, load waits 4×4 s then takes over (stale after 600 s), every save re-checks the lock and refuses after a takeover, bounded retries 3 (1/2/4 s), Unavailable / Unsaved / ReadOnly / TakenOver states. `PlayerDataService`: DataStore `TumbleProfiles_v1` live, request budget respected, autosave 60 s, lock refresh 240 s, leave = save + release, BindToClose flush (25 s), same-server rejoin waits for the leave-save. Studio = memory MOCK unless `StudioMode = "Live"`. |
+| Rewards | `RewardRules.Apply` adds Coins/XP/records AND the raceId to the ledger in one mutation; raceId = JobId (or Studio GUID) + roundId. Granted only from `RoundService.RaceFinished`; no client remote grants or sets anything. AFK guard: racer must send real input (ReportActive / ability / trick / recover) during Racing. Coins 55 + 125/100/80 (4th..last linear 60→35, rounded) + 20; active DNF (CP1 or 15% route) 25 instead; idle 0. XP 100 + 60/45/30/10 + 30 PB; active DNF 20. Level 1–50, Lv2 400, +80 per level, always derived from XP. Bot practice (1 human + bots): 3 full races per UTC day, then Coins ×0.6, shown as a line + note. PB key `world|layoutVersion|seedClass|mode`; times < 8 s never count. Players who leave before Results get nothing for that race. |
+| Settings | reducedMotion, cameraMode, music, sfx, sensitivity (steer ×0.5–1.5), graphicsMode (Auto = Low on touch: no bloom, fewer effects). Client sends one key per 0.25 s with the latest value; server sanitizes; saved with the next autosave. |
+| Dev panel | `DevCommand`/`DevResult` remotes are created only in Studio or when `GameConfig.Dev.AuthorizedUserIds` is non-empty; every command re-checks; Coin grant / reset only on MOCK profiles. |
+
 ## Ledger
 ### Done (verified by tests that ran here)
 - [x] A1: config ranges, smoothing, course generator/validator, floor geometry exactness (mutation-tested), steering-frame stability, route tracking, spawn clearance, hazard cycle, no invented ids
@@ -169,7 +199,11 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 - [x] A4: BotBrain steering, bumper/hammer/sweeper/tile avoidance, divider clearance, no hidden throttle above 1, deterministic RNG, ability choice only from ready slots; kinematic lane model over the whole Foundry (3 skills × 3 seeds × 3 runs): stays on course, never hits the divider, ≤ 4 hazard hits + tile drops per run at skill 1.0 (**model, not physics**)
 - [x] A4: Chaos Gate tiers for 1/2/8/12 racers, one payout despite bouncing, lateral span enforced, reset per round, VFX per payout, no client claim remote; bot fill rule (0 humans → 0 bots, 1 → 7, 7 → 1, 8+ → 0, grid cap, kill switch)
 - [x] A4 owner requests: free look (11 offline checks on the real CameraController), READY vote rules + RequestReady payloads (14)
-- [x] 61 files parse; Rojo builds the place in CI (59 scripts, every lookup resolves)
+- [x] A5: schema defaults deterministic + complete; migrations (nil, garbage, v0 partial, hostile NaN/inf/negative, duplicate loadout, newer schema read-only); setting sanitizing; PB keys separate variations/layouts
+- [x] A5: ProfileStore — lock wait + takeover, older session can't overwrite, stale lock, bounded retries → Unsaved (never "saved"), recovery, load failure never writes defaults, newer schema never written, release on leave, same-server rejoin, mock label
+- [x] A5: level curve (400/+80, cap 50, overflow/NaN safe), Coins for 1/2/3/4/8 + DNF + idle, interpolation, XP, breakdown sums, bot-practice 3/day then 60% + day reset, PB rules (first / faster / slower / other variation / implausible), level-up once, duplicate raceId pays nothing, ledger bounded, leave-at-results → rejoin pays once, raceIds unique per server
+- [x] A5: UI state for every round situation, modal rules + auto-close, no dead buttons, no shop/Robux/capsule/season actions or UI strings, no MarketplaceService, settings stepping, loadout swap, PB lines
+- [x] 76 files parse; place verified offline (74 scripts, every lookup resolves); Rojo builds it in CI
 
 ### Implemented, untested (needs Studio — TEST_PLAN sections 3 and 5)
 - [ ] Everything engine-side from A1 (feel, camera, devices, UI)
@@ -182,6 +216,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 
 - [ ] A4 on the phone / in Studio: every TEST_PLAN §7 item — real race time (90–150 s target), bots finishing/recovering with 1, 3, 8 racers, server p95 with 8 racers, 3-race leak check, hazards in sync on 2 clients
 - [ ] Free look on the phone (finger drag beside the stick) and READY vote with a full race (needs 16 players or a CapacityOverride test build)
+
+- [ ] A5 on the phone / in Studio: every TEST_PLAN §8 item — real DataStore only in a throwaway test universe (owner); 640x360 / console layout check
 
 ### Blocked
 - [ ] **2-client network verification** — no Studio here. Steps + expected log order: TEST_PLAN §5.
@@ -204,6 +240,7 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-21 | `python3 tools/build_rbxlx.py . TumbleCircuit.rbxlx` + XML parse | well-formed |
 | 2026-11-22 | `texlua tools/offline/run_tests.lua .` (A1–A3, original A3 upload) | 47 files parse; **131 passed, 0 failed** |
 | 2026-11-22 | `texlua tools/offline/run_tests.lua .` (A1–A4, original A4 upload) | 60 files parse; **193 passed, 0 failed** |
+| 2026-11-22 | `texlua tools/offline/run_tests.lua .` (A1–A5) | 75 files parse; **273 passed, 0 failed** |
 | 2026-11-23 | `python3 tools/luau_check.py src PLACEHOLDER_IDS.lua` (Linux, Python 3.13) | 23 files: 0 errors, 0 warnings; injected typos caught |
 | 2026-11-23 | Offline place build (Rojo-compatible) + `tests/verify_place.py` (Python 3.13) | 35 instances, 23 scripts, all references resolve |
 | 2026-11-23 | `python3 tests/test_publish.py` (Python 3.13) | 10 passed, 0 failed |
@@ -228,5 +265,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | A4 merge + owner requests: `luau_check` (59 files) + offline specs + offline place build + `verify_place.py` | 0 errors (3 unused-local warnings); **227 passed, 0 failed** (A1–A4 202, READY 14, free look 11); 73 instances, 59 scripts, all references resolve; smoothed heading on the Foundry defined everywhere (worst 1.00 °/stud) |
 | 2026-11-25 | GitHub Actions **Deploy** run 45599458818 (A4 + owner requests, commit a902103: Rojo, Selene, Lune, 227 specs, publish) | **success**: **version 11** published, visibility PRIVATE |
 | 2026-11-25 | **A4 phone playtest** (owner, v11): you raced fine; **bots stayed at the start / vanished right at GO and all showed DNF** | Same pattern as the human GO bug (2026-11-23): `BotService:Release` unanchored the frozen grid bot ball in place. Fix: GO now respawns each bot as a fresh free marble on its slot (`Spawn(bot, Go)`), like humans. Also: each bot's step runs in `pcall` (one error used to abort the whole bot loop every frame — would also freeze bots and skip their stuck recovery); per-round diagnostics published as `Bots_Status` / `Bots_LastError` and shown as a BOTS line in the stats box (racing, moving, best checkpoint, falls/stuck/audit respawns, errors). New luau_check rule: server code may not set `<ball>.Anchored = false` (flags both original files). Root cause still unconfirmed in a runtime — the BOTS line will show it. |
+| 2026-11-25 | GitHub Actions **Deploy** run 45601891384 (bot fix, commit 0827f2b) | **success**: version 12, PRIVATE |
+| 2026-11-25 | A5 merge: `luau_check` (74 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **307 passed, 0 failed**; 88 instances, 74 scripts, all references resolve |
 | — | Bot re-test (BOTS line in the stats box) | **pending owner** |
+| — | A5 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

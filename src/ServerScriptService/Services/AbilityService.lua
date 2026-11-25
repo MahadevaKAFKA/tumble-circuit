@@ -47,6 +47,7 @@ function AbilityService.new(deps)
 		RequestEquip = Utility.RateLimiter.new(RoundProtocol.Remotes.RequestEquip.MinInterval),
 	}
 	self.Activated = Utility.Signal.new() -- (player, abilityId)
+	self.LoadoutChanged = Utility.Signal.new() -- (player, loadout) A5: persisted by PlayerDataService
 	return self
 end
 
@@ -273,6 +274,22 @@ function AbilityService:Equip(player, slot, id)
 		return false
 	end
 	state.loadout = loadout
+	self:SendState(player)
+	self.LoadoutChanged:Fire(player, { loadout[1], loadout[2] })
+	return true
+end
+
+-- A5: restore the saved loadout when the profile loads (validated against owned abilities).
+function AbilityService:SetLoadout(player, loadout)
+	local state = self:_state(player)
+	if type(loadout) ~= "table" then
+		return false
+	end
+	local candidate = { loadout[1], loadout[2] }
+	if not SkillRules.ValidateLoadout(candidate, state.owned, AbilityConfig.SlotCount, ABILITIES) then
+		return false
+	end
+	state.loadout = candidate
 	self:SendState(player)
 	return true
 end

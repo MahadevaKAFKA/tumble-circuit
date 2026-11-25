@@ -275,6 +275,66 @@
     {
       "path": "StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController",
       "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/PlayerDataSchema",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/ProgressionConfig",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/DevService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/EconomyService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/PlayerDataService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/ProfileStore",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/RewardRules",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/Persistence.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/RewardIdempotence.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/UIState.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/DevPanelController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/ResultsController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/SettingsController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/StarterLoadoutController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/UIController",
+      "class": "ModuleScript"
     }
   ],
   "properties": [
@@ -322,6 +382,24 @@
     "RequestTrick",
     "Features",
     "Nameplate",
-    "TumbleMarbles"
+    "TumbleMarbles",
+    "RequestSnapshot",
+    "RequestRecover",
+    "RequestJoinRace",
+    "RequestAbility",
+    "RequestEquip",
+    "AbilityState",
+    "AbilityOutcome",
+    "EffectState",
+    "ApplyImpulse",
+    "SkillEvent",
+    "ChaosGateVFX",
+    "RequestReady",
+    "RequestSettings",
+    "ReportActive",
+    "ProfileState",
+    "RewardNotice",
+    "DevCommand",
+    "DevResult"
   ]
 }

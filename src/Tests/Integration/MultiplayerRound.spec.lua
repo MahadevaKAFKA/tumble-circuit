@@ -83,6 +83,15 @@ function Spec.run(ctx)
 	end
 	check("bot marbles == bot records", botBalls <= server.bots:Count(), botBalls .. " vs " .. server.bots:Count())
 
+	-- A5 persistence (Studio: mock unless the owner opted into a live test store)
+	check("A5 services published (playerData, economy, dev)", server.playerData ~= nil and server.economy ~= nil and server.dev ~= nil)
+	check("Studio profiles use the MOCK store unless explicitly configured", server.playerData:GetMode() == "Mock" or require(game:GetService("ReplicatedStorage").Shared.GameConfig).Persistence.StudioMode == "Live", server.playerData:GetMode())
+	for _, player in ipairs(Players:GetPlayers()) do
+		local profile = server.playerData:GetProfile(player)
+		check(player.Name .. ": profile loaded (status " .. tostring(profile and profile.status) .. ")", profile ~= nil and profile.status ~= "Loading" or false)
+	end
+	check("DevCommand exists only because this is Studio", remotes:FindFirstChild("DevCommand") ~= nil)
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		local ball = server.marbles:GetBall(player)
 		if ball then

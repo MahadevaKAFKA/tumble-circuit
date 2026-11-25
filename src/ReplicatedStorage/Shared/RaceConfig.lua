@@ -67,6 +67,7 @@ RaceConfig.Bots = {
 	Enabled = true,
 	FillTo = 8,
 	HumansDoneGraceSeconds = 10, -- after every human finished, bots get this long to finish
+	FixedCount = nil, -- set at runtime by the Studio dev panel (A5 DevService) to force a bot count
 }
 
 RaceConfig.Snapshot = {

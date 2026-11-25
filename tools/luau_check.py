@@ -832,6 +832,9 @@ def config_keys(config_path: str, name: str) -> dict[str, set[str]]:
         sections[m.group(1)] = set(re.findall(r"(?m)^\s*(\w+)\s*=", body))
     for m in re.finditer(rf"(?m)^{name}\.(\w+)\s*=\s*[^{{\s]", code):
         sections.setdefault(m.group(1), set())
+    # helper functions on a config module (e.g. ProgressionConfig.LevelForXp)
+    for m in re.finditer(rf"(?m)^function\s+{name}\.(\w+)\s*\(", code):
+        sections.setdefault(m.group(1), set())
     return sections
 
 

@@ -53,7 +53,24 @@ local modules = {
 	TrackValidator = require(Services:WaitForChild("TrackValidator")),
 	BotBrain = require(Services:WaitForChild("BotBrain")),
 	ChaosGateService = require(Services:WaitForChild("ChaosGateService")),
+	ProgressionConfig = require(Shared:WaitForChild("ProgressionConfig")),
+	PlayerDataSchema = require(Shared:WaitForChild("PlayerDataSchema")),
+	ProfileStore = require(Services:WaitForChild("ProfileStore")),
+	RewardRules = require(Services:WaitForChild("RewardRules")),
 }
+do
+	local ControllersFolder = StarterPlayer:WaitForChild("StarterPlayerScripts"):WaitForChild("Controllers")
+	for key, name in pairs({ UIController = "UIController", SettingsPure = "SettingsController", LoadoutPure = "StarterLoadoutController", ResultsPure = "ResultsController" }) do
+		local ok, mod = pcall(function()
+			return require(ControllersFolder:WaitForChild(name))
+		end)
+		if ok then
+			modules[key] = mod
+		else
+			warn("[TumbleTests] could not load " .. name .. " for pure UI specs: " .. tostring(mod))
+		end
+	end
+end
 local okHazard, hazardModule = pcall(function()
 	return require(StarterPlayer:WaitForChild("StarterPlayerScripts"):WaitForChild("Controllers"):WaitForChild("HazardController"))
 end)
@@ -89,6 +106,11 @@ report("A4 hazard reset specs", require(Unit:WaitForChild("HazardReset.spec")).r
 report("A4 bot navigation specs", require(Unit:WaitForChild("BotNavigation.spec")).run(modules))
 report("A4 chaos gate specs", require(Unit:WaitForChild("ChaosGate.spec")).run(modules))
 report("A4 ready vote specs", require(Unit:WaitForChild("ReadyVote.spec")).run(modules))
+report("A5 persistence specs", require(Unit:WaitForChild("Persistence.spec")).run(modules))
+report("A5 reward idempotence specs", require(Unit:WaitForChild("RewardIdempotence.spec")).run(modules))
+if modules.UIController then
+	report("A5 UI state specs", require(Unit:WaitForChild("UIState.spec")).run(modules))
+end
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

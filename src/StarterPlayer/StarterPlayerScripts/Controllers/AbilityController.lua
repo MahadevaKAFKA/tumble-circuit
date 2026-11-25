@@ -2,8 +2,8 @@
 	AbilityController — A3 client side of abilities and micro-skills. Display + requests only:
 	  * two ability buttons (bottom right) with cooldown fill, seconds, key labels (Q/E, LB/RB);
 	    on touch they sit above the BRAKE cluster and a big TRICK button appears
-	  * hub loadout panel: tap a slot to cycle its ability (server validates, swaps duplicates),
-	    plus the basic REDUCED MOTION switch
+	  * hub loadout summary (A5): shows the two equipped abilities; tapping opens the Loadout
+	    modal (StarterLoadoutController). Reduced Motion moved to the Settings modal.
 	  * quiet feedback ("Cooling down", "Can't trick here", "Shield blocked") as small toasts
 	  * three skippable contextual hints: steer (A1 card), trick (near the ramp), abilities (first GO)
 	Server messages: AbilityState, EffectState, ApplyImpulse (-> motor), SkillEvent, AbilityOutcome (-> VFX).
@@ -49,6 +49,8 @@ function AbilityController.new(deps)
 	self.TrickPressed = Utility.Signal.new()
 	self.OutcomeReceived = Utility.Signal.new()
 	self.ReducedMotionChanged = Utility.Signal.new()
+	self.LoadoutRequested = Utility.Signal.new()
+	self.StateReceived = Utility.Signal.new() -- (abilityState) for the Loadout modal
 
 	local gui, root, maid = UIKit.screen("TumbleAbilities", 7)
 	self.gui, self.root = gui, root
@@ -78,20 +80,16 @@ function AbilityController.new(deps)
 	end))
 
 	-- Hub loadout panel
-	local panel = UIKit.panel(root, { Name = "Loadout", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -48), Size = UDim2.fromOffset(250, 168), Visible = false })
-	UIKit.label(panel, { Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 24), Font = Enum.Font.GothamBlack, TextColor3 = palette.Cyan, Text = "ABILITIES (tap to change)" })
+	local panel = UIKit.panel(root, { Name = "Loadout", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 352), Size = UDim2.fromOffset(250, 118), Visible = false })
+	UIKit.label(panel, { Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 24), Font = Enum.Font.GothamBlack, TextColor3 = palette.Cyan, Text = "NEXT RACE ABILITIES" })
 	self.loadoutButtons = {}
 	for slot = 1, 2 do
-		local b = UIKit.button(panel, { Position = UDim2.fromOffset(10, 34 + (slot - 1) * 44), Size = UDim2.new(1, -20, 0, 38), Text = "" }, palette.White)
+		local b = UIKit.button(panel, { Position = UDim2.fromOffset(10, 34 + (slot - 1) * 40), Size = UDim2.new(1, -20, 0, 36), Text = "" }, palette.White)
 		self.maid:Give(b.Activated:Connect(function()
-			self:CycleLoadout(slot)
+			self.LoadoutRequested:Fire()
 		end))
 		self.loadoutButtons[slot] = b
 	end
-	self.motionButton = UIKit.button(panel, { Position = UDim2.fromOffset(10, 124), Size = UDim2.new(1, -20, 0, 36), Text = "REDUCED MOTION: OFF" }, palette.Yellow)
-	self.maid:Give(self.motionButton.Activated:Connect(function()
-		self:SetReducedMotion(not self.reducedMotion)
-	end))
 	self.panel = panel
 
 	-- Skippable hint card
@@ -115,6 +113,7 @@ function AbilityController.new(deps)
 	on("AbilityState", function(data)
 		self.state = data
 		self:_renderLoadout()
+		self.StateReceived:Fire(data)
 	end)
 	on("EffectState", function(data)
 		self.effects = data
@@ -161,26 +160,11 @@ function AbilityController:RequestTrick()
 	self.TrickPressed:Fire()
 end
 
-function AbilityController:CycleLoadout(slot)
-	if not self.state then
-		return
-	end
-	local owned = self.state.owned or AbilityConfig.StarterOwned
-	local current = self.state.loadout[slot]
-	local index = 1
-	for i, id in ipairs(owned) do
-		if id == current then
-			index = i
-		end
-	end
-	local nextId = owned[index % #owned + 1]
-	self.remotes.RequestEquip:FireServer(slot, nextId)
-end
-
 function AbilityController:SetReducedMotion(value)
-	self.reducedMotion = value
-	self.motionButton.Text = value and "REDUCED MOTION: ON" or "REDUCED MOTION: OFF"
-	self.ReducedMotionChanged:Fire(value)
+	if self.reducedMotion ~= value then
+		self.reducedMotion = value
+		self.ReducedMotionChanged:Fire(value)
+	end
 end
 
 function AbilityController:IsShielded()
@@ -209,7 +193,7 @@ function AbilityController:_renderLoadout()
 		local id = self.state.loadout[slot]
 		local def = AbilityConfig.Abilities[id]
 		local keys = KEYS[self.device or "KeyboardMouse"] or KEYS.KeyboardMouse
-		self.loadoutButtons[slot].Text = string.format("%s%s  -  %s", keys[slot] ~= "" and (keys[slot] .. ": ") or "", def and def.DisplayName or "?", def and def.Description or "")
+		self.loadoutButtons[slot].Text = string.format("%s%s  (change)", keys[slot] ~= "" and (keys[slot] .. ": ") or ("SLOT " .. slot .. ": "), def and def.DisplayName or "?")
 		self.slots[slot].name.Text = def and def.DisplayName or "?"
 		local color = def and palette[def.Color] or palette.Cyan
 		self.slots[slot].name.TextColor3 = color
@@ -235,15 +219,7 @@ function AbilityController:SetMode(mode, device)
 	end
 	self.trickButton.Visible = race and touch
 	self.trickButton.Position = UDim2.new(1, -24 - 120 - 20 - 84 - 20, 1, -24)
-	-- On touch the bottom-left corner belongs to the steering stick (it is still used in the hub's
-	-- practice chute), so the loadout panel moves to the upper left, under the stats box.
-	if touch then
-		self.panel.AnchorPoint = Vector2.new(0, 0)
-		self.panel.Position = UDim2.new(0, 14, 0, 84) -- below the 3-line stats box
-	else
-		self.panel.AnchorPoint = Vector2.new(0, 1)
-		self.panel.Position = UDim2.new(0, 14, 1, -48)
-	end
+	-- A5 moved this panel to the right column (clear of the stick), so no phone override is needed.
 	self.panel.Visible = mode == "Hub"
 	self:_renderLoadout()
 end

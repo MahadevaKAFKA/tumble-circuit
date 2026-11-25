@@ -23,7 +23,29 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
-## Current build: A4 — Neon Foundry, hazards, bots, Chaos Gates
+## Current build: A5 — UI flow, profile, Coins/XP, saving
+
+Everything from A4 still applies. A5 adds:
+- **Lobby column** (right side): your LEVEL and XP bar, Coins, races and wins, and whether your
+  progress is saved; **LOADOUT** (choose your two abilities) and **SETTINGS** (reduced motion,
+  camera, music/sound, steering sensitivity, graphics).
+- **Results screen**: podium, your place and time, personal best, and the Coins/XP you earned.
+  PLAY AGAIN or SIT OUT closes it. A bot that didn't finish shows how far it got (`DNF CP 3/8`).
+- **Saving**: Coins, XP, level, settings and loadout are saved to your Roblox account. While the
+  game is private, only your own progress is stored.
+- Rewards need real input during the race (a marble left alone earns nothing); racing only with
+  bots gives full Coins for 3 races a day, then a little less.
+- The stats box has a **BOTS** line while bots race: how many are moving, the best checkpoint
+  they reached, and why any respawned. If bots misbehave, a screenshot of that line says why.
+
+### What to check (A5)
+- [ ] Lobby: level/XP/Coins show and the save line says your progress is saved.
+- [ ] LOADOUT and SETTINGS open and close; a change sticks after you leave and rejoin.
+- [ ] Bots leave the grid at GO with you (BOTS line: "7 racing, 7 moving").
+- [ ] Finish a race: results show your reward; Coins go up in the lobby; leave and rejoin → still there.
+- [ ] READY / "Waiting for players" and looking around still work as in A4.
+
+## A4 — Neon Foundry, hazards, bots, Chaos Gates
 
 The race is now the full **Neon Foundry** (16 sections, see ROUTE_MAP.md): moving hazards
 (bumpers, a rotating sweeper, fans, a trampoline, falling tiles, a swinging hammer, a conveyor),

@@ -199,3 +199,32 @@ the real CameraController against a fake camera — look right/left, held vs rel
 - [ ] Someone leaves or sits out while the race is full → the button disappears and the message
       goes back to "Waiting for players".
 
+## 9. A5 — UI flow, profile, Coins/XP, saving
+
+**Automated:** `A5 persistence specs`, `A5 reward idempotence specs`, `A5 UI state specs` (0 failed). Offline also scans every client UI string for Robux / shop / capsule / season / buy prompts and the whole game for MarketplaceService (none). Studio integration checks the mock store, loaded profiles and that DevCommand exists only in Studio.
+
+**Play Solo (Studio = MOCK profile: Output prints `[Profiles] Studio MOCK mode`)**
+- [ ] Lobby (right column): LEVEL 1, XP bar "0 / 400 XP to level 2", "0 COINS - 0 races - 0 wins", "Studio test profile - not saved to Roblox". LOADOUT button shows "BOOST + SHIELD", SETTINGS opens the settings modal.
+- [ ] LOADOUT: three cards with real stats; tap SLOT 1/SLOT 2 to equip; choosing the other slot's ability swaps. "Equipped - ready for your next race". Start a race → the modal closes by itself and can't be opened (toast explains). The equipped pair is what Q/E use.
+- [ ] Settings: Reduced Motion ON → no FOV pulse on Boost, no trick spin/stars, no fan-disc spin, results card doesn't pop; CAMERA toggles Chase/Wide (CAM button also remembers it); STEERING SENSITIVITY 50% feels half as strong, 150% stronger; GRAPHICS LOW turns bloom and decorative trails off. Music/SFX levels show and stay (the build has no audio files - it says so).
+- [ ] Race HUD: timer, placement badge top right ("2ND of 8"), checkpoint chip, progress bar with your mint dot, coral rival dots and violet checkpoint ticks; Tab standings; checkpoint flash.
+- [ ] Hints: steer card at first roll, TRICK RAMP hint before the ramp, ABILITIES hint at the first GO - each skippable (OK) and shown once.
+- [ ] Don't touch anything for a whole race (let the marble roll) → results say "No input detected this race - no reward".
+- [ ] Finish a race → results: podium (3 marbles, [BOT] labels, times), your place/time, PB line ("FIRST TIME ON THIS HAZARD VARIATION" first, later "NEW PERSONAL BEST -x.xx s" or "+x.xx s"), the Coins/XP lines (Finished / Placement / Completion / PB / bot practice), totals counting up, level line, "Studio test profile - not saved to Roblox". The card pops in even if you're 8th.
+- [ ] 1st of 8 = 200 Coins + 160 XP (+30 XP PB); 4th = 135; 8th = 110; DNF after checkpoint 1 = 25 Coins / 20 XP.
+- [ ] Solo with bots: races 1-3 today say "Bot practice race N of 3 at full Coins today"; race 4 shows a "Coins x0.6" line and the note.
+- [ ] PLAY AGAIN (primary) → back to the lobby queued; SIT OUT → lobby, not queued; Space / (A) = PLAY AGAIN.
+- [ ] DEV PANEL (F8, Studio only): START NOW, END RACE, BOTS 0/3/7/AUTO, +500 MOCK COINS, RESET MOCK PROFILE, DIAGNOSTICS all work.
+
+**Rejoin (Studio Test tab, 1 player + server)**
+- [ ] Earn Coins, change settings and loadout, then leave the client (keep the server) and rejoin: level, Coins, PB, settings and loadout are back (the mock survives inside one server session).
+- [ ] Leave during Results right after the reward appears, rejoin: Coins counted once.
+
+**Live store (only in a throwaway test universe)** — publish, enable Studio API access, set `GameConfig.Persistence.StudioMode = "Live"`:
+- [ ] Profile chip says "Progress saved to your account" after the first save; results say "Progress saved" only after the save completed.
+- [ ] Join the same account from two devices/servers: the second waits ~12 s and takes over; the first stops saving and shows "You joined another server - this one stopped saving".
+- [ ] Turn API access off and play: "Saved progress couldn't load - this session won't be saved"; the race still works.
+
+**Layout**
+- [ ] Studio Device Emulator at 640x360 (phone landscape) and 1920x1080: lobby column, results (980x560 reference) and modals fit; touch buttons ≥ 44 px; nothing under the Roblox top bar or chat. Console (gamepad) navigation of modals is NOT implemented beyond A/Space for PLAY AGAIN - noted.
+- [ ] 3 races + a rejoin: `Perf_Instances` (F2) flat between Intermissions.

@@ -60,7 +60,68 @@ local modules = {
 	TrackValidator = H.module("ServerScriptService/Services/TrackValidator"),
 	BotBrain = H.module("ServerScriptService/Services/BotBrain"),
 	ChaosGateService = H.module("ServerScriptService/Services/ChaosGateService"),
+	ProgressionConfig = H.module("ReplicatedStorage/Shared/ProgressionConfig"),
+	PlayerDataSchema = H.module("ReplicatedStorage/Shared/PlayerDataSchema"),
+	ProfileStore = H.module("ServerScriptService/Services/ProfileStore"),
+	RewardRules = H.module("ServerScriptService/Services/RewardRules"),
+	UIController = H.module("StarterPlayer/StarterPlayerScripts/Controllers/UIController"),
 }
+-- A5 client modules: load-time references to client services are stubbed; only their pure
+-- functions (Step / Choose / PbLine) are exercised.
+H.stubServices = { Players = {}, TweenService = {}, UserInputService = {} }
+modules.SettingsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/SettingsController")
+modules.LoadoutPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/StarterLoadoutController")
+modules.ResultsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/ResultsController")
+H.stubServices = {}
+
+-- A5 UI text scan: every string literal in client code (comments stripped).
+do
+	local strings, marketplace = {}, false
+	local function stripComments(text)
+		text = text:gsub("%-%-%[(=*)%[.-%]%1%]", "")
+		local out = {}
+		for line in (text .. "\n"):gmatch("(.-)\n") do
+			local inString, quote, cut = false, nil, nil
+			local i = 1
+			while i <= #line do
+				local c = line:sub(i, i)
+				if inString then
+					if c == "\\" then
+						i = i + 1
+					elseif c == quote then
+						inString = false
+					end
+				elseif c == '"' or c == "'" then
+					inString, quote = true, c
+				elseif line:sub(i, i + 1) == "--" then
+					cut = i
+					break
+				end
+				i = i + 1
+			end
+			out[#out + 1] = cut and line:sub(1, cut - 1) or line
+		end
+		return table.concat(out, "\n")
+	end
+	for _, path in ipairs(files) do
+		local f = io.open(path, "r")
+		local text = f and f:read("a") or ""
+		if f then
+			f:close()
+		end
+		local code = stripComments(text)
+		if path:find("/src/", 1, true) and not path:find("/src/Tests/", 1, true) and code:find("MarketplaceService", 1, true) then
+			marketplace = true
+		end
+		if path:find("StarterPlayerScripts", 1, true) then
+			for literal in code:gmatch('"([^"]*)"') do
+				strings[#strings + 1] = literal
+			end
+		end
+	end
+	modules.ClientUiStrings = strings
+	modules.UsesMarketplace = marketplace
+end
 -- HazardController.PhaseAt is pure; load the client module file directly for that one function.
 do
 	local env = setmetatable({ game = H.game, require = H.require, script = nil }, { __index = _G })
@@ -119,6 +180,9 @@ local suites = {
 	{ "A4 chaos gate specs", root .. "/src/Tests/Unit/ChaosGate.spec.lua" },
 	{ "A4 ready vote specs", root .. "/src/Tests/Unit/ReadyVote.spec.lua" },
 	{ "A4 free look specs (offline only)", root .. "/src/Tests/Unit/FreeLook.spec.lua" },
+	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
+	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
+	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },
 }
 local passed, failed = 0, 0
 for _, suite in ipairs(suites) do

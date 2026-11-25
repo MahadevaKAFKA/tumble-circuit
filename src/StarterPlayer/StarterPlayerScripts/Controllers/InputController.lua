@@ -177,6 +177,11 @@ function InputController.new()
 	return self
 end
 
+-- A5 setting: 0.5-1.5 scales steering strength (keyboard, stick and touch alike).
+function InputController:SetSensitivity(value)
+	self.sensitivity = Utility.clamp(tonumber(value) or 1, 0.5, 1.5)
+end
+
 function InputController:SetSteeringEnabled(enabled)
 	self.steeringEnabled = enabled
 	if not enabled then
@@ -265,7 +270,7 @@ end
 function InputController:Update(dt)
 	local kx, ky, kBrake, kRecover = self:_readKeyboard()
 	local gx, gy, gBrake, gRecover = self:_readGamepad()
-	local x = Utility.clamp(kx + gx + self.virtualSteer.X, -1, 1)
+	local x = Utility.clamp((kx + gx + self.virtualSteer.X) * (self.sensitivity or 1), -1, 1) -- A5 setting
 	local y = Utility.clamp(ky + gy + self.virtualSteer.Y, -1, 1)
 	local brake = kBrake or gBrake or self.virtual.Brake == true
 	local recover = kRecover or gRecover or self.virtual.Recover == true or self.virtual.RecoverMouse == true

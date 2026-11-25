@@ -30,6 +30,9 @@ local HazardService = require(Services:WaitForChild("HazardService"))
 local BotService = require(Services:WaitForChild("BotService"))
 local ChaosGateService = require(Services:WaitForChild("ChaosGateService"))
 local PerfService = require(Services:WaitForChild("PerfService"))
+local PlayerDataService = require(Services:WaitForChild("PlayerDataService"))
+local EconomyService = require(Services:WaitForChild("EconomyService"))
+local DevService = require(Services:WaitForChild("DevService"))
 
 local existing = ReplicatedStorage:FindFirstChild(RoundProtocol.FolderName)
 if existing then
@@ -38,10 +41,13 @@ end
 local remotes = Instance.new("Folder")
 remotes.Name = RoundProtocol.FolderName
 remotes:SetAttribute("ProtocolVersion", RoundProtocol.Version)
-for remoteName in pairs(RoundProtocol.Remotes) do
-	local remote = Instance.new("RemoteEvent")
-	remote.Name = remoteName
-	remote.Parent = remotes
+for remoteName, spec in pairs(RoundProtocol.Remotes) do
+	-- A5: Studio/authorized-only remotes do not exist at all on a normal live server
+	if not spec.StudioOnly or DevService.Enabled() then
+		local remote = Instance.new("RemoteEvent")
+		remote.Name = remoteName
+		remote.Parent = remotes
+	end
 end
 remotes.Parent = ReplicatedStorage
 
@@ -79,21 +85,33 @@ bots.abilities = abilities
 local micro = MicroSkillService.new({ track = track, marbles = marbles, physics = physics, round = round, abilities = abilities, remotes = remotes, hazards = hazards })
 local chaos = ChaosGateService.new({ track = track, physics = physics, round = round, progress = progress, abilities = abilities, remotes = remotes })
 local perf = PerfService.new({ track = track, bots = bots })
+local playerData = PlayerDataService.new({ remotes = remotes })
+local economy = EconomyService.new({ round = round, playerData = playerData, track = track, hazards = hazards, remotes = remotes })
+local dev = DevService.new({ round = round, bots = bots, playerData = playerData, remotes = remotes })
+playerData.ProfileLoaded:Connect(function(player, profile)
+	abilities:SetLoadout(player, profile.data.equippedAbilityIds) -- saved starter loadout
+end)
+abilities.LoadoutChanged:Connect(function(player, loadout)
+	playerData:SetLoadout(player, loadout)
+end)
 bots.BotSpawned:Connect(function(bot)
 	micro:_reset(bot) -- a respawn is never a takeoff / never keeps a slipstream (same as humans)
 end)
 
+playerData:Start() -- loads profiles as players join (does not block the course)
 physics:Start()
 hazards:Start()
 round:Start()
 abilities:Start()
 micro:Start()
 chaos:Start()
+economy:Start()
+dev:Start()
 marbles:Start() -- creates the marbles folder and spawns players already present
 bots:Start() -- bots only spawn at Preparing, so they can start after the folder exists
 perf:Start()
 
 -- Studio integration tests can reach the live services through this table (never replicated).
-_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf }
+_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev }
 
 print(string.format("[TumbleCircuit] server ready (%s, protocol v%d)", GameConfig.Version, RoundProtocol.Version))

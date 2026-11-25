@@ -5,8 +5,8 @@
 
 local GameConfig = {}
 
-GameConfig.Version = "A4.0"
-GameConfig.BuildLabel = "A4 prototype - Neon Foundry, hazards, bots"
+GameConfig.Version = "A5.0"
+GameConfig.BuildLabel = "A5 prototype - profile, rewards, settings"
 
 GameConfig.Debug = {
 	RunTestsInStudio = true, -- TestRunner prints PASS/FAIL to Output when playing in Studio
@@ -15,6 +15,22 @@ GameConfig.Debug = {
 	-- phone with no F2 key; turn it off before anyone else plays. F2 toggles it in game.
 	PerfOverlayDefault = true,
 	HitchThresholdSeconds = 0.25, -- frames longer than this are logged with where the marble was
+}
+
+-- A5 persistence. Live servers ALWAYS use DataStoreService. Studio uses an in-memory mock unless
+-- the owner explicitly sets StudioMode = "Live" (only in a throwaway test universe with Studio
+-- API access enabled). The mock is never written to Roblox.
+GameConfig.Persistence = {
+	StoreName = "TumbleProfiles_v1",
+	StudioMode = "Mock", -- "Mock" | "Live"
+	AutosaveSeconds = 60,
+	LockRefreshSeconds = 240, -- save even when clean this often, to keep the session lock fresh
+	ShutdownBudgetSeconds = 25,
+}
+
+-- A5 dev panel: Studio always; on a live server only for these user ids (empty = never).
+GameConfig.Dev = {
+	AuthorizedUserIds = {},
 }
 
 GameConfig.Spawn = {

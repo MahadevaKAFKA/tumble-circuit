@@ -27,7 +27,7 @@ AbilityConfig.Abilities = {
 		Cooldown = 28,
 		Duration = 2.5, -- or until the first hostile Pulse / active bumper hit, whichever first
 		Color = "Violet",
-		Description = "Blocks one Pulse or bumper kick",
+		Description = "Blocks one Pulse, bumper, sweeper or hammer hit",
 	},
 	Pulse = {
 		Id = "Pulse",
