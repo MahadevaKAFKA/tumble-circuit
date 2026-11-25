@@ -456,6 +456,7 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | GitHub Actions **Deploy** run 45685101889 (B3, Selene 0 errors, 463 specs, publish) | **success**: **version 18** published, visibility PRIVATE |
 | 2026-11-25 | C: `luau_check` (105 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **499 passed, 0 failed** (C capsules/season 36 new); 119 instances, 105 scripts, all references resolve |
 | — | B3 phone playtest (garage, quests, boards) | **pending owner** |
+| 2026-11-25 | GitHub Actions **Deploy** run 45686308265 (C, 499 specs, publish) | **success**: **version 19** published, visibility PRIVATE |
 | — | C phone playtest (capsule, shard shop, season) | **pending owner** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |
