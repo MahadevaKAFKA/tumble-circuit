@@ -227,7 +227,9 @@ function SocialService:_buildPodium(racers)
 			light.Brightness = 1.5
 			light.Parent = ball
 			local tag = Instance.new("BillboardGui")
-			tag.Size = UDim2.fromOffset(200, 50)
+			-- sized in studs so it shrinks with distance (a fixed 200x50 px tag looked huge from
+			-- across the hub and covered the screen; owner playtest 2026-11-25)
+			tag.Size = UDim2.fromScale(9, 2.2)
 			tag.StudsOffsetWorldSpace = Vector3.new(0, 4, 0)
 			tag.MaxDistance = 120
 			tag.LightInfluence = 0

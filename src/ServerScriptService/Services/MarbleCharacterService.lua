@@ -132,7 +132,10 @@ local function createBall(player, cframe, zone, frozen)
 		stripe.CFrame = axisTurn
 		weldVisual(ball, stripe)
 	end
-	BotFactory.AddNameplate(ball, player.DisplayName, palette.White) -- A4 (own plate hidden locally)
+	local plate = BotFactory.AddNameplate(ball, player.DisplayName, palette.White)
+	-- Your own name never floats in front of your chase camera. Hidden by the engine for the owner
+	-- (owner playtest 2026-11-25: the client-side hide missed and the name sat mid-screen).
+	plate.PlayerToHideFrom = player
 	return ball
 end
 

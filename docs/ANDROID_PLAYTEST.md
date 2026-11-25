@@ -23,6 +23,23 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
+## Latest fix: hub rework (on top of A6)
+
+- **Driving on the hub platform:** push the stick (or W) and the marble rolls the way the camera
+  faces — no more sliding left/right. Drag on the screen to turn the view; it **stays** where you
+  leave it. On the practice chute and in races, steering works as before.
+- **Tidier hub screen:** everything is in one column on the right: what's happening + the
+  countdown ("Waiting for players"), READY and SIT OUT / JOIN RACE, your level/Coins, LOADOUT and
+  SETTINGS, then the emotes. CAM and LIST only appear in races.
+- Your own name no longer floats over your marble; podium name tags are smaller.
+
+### What to check (hub)
+- [ ] Roll to the middle of the platform, circle it, stop: the marble goes where you push.
+- [ ] Drag to turn around, let go: the view stays; pushing up now goes the new way.
+- [ ] Nothing on the hub screen overlaps (board text readable, emote row clear of buttons).
+- [ ] Roll onto the practice chute: the camera turns to follow it again.
+- [ ] Join a race: grid, GO, CAM and LIST buttons, all as before.
+
 ## Current build: A6 — the Phase A closing build
 
 Everything from A5 still applies. A6 adds:

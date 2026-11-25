@@ -40,6 +40,13 @@ PhysicsConfig.Movement = {
 	LateralAccelMax = 70, -- studs/s^2 clamp on steering acceleration
 	LateralAssistDamping = 1.0, -- 1/s, mild pull of sideways drift back toward 0 when not steering (0 = off)
 
+	-- Hub platform free roam (owner playtest 2026-11-25: on the round hub the track-relative
+	-- steering and auto-align fought the player). On the open platform the stick moves the marble
+	-- relative to the camera: it is pulled toward stick direction * FreeRoamSpeed. No auto-align.
+	FreeRoamSpeed = 30, -- studs/s at full stick
+	FreeRoamResponse = 3, -- 1/s
+	FreeRoamAccelMax = 40, -- studs/s^2
+
 	-- Terminal envelope: smooth drag above TerminalSpeed (never a velocity teleport).
 	TerminalSpeed = 80,
 	TerminalDragResponse = 4, -- 1/s

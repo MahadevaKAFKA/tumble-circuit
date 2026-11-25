@@ -45,20 +45,33 @@ function MatchUI.new()
 	-- Lobby layer -------------------------------------------------------------------------
 	local lobby = UIKit.new("Frame", { Name = "Lobby", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) }, root)
 	self.lobby = lobby
-	-- right column, under the queue chip: clear of Roblox chat (top left) and the touch stick (left)
-	local chip = UIKit.panel(lobby, { Name = "Profile", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 164), Size = UDim2.fromOffset(250, 120) })
+	-- One compact right-hand column, top to bottom (owner playtest 2026-11-25: the hub's buttons
+	-- were all over the screen and ran into the touch buttons on a phone):
+	--   y   8  status card: NEXT RACE 0:12 / Waiting for players (1/16)   (replaces the race HUD
+	--          line that sat on top of the hub's 3D board)
+	--   y  72  [READY?] [SIT OUT / JOIN RACE]
+	--   y 124  profile: LEVEL + XP, bar, Coins/races/wins, save status
+	--   y 216  [LOADOUT] [SETTINGS]
+	--   y 268  emotes (SocialController)
+	-- Clear of Roblox's top bar and chat (top left), the stick (left) and RESET/BRAKE (bottom right).
+	local status = UIKit.panel(lobby, { Name = "Status", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 8), Size = UDim2.fromOffset(250, 58) })
+	UIKit.new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, status)
+	self.statusMain = UIKit.label(status, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 28), Font = Enum.Font.GothamBlack, TextColor3 = palette.White, Text = "" })
+	self.statusSub = UIKit.label(status, { Position = UDim2.fromOffset(10, 34), Size = UDim2.new(1, -20, 0, 18), Font = Enum.Font.Gotham, TextColor3 = palette.Cyan, Text = "" })
+
+	local chip = UIKit.panel(lobby, { Name = "Profile", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 124), Size = UDim2.fromOffset(250, 84) })
 	UIKit.new("UIStroke", { Color = palette.Violet, Thickness = 2 }, chip)
-	self.levelLabel = UIKit.label(chip, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 30), Font = Enum.Font.GothamBlack, TextColor3 = palette.Violet, TextXAlignment = Enum.TextXAlignment.Left, Text = "LEVEL 1" })
-	local bar = UIKit.new("Frame", { Name = "XpBar", Position = UDim2.fromOffset(12, 40), Size = UDim2.new(1, -24, 0, 10), BackgroundColor3 = palette.Ink, BorderSizePixel = 0 }, chip)
+	self.levelLabel = UIKit.label(chip, { Position = UDim2.fromOffset(10, 4), Size = UDim2.new(0.42, -10, 0, 24), Font = Enum.Font.GothamBlack, TextColor3 = palette.Violet, TextXAlignment = Enum.TextXAlignment.Left, Text = "LEVEL 1" })
+	self.xpLabel = UIKit.label(chip, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 8), Size = UDim2.new(0.58, -10, 0, 18), Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
+	local bar = UIKit.new("Frame", { Name = "XpBar", Position = UDim2.fromOffset(10, 32), Size = UDim2.new(1, -20, 0, 8), BackgroundColor3 = palette.Ink, BorderSizePixel = 0 }, chip)
 	UIKit.corner(bar, 0.5)
 	self.xpFill = UIKit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = palette.Violet, BorderSizePixel = 0 }, bar)
 	UIKit.corner(self.xpFill, 0.5)
-	self.xpLabel = UIKit.label(chip, { Position = UDim2.fromOffset(12, 52), Size = UDim2.new(1, -24, 0, 18), Font = Enum.Font.Gotham, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
-	self.coinLabel = UIKit.label(chip, { Position = UDim2.fromOffset(12, 72), Size = UDim2.new(1, -24, 0, 22), TextColor3 = palette.Yellow, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
-	self.saveLabel = UIKit.label(chip, { Position = UDim2.fromOffset(12, 96), Size = UDim2.new(1, -24, 0, 16), Font = Enum.Font.Gotham, TextTransparency = 0.25, TextXAlignment = Enum.TextXAlignment.Left, Text = "Loading your progress..." })
+	self.coinLabel = UIKit.label(chip, { Position = UDim2.fromOffset(10, 44), Size = UDim2.new(1, -20, 0, 20), TextColor3 = palette.Yellow, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+	self.saveLabel = UIKit.label(chip, { Position = UDim2.fromOffset(10, 66), Size = UDim2.new(1, -20, 0, 14), Font = Enum.Font.Gotham, TextTransparency = 0.25, TextXAlignment = Enum.TextXAlignment.Left, Text = "Loading your progress..." })
 
-	self.loadoutButton = UIKit.button(lobby, { Name = "LoadoutButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -143, 0, 292), Size = UDim2.fromOffset(121, 52), Text = "LOADOUT" }, palette.Violet)
-	self.settingsButton = UIKit.button(lobby, { Name = "SettingsButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 292), Size = UDim2.fromOffset(121, 52), Text = "SETTINGS" }, palette.Cyan)
+	self.loadoutButton = UIKit.button(lobby, { Name = "LoadoutButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -143, 0, 216), Size = UDim2.fromOffset(121, 44), Text = "LOADOUT" }, palette.Violet)
+	self.settingsButton = UIKit.button(lobby, { Name = "SettingsButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 216), Size = UDim2.fromOffset(121, 44), Text = "SETTINGS" }, palette.Cyan)
 	maid:Give(self.loadoutButton.Activated:Connect(function()
 		self.LoadoutRequested:Fire()
 	end))
@@ -69,8 +82,8 @@ function MatchUI.new()
 	self.queueButton = UIKit.button(lobby, {
 		Name = "Queue",
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 112),
-		Size = UDim2.fromOffset(190, 44),
+		Position = UDim2.new(1, -14, 0, 72),
+		Size = UDim2.fromOffset(120, 44),
 		Text = "SIT OUT",
 	}, palette.White)
 	maid:Give(self.queueButton.Activated:Connect(function()
@@ -80,8 +93,8 @@ function MatchUI.new()
 	self.readyButton = UIKit.button(lobby, {
 		Name = "Ready",
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -214, 0, 112),
-		Size = UDim2.fromOffset(170, 44),
+		Position = UDim2.new(1, -144, 0, 72),
+		Size = UDim2.fromOffset(120, 44),
 		Text = "READY?",
 		Visible = false,
 	}, palette.Yellow)
@@ -191,18 +204,51 @@ function MatchUI:ApplyProfile(p)
 	UIKit.setText(self.levelLabel, string.format("LEVEL %d", p.level or 1))
 	local fraction = (p.xpForNext and p.xpForNext > 0) and (p.xpIntoLevel or 0) / p.xpForNext or 1
 	self.xpFill.Size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
-	UIKit.setText(self.xpLabel, (p.xpForNext and p.xpForNext > 0) and string.format("%d / %d XP to level %d", p.xpIntoLevel or 0, p.xpForNext, (p.level or 1) + 1) or "MAX LEVEL")
+	UIKit.setText(self.xpLabel, (p.xpForNext and p.xpForNext > 0) and string.format("%d / %d XP", p.xpIntoLevel or 0, p.xpForNext) or "MAX LEVEL")
 	UIKit.setText(self.coinLabel, string.format("%d COINS  -  %d races  -  %d wins", p.coins or 0, p.raceCount or 0, p.winCount or 0))
 	UIKit.setText(self.saveLabel, p.statusText or "")
 	self.saveLabel.TextColor3 = (p.status == "Ready" or p.status == "Mock" or p.status == "Loading") and palette.White or palette.Coral
 end
 
--- ctx = { racing, raceRunning, spectating }
+local function clock(seconds)
+	return (Utility.formatTime(math.max(0, seconds or 0)):gsub("%.%d+$", ""))
+end
+
+-- Status card text for the lobby (what the race HUD used to say at the top of the hub screen).
+function MatchUI:_statusText(ctx)
+	local snap = self.snapshot
+	local left = snap.stateEndsAt and math.max(0, snap.stateEndsAt - (ctx.now or 0)) or 0
+	if snap.state == S.Intermission then
+		local sub
+		if snap.readyOpen then
+			sub = string.format("Race full - %d/%d READY", snap.readyCount or 0, snap.queuedCount or 0)
+		else
+			sub = string.format("Waiting for players (%d/%d)", snap.queuedCount or 0, snap.raceCapacity or 16)
+		end
+		if not self.queued then
+			sub = "Sitting out - tap JOIN RACE"
+		end
+		return "NEXT RACE  " .. clock(left), sub
+	elseif snap.state == S.Preparing or snap.state == S.Countdown then
+		return "STARTING", self.queued and "Next one is yours" or "Racers on the grid"
+	elseif snap.state == S.Racing then
+		local elapsed = snap.raceStartedAt and ((ctx.now or 0) - snap.raceStartedAt) or 0
+		return "RACE  " .. clock(elapsed), self.queued and "You're in the next race - SPECTATE" or "Sitting out - SPECTATE to watch"
+	elseif snap.state == S.Results or snap.state == S.Cleanup then
+		return "NEXT RACE SOON", self.queued and "You're in the next race" or "Sitting out - tap JOIN RACE"
+	end
+	return "WAITING FOR RACERS", "Roll down the practice chute"
+end
+
+-- ctx = { now, racing, raceRunning, spectating }
 function MatchUI:Update(ctx)
 	local snap = self.snapshot
 	if not snap then
 		return
 	end
+	local main, sub = self:_statusText(ctx)
+	UIKit.setText(self.statusMain, main)
+	UIKit.setText(self.statusSub, sub)
 	self.queueButton.Visible = not ctx.racing and snap.state ~= S.Results
 	-- Labelled with the action a tap performs, not the current state.
 	UIKit.setText(self.queueButton, self.queued and "SIT OUT" or "JOIN RACE")

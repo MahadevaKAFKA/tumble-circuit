@@ -397,6 +397,7 @@ local function refreshGates()
 	input:SetRecoverEnabled(canRecover())
 	-- A6 social: voters = anyone who is not an active racer; emote bar in lobby / spectate
 	local screen = ui:GetScreen()
+	touch:SetLobbyMode(screen == "Lobby")
 	local activeRacer = me ~= nil and not me.finished and roundState() == S.Racing
 	social:SetContext(not activeRacer, (screen == "Lobby" or screen == "Spectate") and not ui:GetModal(), uiState == "Live" and not ui:GetModal())
 	-- A6 console: give the gamepad a focused button on menus, never during the race
@@ -857,6 +858,18 @@ local clientStart = os.clock()
 local boardTimer = 0
 local lastAnchored = nil
 
+-- Hub platform free roam (owner playtest 2026-11-25): on the round platform there is no track, so
+-- the track-relative steering and auto-align fought the player. On the platform the stick moves the
+-- marble relative to the camera; on the practice chute (and the race) steering follows the track.
+local HUB_DEF = TrackDefinitions.Hub
+local function onHubPlatform(position)
+	if currentZone ~= ZONES.Hub then
+		return false
+	end
+	local offset = position - HUB_DEF.Center
+	return Vector3.new(offset.X, 0, offset.Z).Magnitude <= HUB_DEF.Radius + 1 and math.abs(offset.Y) < 12
+end
+
 -- Where the marble is, for the hitch log: zone + course piece under route segment i
 -- (segment i runs from section i to i + 1).
 local function whereLabel(zone, index)
@@ -886,15 +899,26 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 		speed = ball.AssemblyLinearVelocity.Magnitude
 		where = whereLabel(currentZone, info.index)
 
+		local freeRoam = onHubPlatform(ball.Position) and not spectate.active
+		cameraController:SetFreeRoam(freeRoam)
 		local route = layouts[currentZone].Route
-		local target = RouteTracker.SmoothHorizontalTangentAtS(
-			route,
-			progressS + PhysicsConfig.Movement.SteerFrameLookAhead,
-			PhysicsConfig.Movement.SteerFrameSmoothingStuds
-		)
+		local target
+		if freeRoam then
+			target = cameraController:GetFlatForward() -- stick up = away from the camera
+		else
+			target = RouteTracker.SmoothHorizontalTangentAtS(
+				route,
+				progressS + PhysicsConfig.Movement.SteerFrameLookAhead,
+				PhysicsConfig.Movement.SteerFrameSmoothingStuds
+			)
+		end
 		if target then
-			local turned = Utility.turnToward(steerForward, target, Utility.expAlpha(PhysicsConfig.Movement.SteerFrameResponse, dt))
-			steerForward = flatUnit(turned, steerForward)
+			if freeRoam then
+				steerForward = flatUnit(target, steerForward) -- follows the view exactly
+			else
+				local turned = Utility.turnToward(steerForward, target, Utility.expAlpha(PhysicsConfig.Movement.SteerFrameResponse, dt))
+				steerForward = flatUnit(turned, steerForward)
+			end
 		end
 
 		local mode = MODES.Idle
@@ -909,6 +933,7 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 			brake = input.brake,
 			brakePressed = input.brakePressed,
 			forwardH = steerForward,
+			freeRoam = freeRoam,
 		})
 		if currentZone == ZONES.Race then
 			hazards:Step(ball)

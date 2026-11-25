@@ -267,3 +267,23 @@ the real CameraController against a fake camera — look right/left, held vs rel
 | Forged / malformed remotes | A (payload schemas: every client argument bounded) |
 | Vote / emote spam | A (one vote per poll, rate limits), M §9 |
 | Client-owned physics exploits | Server audit (teleport window, checkpoint plausibility) — A; a modified client can still ignore hazard kicks (known limitation) |
+
+## 10. Hub rework (owner feedback on v14)
+
+**Automated:** `Hub free roam specs` (offline only — needs the camera/motor harness): 9, 0 failed.
+
+**Play Solo / phone**
+- [ ] On the hub platform, stick up = away from the camera, right = camera right; the marble
+      reaches and crosses the centre and stops with brake.
+- [ ] Drag (touch outside the stick zone, right mouse, right stick) turns the hub view; it does not
+      ease back. Pitch stays level.
+- [ ] Leaving the platform onto the practice chute: camera eases back to the chute heading, track
+      steering + auto-align resume. Respawn in the hub: free roam again.
+- [ ] Lobby screen 640x360 / 1280x720 / 1920x1080: right column (status card, READY + queue,
+      profile chip, LOADOUT + SETTINGS, emotes) does not overlap chat, the board text, the stick or
+      each other; no race HUD layer in the lobby; CAM / LIST hidden in the lobby, shown on the grid.
+- [ ] Status card: "Waiting for players" with the countdown when the race isn't full; "Race full"
+      when it is (READY enabled); "Sitting out" after SIT OUT.
+- [ ] Your own nameplate is not visible to you; a second client sees it. Podium tags shrink with
+      distance.
+

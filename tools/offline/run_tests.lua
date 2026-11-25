@@ -171,6 +171,36 @@ do
 	}
 end
 
+-- Hub free roam: the real shared MarbleMotorController with a fake ball / force (offline only).
+do
+	modules.MotorHarness = {
+		new = function()
+			local fakeWorkspace = {
+				Spherecast = function()
+					return { Normal = Vector3.new(0, 1, 0) } -- always on flat ground
+				end,
+				GetServerTimeNow = function()
+					return os.clock()
+				end,
+			}
+			local env = setmetatable({
+				game = H.game,
+				require = H.require,
+				workspace = fakeWorkspace,
+				RaycastParams = { new = function() return {} end },
+				Enum = { RaycastFilterType = { Exclude = "Exclude" } },
+			}, { __index = _G })
+			local chunk = assert(loadfile(root .. "/src/ReplicatedStorage/Shared/MarbleMotorController.lua", "t", env))
+			local Motor = chunk()
+			local motor = Motor.new()
+			local ball = { Position = Vector3.new(0, 0, 0), AssemblyLinearVelocity = Vector3.new(0, 0, 0), AssemblyMass = 1, Anchored = false, Parent = true }
+			local force = { Force = Vector3.new(0, 0, 0), Parent = true }
+			motor.ball, motor.force = ball, force
+			return motor, ball, force, Motor
+		end,
+	}
+end
+
 local suites = {
 	{ "A1 pure specs", root .. "/src/Tests/Unit/A1PureSpecs.lua" },
 	{ "A2 round specs", root .. "/src/Tests/Unit/RoundState.spec.lua" },
@@ -183,6 +213,7 @@ local suites = {
 	{ "A4 chaos gate specs", root .. "/src/Tests/Unit/ChaosGate.spec.lua" },
 	{ "A4 ready vote specs", root .. "/src/Tests/Unit/ReadyVote.spec.lua" },
 	{ "A4 free look specs (offline only)", root .. "/src/Tests/Unit/FreeLook.spec.lua" },
+	{ "Hub free roam specs (offline only)", root .. "/src/Tests/Unit/HubFreeRoam.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

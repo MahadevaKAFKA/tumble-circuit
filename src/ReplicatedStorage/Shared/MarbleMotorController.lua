@@ -188,7 +188,10 @@ function MarbleMotorController:_probeGround(now)
 	end
 end
 
--- ctx = { mode, steer (Vector2), brake (bool), brakePressed (bool), forwardH (unit Vector3) }
+-- ctx = { mode, steer (Vector2), brake (bool), brakePressed (bool), forwardH (unit Vector3),
+--         freeRoam (bool, optional) }
+-- freeRoam (hub platform only): forwardH is the camera's flat forward and the stick is a wish
+-- direction on the ground (up = away from the camera, right = right); no track auto-align.
 function MarbleMotorController:Step(dt, ctx)
 	local ball = self.ball
 	if not ball or not ball.Parent or not self.force or not self.force.Parent then
@@ -217,6 +220,30 @@ function MarbleMotorController:Step(dt, ctx)
 			accel = accel - velDir * math.min(m.FinishBrakeDecel, speed * 4)
 		end
 		self.brakeTarget = nil
+	elseif ctx.mode == MarbleMotorController.Modes.Play and ctx.freeRoam then
+		local wish = fwd * ctx.steer.Y + right * ctx.steer.X
+		if wish.Magnitude > 1 then
+			wish = wish.Unit
+		end
+		if not ctx.brake and wish.Magnitude > 0.05 then
+			local planar = v - up * v:Dot(up)
+			local push = (wish * m.FreeRoamSpeed - planar) * m.FreeRoamResponse
+			if push.Magnitude > m.FreeRoamAccelMax then
+				push = push.Unit * m.FreeRoamAccelMax
+			end
+			accel = accel + push * control
+		end
+		if ctx.brake then
+			if self.brakeTarget == nil or ctx.brakePressed then
+				self.brakeTarget = math.max(m.BrakeMinTargetSpeed, speed * m.BrakeTargetSpeedMultiplier)
+			end
+			if speed > self.brakeTarget then
+				local decel = math.min(m.BrakeMaxDecel, (speed - self.brakeTarget) * m.BrakeResponse)
+				accel = accel - velDir * (decel * control)
+			end
+		else
+			self.brakeTarget = nil
+		end
 	elseif ctx.mode == MarbleMotorController.Modes.Play then
 		-- Lateral: push toward steer * LateralSpeedCap, one-sided (never fights drift that is
 		-- already past the target in the steering direction, e.g. on a bank).

@@ -17,7 +17,9 @@ UIController.__index = UIController
 UIController.Screens = {
 	Title = { layers = { "Title" }, buttons = { "Play" } },
 	Lobby = {
-		layers = { "Hud", "RaceHud", "Lobby", "Touch", "Social" }, -- loadout summary lives on the LOADOUT button
+		-- No RaceHud here (owner playtest 2026-11-25): its top-centre status sat on top of the hub's
+		-- 3D board; the lobby column now carries the countdown / waiting line itself.
+		layers = { "Hud", "Lobby", "Touch", "Social" }, -- loadout summary lives on the LOADOUT button
 		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote" },
 	},
 	Race = {

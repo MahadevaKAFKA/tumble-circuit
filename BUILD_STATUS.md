@@ -3,12 +3,42 @@
 **Active milestone:** A6 — Phase A closing build (spectator Chaos Vote, quick emotes, hub podium
 and decor, accessibility cues). Phase B not started (needs the owner's Phase A approval).
 **State:** A1–A5 played on the owner's phone (Roblox Android app) and approved; bots fixed. A6
-source (written 2026-11-22) merged with the phone build, offline-verified (332 specs), built by
-Rojo in GitHub Actions and published privately — **A6 has not been played in Roblox yet**.
+merged and published (v14); on the owner's first A6 look the hub was messy and the marble would not
+drive freely on the platform → hub rework (below), offline-verified (341 specs) — **not yet played
+in Roblox**.
 **Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — Hub rework (owner feedback on v14)
+
+Owner, two hub screenshots: "the buttons are all over the screen … I cannot move properly, the ball
+is trying to not go in the middle and not obeying commands, just going left or right".
+
+- **Movement cause (code reading):** on the open platform the client still steered in the Practice
+  Chute's route frame. The chute loops back to the hub, so the nearest route point (and the
+  "forward" direction) jumped around, and the lateral auto-align damped any motion not along the
+  chute → the marble slid sideways and refused the centre.
+- **Fix — free roam on the platform:** when the marble is on the round platform (Hub zone,
+  ≤ radius + 1 from the centre, within 12 studs of the floor height) the stick moves it relative to
+  the **camera** (up = away from the camera), with no auto-align: `MarbleMotorController` free-roam
+  branch pushes the planar velocity toward stick × 30 studs/s, response 3/s, capped at 40 studs/s²
+  (`PhysicsConfig.Movement.FreeRoam*`). Brake unchanged. The camera stops following the chute there:
+  it keeps the player's heading, sits flat, and a drag / right stick turns it **for good** (no
+  ease-back). Rolling off onto the chute or into the race returns to the normal track steering and
+  camera. Server is untouched (free roam is client steering only; the server audit still applies).
+- **Lobby layout:** one compact right column, top to bottom: status card (what's happening + the
+  countdown, e.g. "NEXT RACE 0:12 / Waiting for players (1/16)"), READY + SIT OUT / JOIN RACE side by side,
+  profile chip (level, XP, Coins, save line), LOADOUT + SETTINGS, emote row. The race HUD layer is no
+  longer shown in the lobby (its status text sat on top of the 3D board). Touch CAM and LIST buttons
+  are hidden in the lobby (they collided with the emote row; they come back on the grid/race).
+- **Name tags:** your own name is no longer drawn over your own marble (others still see it); the
+  podium name tags are sized in studs, so they shrink with distance instead of covering the screen.
+- Offline: new `HubFreeRoam.spec` (9) drives the real CameraController and the real shared motor:
+  heading holds when progress jumps, a 90° drag stays, steering forward = view, the camera returns to
+  the track off the platform, stick up/right push along the view/right, diagonals capped, no
+  sideways pull-back, track steering unchanged.
 
 ## 2026-11-25 — A6 merged onto the phone build
 
@@ -292,5 +322,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | **A5 + bot fix phone playtest** (owner, v13) | **"all is going as intended"** (bots race). One few-second freeze near checkpoint 2 (Bumper Field), once. Code review: nothing heavy runs on a checkpoint crossing or bumper hit (no instance creation, no saves on the client). Waiting for the stats box hitch line if it recurs |
 | 2026-11-25 | A6 merge: `luau_check` (79 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **332 passed, 0 failed**; 93 instances, 79 scripts, all references resolve |
 | 2026-11-25 | GitHub Actions **Deploy** run 45603849169 (A6, commit 7973f09: Rojo, Selene, Lune, 332 specs, publish) | **success**: **version 14** published, visibility PRIVATE |
+| 2026-11-25 | **A6 first look on the phone** (owner, v14, two hub screenshots) | hub buttons overlapping (race status over the board, emote row over CAM/LIST, huge podium tags, own name mid-screen); marble on the platform "just going left or right", won't go to the middle → hub rework above |
+| 2026-11-25 | Hub rework: `luau_check` (80 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **341 passed, 0 failed** (hub free roam 9 new); 94 instances, 80 scripts, all references resolve |
+| — | Hub rework phone playtest | **pending owner** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

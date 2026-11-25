@@ -73,11 +73,11 @@ function Social.new(deps)
 	-- chaos banner (everyone)
 	self.banner = UIKit.label(root, { Name = "ChaosBanner", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 104), Size = UDim2.fromOffset(640, 26), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, TextStrokeTransparency = 0.3, Visible = false })
 
-	-- emote bar (right column, under the lobby buttons)
-	local bar = UIKit.new("Frame", { Name = "Emotes", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 352), Size = UDim2.fromOffset(250, 48), BackgroundTransparency = 1, Visible = false }, root)
+	-- emote bar: last row of the compact lobby column (MatchUIController lists the column layout)
+	local bar = UIKit.new("Frame", { Name = "Emotes", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 268), Size = UDim2.fromOffset(250, 40), BackgroundTransparency = 1, Visible = false }, root)
 	self.emoteButtons = {}
 	for i, emote in ipairs(SocialConfig.Emotes.List) do
-		local b = UIKit.button(bar, { Position = UDim2.fromOffset((i - 1) * 84, 0), Size = UDim2.fromOffset(80, 48), Text = emote.text }, palette.Mint)
+		local b = UIKit.button(bar, { Position = UDim2.fromOffset((i - 1) * 85, 0), Size = UDim2.fromOffset(80, 40), Text = emote.text }, palette.Mint)
 		maid:Give(b.Activated:Connect(function()
 			self:SendEmote(emote.id)
 		end))
@@ -221,7 +221,7 @@ function Social:Update(now)
 	for i, b in ipairs(self.emoteButtons) do
 		b.TextTransparency = cooling and 0.6 or 0
 		local emote = SocialConfig.Emotes.List[i]
-		UIKit.setText(b, cooling and tostring(math.ceil(self.emoteReadyAt - os.clock())) or emote.text)
+		UIKit.setText(b, emote.text) -- dimmed while cooling (a bare countdown digit read as a bug)
 	end
 end
 

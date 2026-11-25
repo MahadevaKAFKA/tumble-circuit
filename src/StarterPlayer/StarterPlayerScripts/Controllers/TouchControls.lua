@@ -169,6 +169,7 @@ function TouchControls.new(input)
 	end))
 
 	-- Standings (Tab / D-pad up on other devices; phones have no key for it). Sits above RESET.
+	self.camButton = cam
 	local list = new("TextButton", {
 		Name = "Standings",
 		AnchorPoint = Vector2.new(1, 1),
@@ -182,6 +183,7 @@ function TouchControls.new(input)
 		TextScaled = true,
 	}, buttonRoot)
 	round(list, UDim.new(0.3, 0))
+	self.listButton = list
 	new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, list)
 	self.maid:Give(list.Activated:Connect(function()
 		self.input.ScoreboardToggleRequested:Fire()
@@ -295,6 +297,14 @@ function TouchControls:_releaseStick()
 	self.stickTouch = nil
 	self.input:SetVirtualSteer(Vector2.new(0, 0))
 	self:_restStick()
+end
+
+-- In the hub lobby (owner playtest 2026-11-25) LIST (race standings) and CAM sit where the
+-- lobby column ends on a phone and are not needed there (camera: drag to look; mode in SETTINGS).
+-- RESET and BRAKE stay for the practice chute.
+function TouchControls:SetLobbyMode(lobby)
+	self.camButton.Visible = not lobby
+	self.listButton.Visible = not lobby
 end
 
 function TouchControls:SetVisible(visible)

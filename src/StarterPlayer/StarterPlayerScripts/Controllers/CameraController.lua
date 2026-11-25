@@ -53,6 +53,7 @@ function CameraController.new()
 	self.lookPitch = 0 -- degrees added to the chase pitch, positive = camera higher, looking down
 	self.lookHeld = false
 	self.lookIdle = math.huge
+	self.freeRoam = false -- hub platform: heading is the player's (free look turns it for good)
 
 	self.maid:Give(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 		self.camera = workspace.CurrentCamera
@@ -100,8 +101,36 @@ local function wrapDeg(angle)
 	return (angle + 180) % 360 - 180
 end
 
+-- Hub platform (owner playtest 2026-11-25): no track to follow there, so the heading stays where
+-- the player leaves it and free look turns the heading itself (no ease-back); the stick then
+-- moves the marble relative to this view. Leaving the platform hands the heading back to the route.
+function CameraController:SetFreeRoam(on)
+	on = on == true
+	if on == self.freeRoam then
+		return
+	end
+	self.freeRoam = on
+	if on and self.lookYaw ~= 0 then
+		-- keep what the player is looking at as the new heading
+		self.heading = Utility.safeUnit(CFrame.Angles(0, -math.rad(self.lookYaw), 0):VectorToWorldSpace(self.heading), self.heading)
+		self.lookYaw = 0
+	end
+end
+
+function CameraController:GetFlatForward()
+	local yaw = self.lookYaw
+	if yaw == 0 then
+		return self.heading
+	end
+	return CFrame.Angles(0, -math.rad(yaw), 0):VectorToWorldSpace(self.heading)
+end
+
 function CameraController:AddLook(yawDeg, pitchDeg)
 	local look = GameConfig.Camera.FreeLook
+	if self.freeRoam then
+		self.heading = Utility.safeUnit(CFrame.Angles(0, -math.rad(yawDeg), 0):VectorToWorldSpace(self.heading), self.heading)
+		yawDeg = 0
+	end
 	self.lookYaw = wrapDeg(self.lookYaw + yawDeg)
 	-- keep the total pitch inside the free-look limits, whatever the chase pitch is right now
 	local total = Utility.clamp(self.pitch + self.lookPitch + pitchDeg, look.MinPitchDeg, look.MaxPitchDeg)
@@ -169,16 +198,24 @@ function CameraController:Step(dt, progressS)
 	self.snapNext = false
 	self.lastBallPosition = position
 
-	local targetHeading = RouteTracker.SmoothHorizontalTangentAtS(route, s + cfg.HeadingLookAheadStuds, cfg.HeadingSmoothingStuds)
+	local routeHeading = RouteTracker.SmoothHorizontalTangentAtS(route, s + cfg.HeadingLookAheadStuds, cfg.HeadingSmoothingStuds)
 		or self.heading
-	local ahead = RouteTracker.PointAtS(route, s + cfg.LookAheadStuds)
-	local delta = ahead - position
-	local horizontal = math.max(1, Vector3.new(delta.X, 0, delta.Z).Magnitude)
-	local dropDeg = math.deg(math.atan2(-delta.Y, horizontal))
-	local targetPitch = Utility.clamp(cfg.BasePitchDeg + modeCfg.PitchOffsetDeg + dropDeg * cfg.DropPitchGain, cfg.MinPitchDeg, cfg.MaxPitchDeg)
+	local targetHeading = routeHeading
+	local targetPitch
+	if self.freeRoam then
+		-- flat hub platform: keep the player's heading, plain chase pitch
+		targetHeading = self.heading
+		targetPitch = Utility.clamp(cfg.BasePitchDeg + modeCfg.PitchOffsetDeg, cfg.MinPitchDeg, cfg.MaxPitchDeg)
+	else
+		local ahead = RouteTracker.PointAtS(route, s + cfg.LookAheadStuds)
+		local delta = ahead - position
+		local horizontal = math.max(1, Vector3.new(delta.X, 0, delta.Z).Magnitude)
+		local dropDeg = math.deg(math.atan2(-delta.Y, horizontal))
+		targetPitch = Utility.clamp(cfg.BasePitchDeg + modeCfg.PitchOffsetDeg + dropDeg * cfg.DropPitchGain, cfg.MinPitchDeg, cfg.MaxPitchDeg)
+	end
 
 	if snap or not self.focusY then
-		self.heading = targetHeading
+		self.heading = routeHeading -- a (re)spawn faces along the route (in the hub: toward the chute)
 		self.pitch = targetPitch
 		self.focusY = position.Y
 	else

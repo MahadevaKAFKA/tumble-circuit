@@ -70,6 +70,7 @@ ok    src/Tests/Unit/BotNavigation.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
+ok    src/Tests/Unit/HubFreeRoam.spec.lua
 ok    src/Tests/Unit/MicroSkill.spec.lua
 ok    src/Tests/Unit/Persistence.spec.lua
 ok    src/Tests/Unit/ReadyVote.spec.lua
@@ -344,6 +345,17 @@ PASS  new marble (respawn) resets the look
 PASS  marble motor never reads the camera (looking cannot steer)
 info  free look pitch range seen: -10.0 .. 75.0 deg
 
+-- Hub free roam specs (offline only) --
+PASS  free roam: heading stays where the player left it (no track following)
+PASS  free roam: dragging turns the view for good (no ease-back)
+PASS  free roam: steering forward = where the camera looks
+PASS  leaving the platform: camera turns back to the track
+PASS  free roam: stick up pushes where the camera faces
+PASS  free roam: stick right pushes to the camera's right
+PASS  free roam: diagonal stick is capped (no faster diagonals)
+PASS  free roam: no auto-align pulling sideways motion back
+PASS  track steering unchanged off the platform (stick up = along the track)
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
 PASS  defaults carry every v1 field
@@ -457,4 +469,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-332 passed, 0 failed (+ 0 syntax failures)
+341 passed, 0 failed (+ 0 syntax failures)
