@@ -5,8 +5,8 @@
 
 local GameConfig = {}
 
-GameConfig.Version = "A3.0"
-GameConfig.BuildLabel = "A3 prototype - abilities and skills"
+GameConfig.Version = "A4.0"
+GameConfig.BuildLabel = "A4 prototype - Neon Foundry, hazards, bots"
 
 GameConfig.Debug = {
 	RunTestsInStudio = true, -- TestRunner prints PASS/FAIL to Output when playing in Studio

@@ -131,7 +131,11 @@ function RacePhysicsService:_observe(player, entry, elapsed, now)
 	if fell then
 		self.entries[player] = nil -- stop observing until the next spawn
 		self.Fell:Fire(player, entry.zone)
-		self.marbles:ScheduleRespawn(player, Protocol.SpawnReasons.Fell, RaceConfig.Recovery.FallRespawnDelaySeconds)
+		if entry.onFell then
+			entry.onFell() -- bots (A4) respawn through BotService
+		else
+			self.marbles:ScheduleRespawn(player, Protocol.SpawnReasons.Fell, RaceConfig.Recovery.FallRespawnDelaySeconds)
+		end
 		return
 	end
 
@@ -157,6 +161,24 @@ function RacePhysicsService:_observe(player, entry, elapsed, now)
 	end
 
 	self.Progress:Fire(player, info)
+end
+
+-- A4: observe a non-player entity (server-owned bot marble) with the same rules as humans.
+function RacePhysicsService:Track(entity, ball, zone, onFell)
+	local layout = self.track:GetLayout(zone)
+	self.entries[entity] = {
+		ball = ball,
+		zone = zone,
+		layout = layout,
+		tracker = RouteTracker.new(layout.Route),
+		history = {},
+		offRouteSeconds = 0,
+		onFell = onFell,
+	}
+end
+
+function RacePhysicsService:Untrack(entity)
+	self.entries[entity] = nil
 end
 
 function RacePhysicsService:GetLastInfo(player)

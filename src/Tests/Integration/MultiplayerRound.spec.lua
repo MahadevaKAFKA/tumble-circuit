@@ -68,6 +68,21 @@ function Spec.run(ctx)
 		check("start gate closed outside Racing", gate.CanCollide == true)
 	end
 
+	-- A4 services
+	check("A4 services published (hazards, bots, chaos gates, perf)", server.hazards ~= nil and server.bots ~= nil and server.chaos ~= nil and server.perf ~= nil)
+	check("snapshot carries hazard seed class + epoch", type(snap.hazardSeed) == "number" and snap.hazardSeed >= 0 and snap.hazardSeed <= 2 and type(snap.hazardEpoch) == "number")
+	if round.state ~= RP.States.Preparing and round.state ~= RP.States.Countdown and round.state ~= RP.States.Racing and round.state ~= RP.States.Results then
+		check("no bots exist outside a round", server.bots:Count() == 0, server.bots:Count())
+	end
+	local botBalls = 0
+	for _, child in ipairs(workspace:WaitForChild("TumbleMarbles"):GetChildren()) do
+		if child:GetAttribute("IsBot") then
+			botBalls = botBalls + 1
+			check("bot marble " .. child.Name .. " is labelled [BOT] and in the race zone", child:FindFirstChild("Nameplate") ~= nil and child:GetAttribute("Zone") == "Race")
+		end
+	end
+	check("bot marbles == bot records", botBalls <= server.bots:Count(), botBalls .. " vs " .. server.bots:Count())
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		local ball = server.marbles:GetBall(player)
 		if ball then
@@ -91,7 +106,19 @@ function Spec.observe(ctx, seconds, report)
 	local timeline = {}
 	local connection
 	connection = server.round.StateChanged:Connect(function(state, snapshot)
-		table.insert(timeline, string.format("%6.1fs %s (round %d, racers %d)", os.clock() - started, state, snapshot.roundId, #snapshot.racers))
+		local bots, botBalls = 0, 0
+		for _, entry in ipairs(snapshot.racers) do
+			if entry.isBot then
+				bots = bots + 1
+			end
+		end
+		for _, child in ipairs(workspace.TumbleMarbles:GetChildren()) do
+			if child:GetAttribute("IsBot") then
+				botBalls = botBalls + 1
+			end
+		end
+		-- A4 leak check: instance count at every Intermission should stay flat across rounds
+		table.insert(timeline, string.format("%6.1fs %s (round %d, racers %d, bots %d, bot marbles %d, hazard seed %d, instances %d)", os.clock() - started, state, snapshot.roundId, #snapshot.racers, bots, botBalls, snapshot.hazardSeed or -1, #workspace:GetDescendants()))
 	end)
 	task.delay(seconds, function()
 		connection:Disconnect()

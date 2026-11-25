@@ -8,7 +8,11 @@
 	every client (including late joiners) shows the same countdown.
 
 	* Everyone present is queued by default; RequestJoinRace(false) sits out, (true) = play again.
-	* One human is enough to race (no bots in A2). Late joiners wait in the hub and may spectate.
+	* One human is enough to race. A4: bots fill the grid to RaceConfig.Bots.FillTo (bots never
+	  start a round, never go to the hub, and never keep a human waiting: once every human has
+	  finished, the remaining bots get HumansDoneGraceSeconds). Late joiners wait in the hub.
+	* A4: Preparing sets the hazard seed class (roundId % 3) and epoch (the scheduled GO time),
+	  published in the snapshot, so every hazard restarts identically each round.
 	* Racers are respawned frozen on a shuffled grid; GO opens the gate and releases them.
 	* Finish/checkpoints come only from CheckpointService (server-observed). Simultaneous finishes
 	  within one sample are ordered by interpolated crossing time, then join ordinal.
@@ -45,6 +49,8 @@ function RoundService.new(deps)
 	self.checkpoints = deps.checkpoints
 	self.progress = deps.progress
 	self.remotes = deps.remotes
+	self.bots = deps.bots -- A4 (optional)
+	self.hazards = deps.hazards -- A4 (optional)
 	self.maid = Utility.Maid.new()
 	self.state = S.Boot
 	self.stateSeq = 0
@@ -74,7 +80,15 @@ end
 ---------------------------------------------------------------------------------------------
 -- Lifecycle
 ---------------------------------------------------------------------------------------------
+local function isBot(entity)
+	return type(entity) == "table" and entity.isBot == true
+end
+RoundService.IsBot = isBot
+
 function RoundService:Start()
+	if self.bots then
+		self.bots.round = self
+	end
 	self.marbles:SetSpawnResolver(function(player, reason)
 		return self:ResolveSpawn(player, reason)
 	end)
@@ -106,8 +120,14 @@ function RoundService:Start()
 	self.maid:Give(self.physics.SampleComplete:Connect(function()
 		self:_flushFinishes()
 	end))
-	self.maid:Give(self.physics.MovementRejected:Connect(function(player)
-		self.marbles:SpawnMarble(player, REASONS.Movement)
+	self.maid:Give(self.physics.MovementRejected:Connect(function(entity)
+		if isBot(entity) then
+			if self.bots then
+				self.bots:Spawn(entity, REASONS.Movement)
+			end
+		else
+			self.marbles:SpawnMarble(entity, REASONS.Movement)
+		end
 	end))
 	self.maid:Give(RunService.Heartbeat:Connect(function(dt)
 		self:_tick(dt)
@@ -227,9 +247,35 @@ function RoundService:_enterPreparing()
 		self.racers[#self.racers + 1] = racer
 		self.racerByPlayer[player] = racer
 	end
+	-- A4: bots fill the remaining slots (behind the humans) up to FillTo racers.
+	local cfg = RaceConfig.Bots
+	if self.bots and cfg and cfg.Enabled and #self.racers > 0 then
+		local fill = RaceRules.BotFillCount(#self.racers, slots, cfg.FillTo, cfg.Enabled)
+		for i, bot in ipairs(self.bots:CreateRoster(fill, self.roundId)) do
+			local racer = {
+				player = bot,
+				userId = bot.UserId,
+				name = bot.DisplayName, -- displays add the [BOT] tag from isBot
+				ordinal = 100000 + i,
+				slot = #self.racers + 1,
+				finished = false,
+				dnf = false,
+				isBot = true,
+			}
+			self.racers[#self.racers + 1] = racer
+			self.racerByPlayer[bot] = racer
+		end
+	end
+	if self.hazards then
+		self.hazards:SetRound(self.roundId, workspace:GetServerTimeNow() + T.PreparingSeconds + T.CountdownSeconds)
+	end
 	self.track:SetStartGateClosed(true)
 	for _, racer in ipairs(self.racers) do
-		self.marbles:SpawnMarble(racer.player, REASONS.Grid)
+		if racer.isBot then
+			self.bots:Spawn(racer.player, REASONS.Grid)
+		else
+			self.marbles:SpawnMarble(racer.player, REASONS.Grid)
+		end
 	end
 	self:_setTimer(T.PreparingSeconds)
 end
@@ -239,6 +285,7 @@ function RoundService:_enterCountdown()
 end
 
 function RoundService:_enterRacing()
+	self.graceStarted = false
 	self.raceStartClock = os.clock()
 	self.raceStartedAt = workspace:GetServerTimeNow()
 	self.track:SetStartGateClosed(false)
@@ -247,10 +294,15 @@ function RoundService:_enterRacing()
 	for _, racer in ipairs(self.racers) do
 		starts[racer.player] = layout.GridSlots[((racer.slot - 1) % #layout.GridSlots) + 1].Frame.S
 	end
-	-- Checkpoint records first: Release respawns each racer, and the spawn resolver reads them.
+	-- Checkpoint records first: Release respawns each human racer (fresh free marble, owner
+	-- playtest 2026-11-23), and the spawn resolver reads them. Bots keep A4's own release.
 	self.checkpoints:BeginRound(starts, self.raceStartClock)
 	for _, racer in ipairs(self.racers) do
-		self.marbles:Release(racer.player)
+		if racer.isBot then
+			self.bots:Release(racer.player)
+		else
+			self.marbles:Release(racer.player)
+		end
 	end
 	self:_setTimer(T.MaxRaceSeconds)
 end
@@ -271,8 +323,11 @@ function RoundService:_enterCleanup()
 	self.checkpoints:EndRound()
 	local racers = self.racers
 	self.racers, self.racerByPlayer = {}, {}
+	if self.bots then
+		self.bots:DespawnAll() -- A4: bots never outlive their round
+	end
 	for _, racer in ipairs(racers) do
-		if racer.player and racer.player.Parent then
+		if not racer.isBot and racer.player and racer.player.Parent then
 			self.marbles:SpawnMarble(racer.player, REASONS.ToHub)
 		end
 	end
@@ -380,6 +435,9 @@ end
 function RoundService:ResolveSpawn(player, reason)
 	local racer = self.racerByPlayer[player]
 	local state = self.state
+	if isBot(player) and (not racer or reason == REASONS.ToHub) then
+		return nil -- bots never go to the hub
+	end
 	if racer and reason ~= REASONS.ToHub then
 		if state == S.Preparing or state == S.Countdown then
 			return { CFrame = self.track:GetGridCFrame(racer.slot), Zone = ZONES.Race, Frozen = true }
@@ -422,7 +480,7 @@ function RoundService:_onProgress(player, info)
 	for _, event in ipairs(events) do
 		if event.kind == "Checkpoint" then
 			local remote = self.remotes:FindFirstChild("CheckpointFeedback")
-			if remote then
+			if remote and not racer.isBot then
 				remote:FireClient(player, {
 					roundId = self.roundId,
 					index = event.index,
@@ -453,19 +511,40 @@ function RoundService:_flushFinishes()
 			racer.finishOrdinal = self.finishCounter
 			racer.seconds = item.seconds
 			if notice then
-				notice:FireAllClients({ roundId = self.roundId, userId = racer.userId, name = racer.name, place = self.finishCounter, seconds = item.seconds })
+				notice:FireAllClients({ roundId = self.roundId, userId = racer.userId, name = racer.name, isBot = racer.isBot == true, place = self.finishCounter, seconds = item.seconds })
 			end
 		end
 	end
 	self:_maybeBroadcastStandings(true)
-	local allDone = true
+	self:_checkRaceComplete()
+end
+
+-- Everyone finished -> results. Every human finished but bots still rolling -> short grace.
+function RoundService:_checkRaceComplete()
+	if self.state ~= S.Racing then
+		return
+	end
+	local allDone, humansDone, humans = true, true, 0
 	for _, racer in ipairs(self.racers) do
+		if not racer.isBot then
+			humans = humans + 1
+		end
 		if not racer.finished then
 			allDone = false
+			if not racer.isBot then
+				humansDone = false
+			end
 		end
 	end
 	if allDone then
 		self:EndRound("all finished")
+	elseif humans > 0 and humansDone and not self.graceStarted then
+		self.graceStarted = true
+		local grace = (RaceConfig.Bots and RaceConfig.Bots.HumansDoneGraceSeconds) or 10
+		if self.deadline and self.deadline - os.clock() > grace then
+			self:_setTimer(grace)
+			self:Broadcast()
+		end
 	end
 end
 
@@ -481,19 +560,19 @@ function RoundService:_onPlayerLeaving(player)
 			end
 		end
 		self.checkpoints:RemoveRacer(player)
-		if (self.state == S.Racing or self.state == S.Countdown or self.state == S.Preparing) and #self.racers == 0 then
-			self:_transition(S.Cleanup)
+		local humans = 0
+		for _, other in ipairs(self.racers) do
+			if not other.isBot then
+				humans = humans + 1
+			end
+		end
+		if (self.state == S.Racing or self.state == S.Countdown or self.state == S.Preparing) and humans == 0 then
+			self:_transition(S.Cleanup) -- bots never race on their own
 			return
 		end
 		if self.state == S.Racing then
-			local allDone = #self.racers > 0
-			for _, other in ipairs(self.racers) do
-				if not other.finished then
-					allDone = false
-				end
-			end
-			if allDone then
-				self:EndRound("remaining racers finished")
+			self:_checkRaceComplete()
+			if self.state ~= S.Racing then
 				return
 			end
 		end
@@ -545,6 +624,8 @@ function RoundService:GetSnapshot()
 		racers = racers,
 		queued = queued,
 		humanCount = #Players:GetPlayers(),
+		hazardSeed = self.hazards and self.hazards:GetSeed() or 0,
+		hazardEpoch = self.hazards and self.hazards:GetEpoch() or 0,
 	}
 end
 
@@ -592,6 +673,19 @@ function RoundService:GetActiveRacers()
 		end
 	end
 	return out
+end
+
+function RoundService:IsFinishedRacer(entity)
+	local racer = self.racerByPlayer[entity]
+	return racer ~= nil and racer.finished == true
+end
+
+-- The marble of a human or a bot racer.
+function RoundService:GetBallFor(entity)
+	if isBot(entity) then
+		return self.bots and self.bots:GetBall(entity)
+	end
+	return self.marbles:GetBall(entity)
 end
 
 function RoundService:GetState()

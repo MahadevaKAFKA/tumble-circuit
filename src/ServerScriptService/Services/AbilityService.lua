@@ -10,6 +10,11 @@
 	           owner receives a bounded impulse (<= 18 studs/s, falloff), 1.2 s anti-chain per target
 	Speed modifiers never stack (strongest active wins). Respawn cancels effects; a new race
 	resets cooldowns. Timestamps are workspace:GetServerTimeNow() so HUD rings line up.
+
+	A4: bots (server-owned entities, isBot = true) use this same service and the same cooldowns.
+	Their effects and impulses go to BotService hooks instead of remotes. Chaos Gates use
+	SetModifier("ChaosGate") + GrantShield. Priority: one speed modifier at a time (strongest
+	wins, hard cap 96); a shield blocks the next Pulse / bumper / sweeper / hammer hit.
 ]]
 
 local Players = game:GetService("Players")
@@ -47,6 +52,26 @@ end
 
 local function now()
 	return workspace:GetServerTimeNow()
+end
+
+local function isBot(entity)
+	return type(entity) == "table" and entity.isBot == true
+end
+AbilityService.IsBot = isBot
+
+function AbilityService:SetBotHooks(hooks)
+	self.botHooks = hooks
+end
+
+function AbilityService:_ballFor(entity)
+	if self.round and self.round.GetBallFor then
+		return self.round:GetBallFor(entity)
+	end
+	return self.marbles:GetBall(entity)
+end
+
+function AbilityService:Forget(entity)
+	self.players[entity] = nil
 end
 
 function AbilityService:_state(player)
@@ -116,6 +141,9 @@ end
 -- Replication helpers
 ---------------------------------------------------------------------------------------------
 function AbilityService:SendState(player)
+	if isBot(player) then
+		return
+	end
 	local state = self:_state(player)
 	self.remotes.AbilityState:FireClient(player, {
 		loadout = { state.loadout[1], state.loadout[2] },
@@ -132,10 +160,20 @@ function AbilityService:SendEffects(player)
 	for kind, mod in pairs(state.modifiers) do
 		mods[#mods + 1] = { kind = kind, multiplier = mod.multiplier, endsAt = mod.endsAt, extraAccel = mod.extraAccel or 0 }
 	end
-	self.remotes.EffectState:FireClient(player, { modifiers = mods, shieldUntil = state.shieldUntil, hardCap = AbilityConfig.HardSpeedCap, serverTime = now() })
+	local payload = { modifiers = mods, shieldUntil = state.shieldUntil, hardCap = AbilityConfig.HardSpeedCap, serverTime = now() }
+	if isBot(player) then
+		if self.botHooks then
+			self.botHooks.applyEffects(player, payload)
+		end
+		return
+	end
+	self.remotes.EffectState:FireClient(player, payload)
 end
 
 function AbilityService:_skill(player, kind, detail)
+	if isBot(player) then
+		return
+	end
 	self.remotes.SkillEvent:FireClient(player, { kind = kind, detail = detail, serverTime = now() })
 end
 
@@ -170,6 +208,13 @@ function AbilityService:ConsumeShield(player, reason)
 		return true
 	end
 	return false
+end
+
+-- A4 Chaos Gate comeback shield (extends, never shortens, an active shield).
+function AbilityService:GrantShield(player, seconds)
+	local state = self:_state(player)
+	state.shieldUntil = math.max(state.shieldUntil, now() + seconds)
+	self:SendEffects(player)
 end
 
 function AbilityService:ApplyCharge(player, reason)
@@ -234,7 +279,7 @@ end
 
 function AbilityService:Activate(player, slot)
 	local state = self:_state(player)
-	local ball = self.marbles:GetBall(player)
+	local ball = self:_ballFor(player)
 	if not self.round:IsActiveRacer(player) or not ball or ball.Anchored or ball:GetAttribute(Protocol.BallAttributes.Zone) ~= Protocol.Zones.Race then
 		self:_skill(player, "Denied", "Abilities work during a race")
 		return false
@@ -264,7 +309,7 @@ function AbilityService:Activate(player, slot)
 		local forward = info and info.tangent or Vector3.new(0, 0, -1)
 		local candidates, byId = {}, {}
 		for _, other in ipairs(self.round:GetActiveRacers()) do
-			local otherBall = other ~= player and self.marbles:GetBall(other)
+			local otherBall = other ~= player and self:_ballFor(other)
 			if otherBall and otherBall.Parent and otherBall:GetAttribute(Protocol.BallAttributes.Zone) == Protocol.Zones.Race then
 				candidates[#candidates + 1] = {
 					id = other.UserId,
@@ -282,12 +327,19 @@ function AbilityService:Activate(player, slot)
 				table.insert(outcome.blocked, target.id)
 			elseif t - victimState.lastPulseHit >= RaceConfig.Collisions.AntiChainSeconds then
 				victimState.lastPulseHit = t
-				self.remotes.ApplyImpulse:FireClient(victim, {
-					direction = target.direction,
-					deltaV = math.min(target.deltaV, def.MaxDeltaV),
-					source = "Pulse",
-					fromUserId = player.UserId,
-				})
+				local deltaV = math.min(target.deltaV, def.MaxDeltaV)
+				if isBot(victim) then
+					if self.botHooks then
+						self.botHooks.applyImpulse(victim, target.direction, deltaV)
+					end
+				else
+					self.remotes.ApplyImpulse:FireClient(victim, {
+						direction = target.direction,
+						deltaV = deltaV,
+						source = "Pulse",
+						fromUserId = player.UserId,
+					})
+				end
 				table.insert(outcome.targets, target.id)
 			end
 		end
@@ -297,6 +349,19 @@ function AbilityService:Activate(player, slot)
 	self.remotes.AbilityOutcome:FireAllClients(outcome)
 	self.Activated:Fire(player, id)
 	return true
+end
+
+-- Bots: which equipped slot (if any) is off cooldown right now.
+function AbilityService:ReadySlots(entity)
+	local state = self:_state(entity)
+	local t = now()
+	local out = {}
+	for slot = 1, AbilityConfig.SlotCount do
+		if state.loadout[slot] and SkillRules.IsReady(t, state.cooldowns[slot]) then
+			out[#out + 1] = { slot = slot, id = state.loadout[slot] }
+		end
+	end
+	return out
 end
 
 function AbilityService:Destroy()

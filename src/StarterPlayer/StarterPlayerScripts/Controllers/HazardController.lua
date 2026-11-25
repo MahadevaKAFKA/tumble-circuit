@@ -1,14 +1,20 @@
 --[[
-	HazardController — the one A1 hazard: the Pulse Bumper.
+	HazardController — every hazard on the race course, on the client.
 
-	Its cycle is a pure function of workspace:GetServerTimeNow(), so every client sees the same
-	state without any network traffic:
-	  Idle      cyan            plain elastic bounce (physics only)
-	  Telegraph cyan -> yellow  smooth 0.8 s colour ramp warning (no flashing)
-	  Active    coral           touching it kicks the marble outward to KickSpeed (gentle, capped)
+	All hazard state is a pure function of (seed class, serverTime - epoch) published in the round
+	snapshot (A4), so every client and the server agree without per-frame network traffic:
+	  Pulse Bumper  Idle cyan -> Telegraph (0.8 s ramp to yellow, no flashing) -> Active coral kick
+	                (HazardTiming; per-bumper PhaseOffset from the seed's HazardSim params)
+	  Sweeper       arm angle  = HazardSim.SweeperAngle      (visual is non-colliding)
+	  Hammer        head lateral = HazardSim.HammerLateral   (visual is non-colliding)
+	  Fan / Conveyor  push direction arrows per seed; fan discs show On / Warning / Off
+	  Trampoline    upward Δv on the pad (feature: never blocked by a shield)
+	  Tiles         toggled by the SERVER (identical floor for everyone and for bots)
 
-	The kick is applied by the local owner of the marble (client network ownership, A1). A2 must
-	move any competitive consequence behind server checks (see BUILD_STATUS A2 notes).
+	Contact consequences for the LOCAL marble are applied here by its owner (client network
+	ownership), bounded by HazardSim.KickCap; bots get the identical model on the server. A shield
+	confirmed by the server absorbs bumper / sweeper / hammer hits (the server spends it).
+	Moving visuals are anchored, non-colliding parts; no dynamic sphere is ever CFramed.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,6 +23,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
 local HazardTiming = require(Shared:WaitForChild("HazardTiming"))
+local HazardSim = require(Shared:WaitForChild("HazardSim"))
 
 local HazardController = {}
 HazardController.__index = HazardController
@@ -24,11 +31,36 @@ HazardController.__index = HazardController
 -- Shared with the server's near-miss / shield judging (Shared/HazardTiming).
 HazardController.PhaseAt = HazardTiming.PhaseAt
 
-function HazardController.new(courseRoot, motor, sound)
+local function frameCFrame(frame, lift)
+	return CFrame.fromMatrix(frame.Position + frame.Up * (lift or 0), frame.Right, frame.Up)
+end
+
+-- Pure: CFrame of a sweeper arm (centre of the arm part) for angle a (HazardSim convention:
+-- x = Right, z = Forward; CFrame local Z points backwards, hence the sign).
+function HazardController.SweeperArmCFrame(frame, params, angle)
+	return frameCFrame(frame, params.ArmHeight) * CFrame.Angles(0, angle, 0) * CFrame.new(params.ArmLength / 2, 0, 0)
+end
+
+function HazardController.HammerHeadCFrame(frame, params, lateral)
+	return frameCFrame(frame, 0) * CFrame.new(lateral, params.HeadSize / 2 + 0.2, 0)
+end
+
+function HazardController.new(courseRoot, motor, sound, layout)
 	local self = setmetatable({}, HazardController)
 	self.motor = motor
 	self.sound = sound
+	self.seed = 0
+	self.epoch = 0
 	self.bumpers = {}
+	self.resolved = {}
+	self.byId = {}
+	self.cooldowns = {}
+	self.reducedMotion = false
+	for _, hz in ipairs(layout and layout.Hazards or {}) do
+		local entry = { Kind = hz.Kind, Id = hz.Id, Definition = hz.Definition, Frame = hz.Frame, FromFrame = hz.FromFrame, Length = hz.Length, Offset = hz.Offset, parts = {} }
+		self.resolved[#self.resolved + 1] = entry
+		self.byId[hz.Id] = entry
+	end
 	local hazards = courseRoot:FindFirstChild("Hazards")
 	if hazards then
 		for _, folder in ipairs(hazards:GetChildren()) do
@@ -37,6 +69,7 @@ function HazardController.new(courseRoot, motor, sound)
 				local height = base:GetAttribute("Height") or base.Size.X
 				local axis = base.CFrame.RightVector -- cylinder axis = local X = floor normal
 				table.insert(self.bumpers, {
+					id = base:GetAttribute("HazardId") or folder.Name,
 					base = base,
 					ring = folder:FindFirstChild("Ring"),
 					floorRing = folder:FindFirstChild("FloorRing"),
@@ -48,36 +81,130 @@ function HazardController.new(courseRoot, motor, sound)
 					lastKey = nil,
 				})
 			end
+			for _, part in ipairs(folder:GetChildren()) do
+				local id = part:IsA("BasePart") and part:GetAttribute("HazardId")
+				local entry = id and self.byId[id]
+				local role = id and part:GetAttribute("Role")
+				if entry and role then
+					entry.parts[role] = entry.parts[role] or {}
+					table.insert(entry.parts[role], part)
+				end
+			end
 		end
 	end
+	self:SetRound(0, 0)
 	return self
 end
 
--- A3: while the local marble's server-confirmed Shield is up, the bumper kick is absorbed.
+-- A3: while the local marble's server-confirmed Shield is up, hits are absorbed.
 function HazardController:SetShieldQuery(fn)
 	self.isShielded = fn
 end
 
-function HazardController:Step(ball)
-	if #self.bumpers == 0 then
+function HazardController:SetReducedMotion(value)
+	self.reducedMotion = value == true
+end
+
+-- A4: from the round snapshot (hazardSeed, hazardEpoch).
+function HazardController:SetRound(seed, epoch)
+	seed = tonumber(seed) or 0
+	epoch = tonumber(epoch) or 0
+	if seed == self.seed and epoch == self.epoch and self.resolved[1] and self.resolved[1].Params then
 		return
 	end
+	self.seed, self.epoch = seed % HazardSim.SeedClasses, epoch
+	for _, hz in ipairs(self.resolved) do
+		hz.Params = HazardSim.Params(hz.Definition, self.seed)
+		hz.lastVisualKey = nil
+		-- push arrows: show the set pointing the way this seed pushes
+		for _, arrow in ipairs(hz.parts.Arrow or {}) do
+			local dir = arrow:GetAttribute("Dir") or 1
+			arrow:SetAttribute("Shown", dir == (hz.Params.Direction or 1))
+		end
+	end
+	for _, bumper in ipairs(self.bumpers) do
+		local hz = self.byId[bumper.id]
+		bumper.phaseOffset = (hz and hz.Params and hz.Params.PhaseOffset) or 0
+		bumper.lastKey = nil
+	end
+end
+
+function HazardController:Time()
+	return workspace:GetServerTimeNow() - self.epoch
+end
+
+-- Continuous push for the local marble (used by MarbleMotorController:SetEnvironmentAccel).
+function HazardController:EnvironmentAccel(position)
+	local t = self:Time()
+	local total = nil
+	for _, hz in ipairs(self.resolved) do
+		if hz.Params and (hz.Kind == "Fan" or hz.Kind == "Conveyor") then
+			local push = HazardSim.EnvironmentAccel(hz, t, position)
+			if push then
+				total = (total or Vector3.new(0, 0, 0)) + push
+			end
+		end
+	end
+	return total
+end
+
+function HazardController:_animate(t)
+	local palette = GameConfig.Palette
+	for _, hz in ipairs(self.resolved) do
+		local p = hz.Params
+		if p and hz.Frame then
+			if hz.Kind == "Sweeper" then
+				local angle = HazardSim.SweeperAngle(p, t)
+				for _, arm in ipairs(hz.parts.Arm or {}) do
+					arm.CFrame = HazardController.SweeperArmCFrame(hz.Frame, p, angle)
+				end
+			elseif hz.Kind == "Hammer" then
+				local lateral = HazardSim.HammerLateral(p, t)
+				for _, head in ipairs(hz.parts.Head or {}) do
+					head.CFrame = HazardController.HammerHeadCFrame(hz.Frame, p, lateral)
+				end
+			elseif hz.Kind == "Fan" or hz.Kind == "Conveyor" then
+				local state = hz.Kind == "Fan" and HazardSim.FanState(p, t) or "On"
+				if state ~= hz.lastVisualKey then
+					hz.lastVisualKey = state
+					local arrowAlpha = state == "On" and 0.1 or state == "Warning" and 0.5 or 0.92
+					for _, arrow in ipairs(hz.parts.Arrow or {}) do
+						arrow.Transparency = arrow:GetAttribute("Shown") and arrowAlpha or 1
+					end
+					for _, disc in ipairs(hz.parts.FanDisc or {}) do
+						disc.Color = state == "On" and palette.Cyan or state == "Warning" and palette.Yellow or palette.NavyRail
+					end
+				end
+				if state == "On" and not self.reducedMotion then
+					for _, disc in ipairs(hz.parts.FanDisc or {}) do
+						disc.CFrame = disc.CFrame * CFrame.Angles(0.25, 0, 0)
+					end
+				end
+			end
+		end
+	end
+end
+
+function HazardController:Step(ball)
+	local t = self:Time()
+	self:_animate(t)
 	local cfg = PhysicsConfig.Hazards.PulseBumper
 	local palette = GameConfig.Palette
-	local state, blend = HazardController.PhaseAt(workspace:GetServerTimeNow(), cfg)
-	local key = state .. math.floor(blend * 20) -- colour only changes in 5% steps
-	local color = palette.Cyan
-	if state == "Telegraph" then
-		color = palette.Cyan:Lerp(palette.Yellow, blend)
-	elseif state == "Active" then
-		color = palette.Coral
-	end
 	local ballRadius = PhysicsConfig.Ball.Radius
 	local now = os.clock()
+	local shielded = self.isShielded and self.isShielded()
 
 	for _, bumper in ipairs(self.bumpers) do
+		local state, blend = HazardController.PhaseAt(t + (bumper.phaseOffset or 0), cfg)
+		local key = state .. math.floor(blend * 20) -- colour only changes in 5% steps
 		if bumper.lastKey ~= key then
 			bumper.lastKey = key
+			local color = palette.Cyan
+			if state == "Telegraph" then
+				color = palette.Cyan:Lerp(palette.Yellow, blend)
+			elseif state == "Active" then
+				color = palette.Coral
+			end
 			bumper.base.Color = state == "Active" and palette.Coral or palette.Cyan
 			if bumper.ring then
 				bumper.ring.Color = color
@@ -92,11 +219,30 @@ function HazardController:Step(ball)
 			if along > -1 and along < bumper.height + 1 then
 				local radial = rel - bumper.axis * along
 				local d = radial.Magnitude
-				local shielded = self.isShielded and self.isShielded()
 				if d > 1e-3 and d <= bumper.radius + ballRadius + cfg.ContactPadding and not shielded then
 					if self.motor:ApplyKick(radial / d, cfg.KickSpeed) then
 						bumper.cooldownUntil = now + cfg.CooldownSeconds
 						self.sound:Play("BumperKick")
+					end
+				end
+			end
+		end
+	end
+
+	-- A4 moving-hazard contact for the local marble (same model the server uses for bots).
+	if ball and ball.Parent and not ball.Anchored then
+		for _, hz in ipairs(self.resolved) do
+			if hz.Params and hz.Frame and (hz.Kind == "Sweeper" or hz.Kind == "Hammer" or hz.Kind == "Trampoline") then
+				if (self.cooldowns[hz.Id] or 0) <= now then
+					local kick = HazardSim.Contact(hz, t, ball.Position, ballRadius)
+					if kick and (hz.Kind == "Trampoline" or not shielded) then
+						self.cooldowns[hz.Id] = now + 0.5
+						local cap = HazardSim.KickCap + 15
+						if self.motor:ApplyExternalImpulse(kick, math.min(kick.Magnitude, cap), cap) then
+							self.sound:Play("BumperKick")
+						end
+					elseif kick then
+						self.cooldowns[hz.Id] = now + 0.5 -- absorbed by the shield
 					end
 				end
 			end

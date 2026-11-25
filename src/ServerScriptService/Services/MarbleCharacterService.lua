@@ -16,6 +16,7 @@
 
 local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -24,6 +25,7 @@ local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
 local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
+local BotFactory = require(ServerStorage:WaitForChild("ProceduralBuilders"):WaitForChild("BotFactory"))
 
 local MarbleCharacterService = {}
 MarbleCharacterService.__index = MarbleCharacterService
@@ -130,6 +132,7 @@ local function createBall(player, cframe, zone, frozen)
 		stripe.CFrame = axisTurn
 		weldVisual(ball, stripe)
 	end
+	BotFactory.AddNameplate(ball, player.DisplayName, palette.White) -- A4 (own plate hidden locally)
 	return ball
 end
 

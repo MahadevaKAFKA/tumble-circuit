@@ -239,7 +239,7 @@ function AbilityController:SetMode(mode, device)
 	-- practice chute), so the loadout panel moves to the upper left, under the stats box.
 	if touch then
 		self.panel.AnchorPoint = Vector2.new(0, 0)
-		self.panel.Position = UDim2.new(0, 14, 0, 64)
+		self.panel.Position = UDim2.new(0, 14, 0, 84) -- below the 3-line stats box
 	else
 		self.panel.AnchorPoint = Vector2.new(0, 1)
 		self.panel.Position = UDim2.new(0, 14, 1, -48)

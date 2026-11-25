@@ -102,4 +102,13 @@ function RaceRules.ShuffleGrid(ids, seed)
 	return out
 end
 
+-- A4 (ADR-08): how many bots join a round. Bots only ever fill a round that has humans, up to
+-- fillTo racers and never past the grid's slot count.
+function RaceRules.BotFillCount(humans, slots, fillTo, enabled)
+	if not enabled or humans <= 0 then
+		return 0
+	end
+	return math.max(0, math.min(fillTo, slots) - humans)
+end
+
 return RaceRules

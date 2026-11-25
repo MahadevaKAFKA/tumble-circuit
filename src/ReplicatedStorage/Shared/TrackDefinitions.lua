@@ -115,6 +115,134 @@ TrackDefinitions.Training = {
 	ArrowSpacing = 16,
 }
 
+
+---------------------------------------------------------------------------------------------
+-- A4: NEON FOUNDRY — the full World 1 race (16 modules). Segment = module name.
+-- Hazards are data; their motion comes from HazardSim (deterministic, seeded per round).
+---------------------------------------------------------------------------------------------
+TrackDefinitions.NeonFoundry = {
+	Id = "NeonFoundry_A4",
+	DisplayName = "Neon Foundry",
+	LayoutVersion = 2, -- v2: lengthened toward the 90-150 s race target (+8 travel pieces, 8 CPs)
+	Origin = Vector3.new(0, 420, 0),
+	StartHeadingDeg = 0,
+	FloorThickness = 1.6,
+	RailThickness = 1.2,
+	DefaultRails = { 4.5, 4.5 },
+	MaxStepLength = 24,
+	MaxYawStepDeg = 5,
+	MaxPitchStepDeg = 2,
+	MaxBankStepDeg = 3,
+	Pieces = {
+		{ Name = "StartPad", Segment = "StartGrid", Kind = "Start", Length = 36, Pitch = { 0, 0 }, Width = { 30, 30 }, Rails = { 5, 5 }, StartCap = true },
+		{ Name = "Launch", Segment = "StartGrid", Length = 14, Pitch = { 0, 5 }, Width = { 30, 22 }, Arrows = true },
+		{ Name = "StraightRamp", Segment = "StraightRamp", Kind = "StraightRamp", Length = 240, Pitch = { 5, 4 }, Width = { 22, 22 }, Arrows = true },
+		{ Name = "RampEase", Segment = "StraightRamp", Length = 20, Pitch = { 4, 3 }, Width = { 22, 22 } },
+		{ Name = "SweepInto", Segment = "STurn", Kind = "STurn", Length = 100, Yaw = 35, Pitch = { 3, 3 }, Bank = { 0, 9 }, Width = { 22, 22 }, Rails = { 6, 4.5 } },
+		{ Name = "SweepOut", Segment = "STurn", Length = 100, Yaw = 35, Pitch = { 3, 3 }, Bank = { 9, 0 }, Width = { 22, 22 }, Rails = { 6, 4.5 } },
+		{ Name = "SCurveA", Segment = "STurn", Length = 70, Yaw = -35, Pitch = { 3, 3 }, Bank = { 0, -10 }, Width = { 22, 22 }, Rails = { 4.5, 6 } },
+		{ Name = "SCurveB", Segment = "STurn", Length = 70, Yaw = -35, Pitch = { 3, 3 }, Bank = { -10, 0 }, Width = { 22, 22 }, Rails = { 4.5, 6 } },
+		{ Name = "SCurveC", Segment = "STurn", Length = 70, Yaw = 35, Pitch = { 3, 3 }, Bank = { 0, 10 }, Width = { 22, 22 }, Rails = { 6, 4.5 } },
+		{ Name = "SCurveD", Segment = "STurn", Length = 70, Yaw = 35, Pitch = { 3, 3 }, Bank = { 10, 0 }, Width = { 22, 22 }, Rails = { 6, 4.5 } },
+		{ Name = "FieldIn", Segment = "BumperField", Kind = "BumperField", Length = 30, Pitch = { 3, 3 }, Width = { 22, 28 }, Arrows = true },
+		{ Name = "Field", Segment = "BumperField", Length = 130, Pitch = { 3, 3 }, Width = { 28, 28 } },
+		{ Name = "FieldOut", Segment = "BumperField", Length = 20, Pitch = { 3, 4 }, Width = { 28, 26 } },
+		{ Name = "FieldRunOut", Segment = "BumperField", Length = 90, Yaw = -30, Pitch = { 4, 4 }, Width = { 26, 26 } },
+		{ Name = "SweeperZone", Segment = "RotatingSweeper", Kind = "RotatingSweeper", Length = 70, Pitch = { 4, 3 }, Width = { 26, 26 } },
+		{ Name = "SplitIn", Segment = "SplitLane", Kind = "SplitLane", Length = 24, Yaw = 10, Pitch = { 3, 3 }, Bank = { 0, 6 }, Width = { 26, 34 } },
+		{ Name = "SplitCurve", Segment = "SplitLane", Length = 100, Yaw = 50, Pitch = { 3, 3 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 4, To = 96, Height = 4.5 } },
+		{ Name = "SplitOut", Segment = "SplitLane", Length = 24, Pitch = { 3, 2 }, Bank = { 6, 0 }, Width = { 34, 26 } },
+		{ Name = "RestA", Segment = "SafeCheckpointA", Kind = "SafeCheckpoint", Length = 30, Pitch = { 2, 2 }, Width = { 26, 26 }, Arrows = true },
+		{ Name = "HairpinIn", Segment = "SafeCheckpointA", Length = 40, Pitch = { 2, 3 }, Width = { 26, 26 } },
+		{ Name = "HairpinA", Segment = "SafeCheckpointA", Length = 85, Yaw = -80, Pitch = { 3, 3 }, Bank = { 0, -14 }, Width = { 26, 26 }, Rails = { 4.5, 7 } },
+		{ Name = "HairpinB", Segment = "SafeCheckpointA", Length = 85, Yaw = -80, Pitch = { 3, 3 }, Bank = { -14, 0 }, Width = { 26, 26 }, Rails = { 4.5, 7 } },
+		{ Name = "HairpinOut", Segment = "SafeCheckpointA", Length = 40, Pitch = { 3, 2 }, Width = { 26, 26 }, Arrows = true },
+		{ Name = "FanTunnel", Segment = "FanTunnel", Kind = "FanTunnel", Length = 120, Pitch = { 2, 3 }, Width = { 26, 24 }, Rails = { 6, 6 }, Roof = true },
+		{ Name = "DropIn", Segment = "DropShaft", Kind = "DropShaft", Length = 24, Pitch = { 3, 20 }, Width = { 24, 24 }, Rails = { 7, 7 } },
+		{ Name = "Shaft", Segment = "DropShaft", Length = 46, Pitch = { 20, 28 }, Width = { 24, 24 }, Rails = { 8, 8 } },
+		{ Name = "DropOut", Segment = "DropShaft", Length = 34, Pitch = { 28, 4 }, Width = { 24, 24 }, Rails = { 7, 7 } },
+		{ Name = "TrampolineZone", Segment = "TrampolinePad", Kind = "TrampolinePad", Length = 60, Yaw = -20, Pitch = { 4, 2 }, Width = { 24, 24 } },
+		{ Name = "LandingRun", Segment = "TrampolinePad", Length = 70, Pitch = { 2, 2 }, Width = { 24, 24 } },
+		{ Name = "TilesApproach", Segment = "FallingTiles", Kind = "FallingTiles", Length = 16, Yaw = 0, Pitch = { 2, 0 }, Width = { 24, 24 } },
+		{ Name = "Tiles", Segment = "FallingTiles", Length = 48, Pitch = { 0, 0 }, Width = { 24, 24 }, Floor = "Tiles" },
+		{ Name = "TilesExit", Segment = "FallingTiles", Length = 16, Pitch = { 0, 3 }, Width = { 24, 24 } },
+		{ Name = "HammerZone", Segment = "SwingingHammer", Kind = "SwingingHammer", Length = 80, Pitch = { 3, 3 }, Width = { 24, 24 } },
+		{ Name = "HammerRunOut", Segment = "SwingingHammer", Length = 60, Yaw = 25, Pitch = { 3, 3 }, Width = { 24, 24 } },
+		{ Name = "ConveyorZone", Segment = "SideConveyor", Kind = "SideConveyor", Length = 90, Yaw = -40, Pitch = { 3, 4 }, Width = { 24, 24 }, Rails = { 6, 6 } },
+		{ Name = "ConveyorRunOut", Segment = "SideConveyor", Length = 60, Yaw = -20, Pitch = { 4, 4 }, Width = { 24, 24 } },
+		{ Name = "RestB", Segment = "SafeCheckpointB", Kind = "SafeCheckpoint", Length = 30, Yaw = 0, Pitch = { 4, 3 }, Width = { 24, 24 }, Arrows = true },
+		{ Name = "LongSweepA", Segment = "SafeCheckpointB", Length = 110, Yaw = 55, Pitch = { 3, 3 }, Bank = { 0, 9 }, Width = { 24, 24 }, Rails = { 6, 4.5 } },
+		{ Name = "LongSweepB", Segment = "SafeCheckpointB", Length = 110, Yaw = 55, Pitch = { 3, 3 }, Bank = { 9, 0 }, Width = { 24, 24 }, Rails = { 6, 4.5 } },
+		{ Name = "FunnelIn", Segment = "FunnelBowl", Kind = "FunnelBowl", Length = 30, Pitch = { 3, 5 }, Width = { 24, 34 }, Rails = { 6, 6 } },
+		{ Name = "FunnelNeck", Segment = "FunnelBowl", Length = 40, Pitch = { 5, 6 }, Width = { 34, 16 }, Rails = { 6, 6 } },
+		{ Name = "FunnelOut", Segment = "FunnelBowl", Length = 30, Pitch = { 6, 3 }, Width = { 16, 22 }, Rails = { 6, 6 } },
+		{ Name = "FinalCarveA", Segment = "Finish", Kind = "Finish", Length = 75, Yaw = -25, Pitch = { 3, 3 }, Bank = { 0, -8 }, Width = { 22, 22 }, Rails = { 4.5, 6 } },
+		{ Name = "FinalCarveB", Segment = "Finish", Length = 75, Yaw = -25, Pitch = { 3, 3 }, Bank = { -8, 0 }, Width = { 22, 22 }, Rails = { 4.5, 6 } },
+		{ Name = "RunOut", Segment = "Finish", Length = 60, Pitch = { 3, 2 }, Width = { 22, 22 }, Arrows = true },
+		{ Name = "FinishStraight", Segment = "Finish", Length = 40, Pitch = { 2, 1 }, Width = { 22, 26 }, Arrows = true },
+		{ Name = "FinishBasin", Segment = "Finish", Length = 40, Pitch = { 1, -3 }, Width = { 26, 30 }, Rails = { 6, 6 }, EndCap = true },
+	},
+	Spawn = { Piece = "StartPad", At = 14 },
+	StartLine = { Piece = "StartPad", At = 36 },
+	FinishLine = { Piece = "FinishStraight", At = 40 },
+	Checkpoints = {
+		{ Name = "S-Turn", Piece = "SCurveA", At = 4 },
+		{ Name = "Bumper Field", Piece = "FieldOut", At = 10 },
+		{ Name = "Split Exit", Piece = "RestA", At = 10 },
+		{ Name = "Hairpin Exit", Piece = "HairpinOut", At = 20 },
+		{ Name = "Drop Exit", Piece = "TrampolineZone", At = 4 },
+		{ Name = "Before Tiles", Piece = "TilesApproach", At = 4 },
+		{ Name = "Rest B", Piece = "RestB", At = 10 },
+		{ Name = "Final Carve", Piece = "FinalCarveA", At = 4 },
+	},
+	Grid = { Piece = "StartPad", Rows = { 26, 20, 14, 8 }, Columns = { -9, -3, 3, 9 } },
+	StartGate = { Piece = "StartPad", At = 33, Height = 5 },
+	Features = {
+		{ Kind = "TrickRamp", Piece = "StraightRamp", At = 120, Offset = -5.5, Width = 9, Length = 7, Height = 3.4 },
+	},
+	Hazards = {
+		{ Kind = "PulseBumper", Id = "BumperA", Piece = "Field", At = 30, Offset = -6, Radius = 3, Height = 4.5 },
+		{ Kind = "PulseBumper", Id = "BumperB", Piece = "Field", At = 70, Offset = 6, Radius = 3, Height = 4.5, PhaseOffset = 1.0 },
+		{ Kind = "PulseBumper", Id = "BumperC", Piece = "Field", At = 108, Offset = -1, Radius = 3, Height = 4.5, PhaseOffset = 2.1 },
+		{ Kind = "PulseBumper", Id = "BumperD", Piece = "SplitCurve", At = 50, Offset = 9, Radius = 2.6, Height = 4.5, PhaseOffset = 0.6 },
+		{ Kind = "Sweeper", Id = "Sweeper1", Piece = "SweeperZone", At = 35, Offset = 0, ArmLength = 11, ArmHeight = 2.2, ArmThickness = 1.6, Speed = 1.1, Direction = 1, PostRadius = 1.4 },
+		{ Kind = "Fan", Id = "Fan1", Piece = "FanTunnel", From = 12, To = 108, Direction = 1, Accel = 28, OnSeconds = 2.2, OffSeconds = 2.2, TelegraphSeconds = 0.7 },
+		{ Kind = "Trampoline", Id = "Trampoline1", Piece = "TrampolineZone", At = 30, Offset = 0, Width = 10, Length = 6, UpDeltaV = 40 },
+		{ Kind = "Tiles", Id = "Tiles1", Piece = "Tiles", Rows = 8, Cols = 4, Period = 4.8, TelegraphSeconds = 0.8, DropSeconds = 1.6 },
+		{ Kind = "Hammer", Id = "Hammer1", Piece = "HammerZone", At = 40, Amplitude = 8, Period = 3.0, HeadSize = 3.4 },
+		{ Kind = "Conveyor", Id = "Conveyor1", Piece = "ConveyorZone", From = 6, To = 84, Direction = 1, Accel = 20 },
+	},
+	ChaosGates = {
+		{ Id = "Gate1", Piece = "SCurveD", At = 50, Offset = 5, Width = 9 },
+		{ Id = "Gate2", Piece = "SweeperZone", At = 6, Offset = -6, Width = 9 },
+		{ Id = "Gate3", Piece = "TrampolineZone", At = 50, Offset = 6, Width = 9 },
+		{ Id = "Gate4", Piece = "FunnelIn", At = 6, Offset = -5, Width = 9 },
+	},
+	Signs = {
+		{ Piece = "StartPad", At = 26, Text = "NEON FOUNDRY", Lift = 11 },
+		{ Piece = "StraightRamp", At = 98, Text = "TRICK RAMP - JUMP, PRESS TRICK IN THE AIR", Lift = 10 },
+		{ Piece = "FieldIn", At = 4, Text = "BUMPER FIELD - CORAL = KICK", Lift = 10 },
+		{ Piece = "SweeperZone", At = 2, Text = "ROTATING SWEEPER", Lift = 10 },
+		{ Piece = "SplitIn", At = 2, Text = "SPLIT: OUTSIDE SAFE  |  INSIDE SHORTCUT", Lift = 10 },
+		{ Piece = "FanTunnel", At = 2, Text = "FAN TUNNEL - GUSTS PUSH SIDEWAYS", Lift = 10 },
+		{ Piece = "DropIn", At = 0, Text = "DROP SHAFT - BRAKE IF FAST", Lift = 10 },
+		{ Piece = "TilesApproach", At = 0, Text = "FALLING TILES - AVOID YELLOW", Lift = 10 },
+		{ Piece = "HammerZone", At = 4, Text = "SWINGING HAMMER", Lift = 10 },
+		{ Piece = "ConveyorZone", At = 2, Text = "SIDE CONVEYOR", Lift = 10 },
+		{ Piece = "FunnelIn", At = 0, Text = "FUNNEL", Lift = 10 },
+		{ Piece = "FinishStraight", At = 4, Text = "FINISH AHEAD", Lift = 10 },
+	},
+	Gates = {
+		{ Kind = "Start", Piece = "StartPad", At = 36, Text = "START" },
+		{ Kind = "Finish", Piece = "FinishStraight", At = 40, Text = "FINISH" },
+	},
+	Validation = { MinSegments = 12, MaxSegments = 16, MinLength = 1500, MaxLength = 3500 },
+	ArrowSpacing = 18,
+}
+
+-- The race track used by the round (A4: the Neon Foundry). Training stays as the A1 reference.
+TrackDefinitions.Race = TrackDefinitions.NeonFoundry
+
 ---------------------------------------------------------------------------------------------
 -- A2: Practice Chute — the short free-roll lane off the Orbital Garage hub. Late joiners and
 -- waiting players roll here; reaching its basin returns them to the hub automatically.
@@ -367,7 +495,45 @@ function TrackDefinitions.Generate(def, ballRadius)
 
 	layout.Hazards = {}
 	for i, hz in ipairs(def.Hazards or {}) do
-		layout.Hazards[i] = { Kind = hz.Kind, Frame = resolve(hz), Offset = hz.Offset or 0, Radius = hz.Radius, Height = hz.Height }
+		local entry = { Kind = hz.Kind, Id = hz.Id or (hz.Kind .. i), Definition = hz, Frame = resolve(hz), Offset = hz.Offset or 0, Radius = hz.Radius, Height = hz.Height }
+		local rec = pieceByName[hz.Piece]
+		if rec and hz.From and hz.To then
+			entry.FromFrame = TrackDefinitions.SampleAtH(layout, rec.StartH + hz.From)
+			entry.ToFrame = TrackDefinitions.SampleAtH(layout, rec.StartH + hz.To)
+			entry.Frame = TrackDefinitions.SampleAtH(layout, rec.StartH + (hz.From + hz.To) / 2)
+			entry.Length = hz.To - hz.From
+		elseif rec and hz.Kind == "Tiles" then
+			entry.Piece = rec
+			entry.Frame = TrackDefinitions.SampleAtH(layout, (rec.StartH + rec.EndH) / 2)
+		end
+		layout.Hazards[i] = entry
+	end
+
+	layout.ChaosGates = {}
+	for i, gate in ipairs(def.ChaosGates or {}) do
+		local frame = resolve(gate)
+		layout.ChaosGates[i] = { Id = gate.Id, Index = i, Frame = frame, S = frame and frame.S, Offset = gate.Offset, Width = gate.Width }
+	end
+
+	-- Module contract metadata (A4): one entry per Segment with entry/exit ports.
+	layout.Modules = {}
+	for _, piece in ipairs(pieces) do
+		local last = layout.Modules[#layout.Modules]
+		if not last or last.Name ~= piece.Segment then
+			local entry = sections[piece.FirstSection]
+			last = {
+				Name = piece.Segment,
+				Kind = piece.Definition.Kind or piece.Segment,
+				FirstPiece = piece.Index,
+				Entry = { Position = entry.Position, Forward = entry.Forward, Up = entry.Up, Width = entry.Width, S = entry.S },
+			}
+			layout.Modules[#layout.Modules + 1] = last
+		end
+		local exit = sections[piece.LastSection]
+		last.LastPiece = piece.Index
+		last.Exit = { Position = exit.Position, Forward = exit.Forward, Up = exit.Up, Width = exit.Width, S = exit.S }
+		last.RouteLength = exit.S - last.Entry.S
+		last.ElevationDelta = exit.Position.Y - last.Entry.Position.Y
 	end
 
 	layout.Signs = {}
@@ -567,15 +733,51 @@ function TrackDefinitions.Validate(def, layout)
 	end
 
 	for _, hz in ipairs(layout.Hazards) do
+		local d = hz.Definition or {}
 		if not hz.Frame then
 			fail("hazard " .. tostring(hz.Kind) .. " does not resolve")
 		else
 			local half = hz.Frame.Width / 2
-			local leftGap = half + hz.Offset - hz.Radius
-			local rightGap = half - hz.Offset - hz.Radius
-			if math.max(leftGap, rightGap) < diameter * 1.5 then
-				fail("hazard " .. hz.Kind .. " leaves no passable lane")
+			if hz.Kind == "PulseBumper" then
+				local leftGap = half + hz.Offset - hz.Radius
+				local rightGap = half - hz.Offset - hz.Radius
+				if math.max(leftGap, rightGap) < diameter * 1.5 then
+					fail("hazard " .. tostring(hz.Id) .. " leaves no passable lane")
+				end
+			elseif hz.Kind == "Sweeper" then
+				if d.ArmLength > half - 1 then
+					fail("sweeper " .. tostring(hz.Id) .. " arm reaches the rails")
+				end
+			elseif hz.Kind == "Hammer" then
+				if d.Amplitude + d.HeadSize / 2 > half - 1 then
+					fail("hammer " .. tostring(hz.Id) .. " swing reaches the rails")
+				end
+				if d.Period < 2 then
+					fail("hammer " .. tostring(hz.Id) .. " swings too fast to read")
+				end
+			elseif hz.Kind == "Tiles" then
+				local def0 = hz.Piece and hz.Piece.Definition
+				if not def0 or (def0.Yaw or 0) ~= 0 or def0.Pitch[1] ~= def0.Pitch[2] or def0.Floor ~= "Tiles" then
+					fail("tiles " .. tostring(hz.Id) .. " must sit on a straight, constant-pitch Floor=\"Tiles\" piece")
+				end
+				if d.TelegraphSeconds < 0.5 or d.TelegraphSeconds > 1 then
+					fail("tiles " .. tostring(hz.Id) .. " telegraph must be 0.5-1 s")
+				end
+				if d.DropSeconds / d.Period > 0.4 then
+					fail("tiles " .. tostring(hz.Id) .. " drop too large a share of the time")
+				end
+			elseif hz.Kind == "Fan" then
+				if d.TelegraphSeconds < 0.5 or d.TelegraphSeconds > 1 then
+					fail("fan " .. tostring(hz.Id) .. " telegraph must be 0.5-1 s")
+				end
 			end
+		end
+	end
+	for _, gate in ipairs(layout.ChaosGates or {}) do
+		if not gate.Frame then
+			fail("chaos gate " .. tostring(gate.Id) .. " does not resolve")
+		elseif math.abs(gate.Offset) + gate.Width / 2 > gate.Frame.Width / 2 then
+			fail("chaos gate " .. tostring(gate.Id) .. " sticks outside the lane")
 		end
 	end
 

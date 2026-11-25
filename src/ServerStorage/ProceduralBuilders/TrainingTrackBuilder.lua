@@ -177,7 +177,8 @@ function Builder.ComputeSpecs(layout)
 		if piece.Segment == "Start" or piece.Segment == "Finish" then
 			color = palette.Navy:Lerp(palette.Violet, 0.18)
 		end
-		for _, q in ipairs(Builder.QuadFloorSpecs(L0, R0, L1, R1, s0.Up, s1.Up, thickness)) do
+		local floorQuads = piece.Definition.Floor == "Tiles" and {} or Builder.QuadFloorSpecs(L0, R0, L1, R1, s0.Up, s1.Up, thickness)
+		for _, q in ipairs(floorQuads) do
 			q.Name = "Floor_" .. piece.Name
 			q.Folder = "Floor"
 			q.Color = color
@@ -399,6 +400,111 @@ function Builder.ComputeSpecs(layout)
 		})
 	end
 
+	-- A4: split-lane divider walls along the centreline (Rails folder: collidable, camera-ignored)
+	for _, piece in ipairs(layout.Pieces) do
+		local divider = piece.Definition.Divider
+		if divider then
+			local h0, h1 = piece.StartH + divider.From, piece.StartH + divider.To
+			local steps = math.max(1, math.ceil((h1 - h0) / 8))
+			for k = 0, steps - 1 do
+				local a = TrackDefinitions.SampleAtH(layout, h0 + (h1 - h0) * k / steps)
+				local b = TrackDefinitions.SampleAtH(layout, h0 + (h1 - h0) * (k + 1) / steps)
+				local wall = Builder.EdgeWallSpec(a.Position - a.Right * 0.6, b.Position - b.Right * 0.6, (a.Up + b.Up).Unit, divider.Height, 1.2, thickness, 1, 1.2)
+				if wall then
+					wall.Name = "Divider"
+					wall.Folder = "Rails"
+					wall.Color = palette.Violet:Lerp(palette.Navy, 0.4)
+					wall.Material = "SmoothPlastic"
+					wall.Physics = railPhysics
+					add(wall)
+				end
+			end
+		end
+		if piece.Definition.Roof then
+			local at = 6
+			while at < piece.Definition.Length do
+				local f = TrackDefinitions.SampleAtH(layout, piece.StartH + at)
+				local cf = frameCFrame(f, 0)
+				local half = f.Width / 2 + railT
+				add({ Class = "Part", Name = "TunnelRib", Folder = "Decor", Size = Vector3.new(half * 2 + 1, 1, 1.2), CFrame = cf * CFrame.new(0, 11, 0), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false })
+				for _, side in ipairs({ -1, 1 }) do
+					add({ Class = "Part", Name = "TunnelRib", Folder = "Decor", Size = Vector3.new(1, 11, 1.2), CFrame = cf * CFrame.new(side * half, 5.5, 0), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false })
+				end
+				at = at + 12
+			end
+		end
+	end
+
+	-- A4 hazards (moving parts are non-colliding visuals animated by clients from HazardSim;
+	-- contact is judged by HazardSim for each marble's owner). Static parts collide.
+	for _, hz in ipairs(layout.Hazards) do
+		local d = hz.Definition or {}
+		local f = hz.Frame
+		local folder = "Hazards/" .. hz.Id
+		local center = f and (f.Position + f.Right * (hz.Offset or 0))
+		if hz.Kind == "Sweeper" then
+			add({ Class = "Part", Shape = "Cylinder", Name = "Post", Folder = folder, Size = Vector3.new(5, d.PostRadius * 2, d.PostRadius * 2), CFrame = CFrame.fromMatrix(center + f.Up * 2, f.Up, f.Forward), Color = palette.NavyRail, Material = "SmoothPlastic", Physics = railPhysics, Attributes = { HazardId = hz.Id, Role = "Post" } })
+			add({ Class = "Part", Name = "Arm", Folder = folder, Size = Vector3.new(d.ArmLength, d.ArmThickness, d.ArmThickness), CFrame = frameCFrame(f, d.ArmHeight) * CFrame.new((hz.Offset or 0) + d.ArmLength / 2, 0, 0), Color = palette.Coral, Material = "Neon", Collide = false, Attributes = { HazardId = hz.Id, Role = "Arm", Kind = "Sweeper" } })
+			local zone = d.ArmLength * 2 + 2
+			add({ Class = "Part", Shape = "Cylinder", Name = "SweepZone", Folder = folder, Size = Vector3.new(0.1, zone, zone), CFrame = CFrame.fromMatrix(center + f.Up * 0.04, f.Up, f.Forward), Color = palette.Coral, Material = "Neon", Transparency = 0.75, Collide = false })
+		elseif hz.Kind == "Hammer" then
+			local cf = frameCFrame(f, 0)
+			local span = f.Width / 2 + railT + 1
+			for _, side in ipairs({ -1, 1 }) do
+				add({ Class = "Part", Name = "HammerPillar", Folder = "Decor", Size = Vector3.new(1.4, 14, 1.4), CFrame = cf * CFrame.new(side * span, 7, 0), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false })
+			end
+			add({ Class = "Part", Name = "HammerBeam", Folder = "Decor", Size = Vector3.new(span * 2 + 1.4, 1.4, 1.4), CFrame = cf * CFrame.new(0, 14, 0), Color = palette.Yellow, Material = "Neon", Collide = false })
+			add({ Class = "Part", Name = "Head", Folder = folder, Size = Vector3.new(d.HeadSize, d.HeadSize, d.HeadSize), CFrame = cf * CFrame.new(0, d.HeadSize / 2 + 0.2, 0), Color = palette.Coral, Material = "SmoothPlastic", Collide = false, Attributes = { HazardId = hz.Id, Role = "Head", Kind = "Hammer" } })
+			add({ Class = "Part", Name = "SwingPath", Folder = folder, Size = Vector3.new(d.Amplitude * 2 + d.HeadSize, 0.1, d.HeadSize), CFrame = cf * CFrame.new(0, 0.05, 0), Color = palette.Yellow, Material = "Neon", Transparency = 0.6, Collide = false })
+		elseif hz.Kind == "Trampoline" then
+			add({ Class = "Part", Name = "Pad", Folder = folder, Size = Vector3.new(d.Width, 0.4, d.Length), CFrame = frameCFrame(f, 0.2) * CFrame.new(hz.Offset or 0, 0, 0), Color = palette.Mint, Material = "Neon", Physics = { Density = 0.7, Friction = 0.4, Elasticity = 0.9, FrictionWeight = 1, ElasticityWeight = 50 }, Attributes = { HazardId = hz.Id, Role = "Pad" } })
+		elseif hz.Kind == "Tiles" then
+			local piece = hz.Piece
+			local rowLength = piece.Definition.Length / d.Rows
+			for row = 1, d.Rows do
+				local rf = TrackDefinitions.SampleAtH(layout, piece.StartH + (row - 0.5) * rowLength)
+				local colWidth = rf.Width / d.Cols
+				for col = 1, d.Cols do
+					local x = -rf.Width / 2 + (col - 0.5) * colWidth
+					add({ Class = "Part", Name = "Tile", Folder = folder, Size = Vector3.new(colWidth - 0.25, thickness, rowLength - 0.25), CFrame = frameCFrame(rf, -thickness / 2) * CFrame.new(x, 0, 0), Color = palette.NavyFloor:Lerp(palette.Cyan, 0.15), Material = "SmoothPlastic", Physics = floorPhysics, Attributes = { HazardId = hz.Id, Role = "Tile", Row = row, Col = col } })
+				end
+			end
+		elseif hz.Kind == "Fan" or hz.Kind == "Conveyor" then
+			local at = 0
+			while at <= hz.Length do
+				local zf = TrackDefinitions.SampleAtH(layout, hz.FromFrame.H + at)
+				local base = frameCFrame(zf, 0.08)
+				-- one chevron per push direction (Dir = +1 points toward +Right); clients show the set
+				-- matching the round's seed and hide the other (no runtime re-orientation needed)
+				for _, dir in ipairs({ 1, -1 }) do
+					local turn = dir > 0 and CFrame.new() or CFrame.Angles(0, math.pi, 0)
+					for _, z in ipairs({ -1.2, 1.2 }) do
+						add({ Class = "Part", Name = "PushArrow", Folder = folder, Size = Vector3.new(3, 0.12, 0.5), CFrame = base * turn * CFrame.new(0, 0, z) * CFrame.Angles(0, z > 0 and 0.6 or -0.6, 0) * CFrame.new(1.2, 0, 0), Color = hz.Kind == "Fan" and palette.Cyan or palette.Yellow, Material = "Neon", Transparency = dir > 0 and 0 or 1, Collide = false, Attributes = { HazardId = hz.Id, Role = "Arrow", Kind = hz.Kind, Dir = dir } })
+					end
+				end
+				if hz.Kind == "Fan" then
+					for _, side in ipairs({ -1, 1 }) do
+						add({ Class = "Part", Shape = "Cylinder", Name = "FanDisc", Folder = folder, Size = Vector3.new(0.6, 6, 6), CFrame = CFrame.fromMatrix(zf.Position + zf.Right * (side * (zf.Width / 2 + railT + 0.4)) + zf.Up * 4, zf.Right, zf.Up), Color = palette.Cyan, Material = "Neon", Transparency = 0.4, Collide = false, Attributes = { HazardId = hz.Id, Role = "FanDisc", Side = side } })
+					end
+				end
+				at = at + (hz.Kind == "Fan" and 16 or 10)
+			end
+		end
+		if hz.Kind == "PulseBumper" then
+			hz.Folder = folder
+		end
+	end
+
+	-- A4 chaos gates (decor half-lane arches; reward judged by the server)
+	for _, gate in ipairs(layout.ChaosGates or {}) do
+		local base = frameCFrame(gate.Frame, 0) * CFrame.new(gate.Offset, 0, 0)
+		for _, side in ipairs({ -1, 1 }) do
+			add({ Class = "Part", Name = "ChaosPillar", Folder = "Decor", Size = Vector3.new(0.8, 7, 0.8), CFrame = base * CFrame.new(side * gate.Width / 2, 3.5, 0), Color = palette.Yellow, Material = "Neon", Collide = false })
+		end
+		add({ Class = "Part", Name = "ChaosBeam", Folder = "Decor", Size = Vector3.new(gate.Width + 0.8, 0.8, 0.8), CFrame = base * CFrame.new(0, 7, 0), Color = palette.Violet, Material = "Neon", Collide = false })
+		add({ Class = "Part", Name = "ChaosFloor", Folder = "Decor", Size = Vector3.new(gate.Width, 0.1, 1.6), CFrame = base * CFrame.new(0, 0.06, 0), Color = palette.Yellow, Material = "Neon", Transparency = 0.3, Collide = false, Attributes = { ChaosGateId = gate.Id } })
+	end
+
 	-- A3 trick ramp kicker (collidable, its own folder so the camera ignores it).
 	for i, zone in ipairs(layout.TrickZones or {}) do
 		local mid = zone.MidFrame
@@ -449,7 +555,7 @@ function Builder.ComputeSpecs(layout)
 	for i, hz in ipairs(layout.Hazards) do
 		if hz.Kind == "PulseBumper" then
 			local f = hz.Frame
-			local folder = "Hazards/PulseBumper" .. i
+			local folder = "Hazards/" .. (hz.Id or ("PulseBumper" .. i))
 			local base = f.Position + f.Right * hz.Offset
 			local d = hz.Radius * 2
 			add({
@@ -462,7 +568,7 @@ function Builder.ComputeSpecs(layout)
 				Color = palette.Cyan,
 				Material = "SmoothPlastic",
 				Physics = bumperPhysics,
-				Attributes = { HazardType = "PulseBumper", Radius = hz.Radius, Height = hz.Height },
+				Attributes = { HazardType = "PulseBumper", Radius = hz.Radius, Height = hz.Height, HazardId = hz.Id or ("PulseBumper" .. i), PhaseOffset = (hz.Definition and hz.Definition.PhaseOffset) or 0 },
 			})
 			add({
 				Class = "Part",

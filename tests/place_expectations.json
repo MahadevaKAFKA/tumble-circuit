@@ -13,10 +13,6 @@
       "class": "StarterPlayerScripts"
     },
     {
-      "path": "ReplicatedStorage/Shared",
-      "class": "Folder"
-    },
-    {
       "path": "ReplicatedStorage/Shared/GameConfig",
       "class": "ModuleScript"
     },
@@ -57,10 +53,6 @@
       "class": "Script"
     },
     {
-      "path": "ServerScriptService/Services",
-      "class": "Folder"
-    },
-    {
       "path": "ServerScriptService/Services/CheckpointService",
       "class": "ModuleScript"
     },
@@ -89,10 +81,6 @@
       "class": "ModuleScript"
     },
     {
-      "path": "ServerScriptService/Tests",
-      "class": "Folder"
-    },
-    {
       "path": "ServerScriptService/Tests/Integration",
       "class": "Folder"
     },
@@ -117,10 +105,6 @@
       "class": "ModuleScript"
     },
     {
-      "path": "ServerStorage/ProceduralBuilders",
-      "class": "Folder"
-    },
-    {
       "path": "ServerStorage/ProceduralBuilders/HubBuilder",
       "class": "ModuleScript"
     },
@@ -133,10 +117,6 @@
       "class": "LocalScript"
     },
     {
-      "path": "StarterPlayer/StarterPlayerScripts/Controllers",
-      "class": "Folder"
-    },
-    {
       "path": "StarterPlayer/StarterPlayerScripts/Controllers/CameraController",
       "class": "ModuleScript"
     },
@@ -146,10 +126,6 @@
     },
     {
       "path": "StarterPlayer/StarterPlayerScripts/Controllers/InputController",
-      "class": "ModuleScript"
-    },
-    {
-      "path": "StarterPlayer/StarterPlayerScripts/Controllers/MarbleMotorController",
       "class": "ModuleScript"
     },
     {
@@ -215,6 +191,78 @@
     {
       "path": "StarterPlayer/StarterPlayerScripts/Controllers/VFXController",
       "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/HazardSim",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/MarbleMotorController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/BotBrain",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/BotService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/ChaosGateService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/HazardService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/PerfService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/TrackValidator",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/BotNavigation.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/ChaosGate.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/HazardReset.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/TrackValidation.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerStorage/ProceduralBuilders/BotFactory",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared",
+      "class": "Folder"
+    },
+    {
+      "path": "ServerScriptService/Services",
+      "class": "Folder"
+    },
+    {
+      "path": "ServerScriptService/Tests",
+      "class": "Folder"
+    },
+    {
+      "path": "ServerStorage/ProceduralBuilders",
+      "class": "Folder"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers",
+      "class": "Folder"
     }
   ],
   "properties": [
@@ -260,6 +308,8 @@
     "BoardMain",
     "BoardSub",
     "RequestTrick",
-    "Features"
+    "Features",
+    "Nameplate",
+    "TumbleMarbles"
   ]
 }

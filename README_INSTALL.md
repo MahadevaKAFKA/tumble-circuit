@@ -1,10 +1,11 @@
 # Tumble Circuit: Chaos Drop — install & play
 
-Current build: **A3** = A1 marble + A2 multiplayer rounds + A3 abilities (Boost/Shield/Pulse) and
-micro-skills (Ramp Trick, Slipstream, Near Miss, Cooldown Charge).
+Current build: **A4** = A1 marble + A2 multiplayer rounds + A3 abilities and micro-skills +
+A4 the full **Neon Foundry** (16 modules, ROUTE_MAP.md), seeded moving hazards, **bots** that fill
+the race to 8, and Chaos Gate comeback surges.
 See `BUILD_STATUS.md` for exactly what is verified.
 
-> **Status:** code complete for A1, **not yet run in Roblox Studio** (Studio was not available
+> **Status:** code complete through A4, **not yet run in Roblox Studio** (Studio was not available
 > where it was built). Pure-logic tests pass offline; everything that needs the engine is listed
 > as untested in `BUILD_STATUS.md`. Your Play Solo session is the first real run.
 

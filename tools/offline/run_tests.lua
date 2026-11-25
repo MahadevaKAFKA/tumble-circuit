@@ -56,12 +56,18 @@ local modules = {
 	CheckpointService = H.module("ServerScriptService/Services/CheckpointService"),
 	AbilityConfig = H.module("ReplicatedStorage/Shared/AbilityConfig"),
 	SkillRules = H.module("ServerScriptService/Services/SkillRules"),
+	HazardSim = H.module("ReplicatedStorage/Shared/HazardSim"),
+	TrackValidator = H.module("ServerScriptService/Services/TrackValidator"),
+	BotBrain = H.module("ServerScriptService/Services/BotBrain"),
+	ChaosGateService = H.module("ServerScriptService/Services/ChaosGateService"),
 }
 -- HazardController.PhaseAt is pure; load the client module file directly for that one function.
 do
 	local env = setmetatable({ game = H.game, require = H.require, script = nil }, { __index = _G })
 	local chunk = assert(loadfile(root .. "/src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua", "t", env))
-	modules.HazardPhase = chunk().PhaseAt
+	local controller = chunk()
+	modules.HazardPhase = controller.PhaseAt
+	modules.HazardControllerPure = controller -- SweeperArmCFrame / HammerHeadCFrame are pure
 end
 
 local suites = {
@@ -70,6 +76,10 @@ local suites = {
 	{ "A3 ability specs", root .. "/src/Tests/Unit/Ability.spec.lua" },
 	{ "A3 micro-skill specs", root .. "/src/Tests/Unit/MicroSkill.spec.lua" },
 	{ "A3 ability security specs", root .. "/src/Tests/Unit/AbilitySecurity.spec.lua" },
+	{ "A4 track validation specs", root .. "/src/Tests/Unit/TrackValidation.spec.lua" },
+	{ "A4 hazard reset specs", root .. "/src/Tests/Unit/HazardReset.spec.lua" },
+	{ "A4 bot navigation specs", root .. "/src/Tests/Unit/BotNavigation.spec.lua" },
+	{ "A4 chaos gate specs", root .. "/src/Tests/Unit/ChaosGate.spec.lua" },
 }
 local passed, failed = 0, 0
 for _, suite in ipairs(suites) do

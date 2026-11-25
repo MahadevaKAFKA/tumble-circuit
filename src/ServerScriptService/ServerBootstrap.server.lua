@@ -1,8 +1,10 @@
 --[[
 	ServerBootstrap — creates the one Remotes folder from RoundProtocol (server only), builds the
 	courses, then starts services in dependency order:
-	  TrainingTrack -> MarbleCharacter -> RacePhysics -> Checkpoint/Progress -> Round
-	Marble spawning starts LAST so every subscriber (and the spawn resolver) exists first.
+	  TrainingTrack -> MarbleCharacter -> RacePhysics -> Checkpoint/Progress -> Hazard -> Bot
+	  -> Round -> Ability -> MicroSkill -> ChaosGate -> Perf
+	Marble spawning starts after every subscriber (and the spawn resolver) exists; bots and perf
+	start right after it (they need the marbles folder and never subscribe to marble signals).
 ]]
 
 local Players = game:GetService("Players")
@@ -24,6 +26,10 @@ local ProgressService = require(Services:WaitForChild("ProgressService"))
 local RoundService = require(Services:WaitForChild("RoundService"))
 local AbilityService = require(Services:WaitForChild("AbilityService"))
 local MicroSkillService = require(Services:WaitForChild("MicroSkillService"))
+local HazardService = require(Services:WaitForChild("HazardService"))
+local BotService = require(Services:WaitForChild("BotService"))
+local ChaosGateService = require(Services:WaitForChild("ChaosGateService"))
+local PerfService = require(Services:WaitForChild("PerfService"))
 
 local existing = ReplicatedStorage:FindFirstChild(RoundProtocol.FolderName)
 if existing then
@@ -54,6 +60,9 @@ local marbles = MarbleCharacterService.new(track)
 local physics = RacePhysicsService.new(track, marbles)
 local checkpoints = CheckpointService.new(track)
 local progress = ProgressService.new(checkpoints, physics)
+local hazards = HazardService.new(track)
+local abilities -- created below (bots need it; it needs round)
+local bots = BotService.new({ track = track, physics = physics, hazards = hazards })
 local round = RoundService.new({
 	track = track,
 	marbles = marbles,
@@ -61,18 +70,30 @@ local round = RoundService.new({
 	checkpoints = checkpoints,
 	progress = progress,
 	remotes = remotes,
+	bots = bots,
+	hazards = hazards,
 })
 
-local abilities = AbilityService.new({ marbles = marbles, physics = physics, round = round, remotes = remotes })
-local micro = MicroSkillService.new({ track = track, marbles = marbles, physics = physics, round = round, abilities = abilities, remotes = remotes })
+abilities = AbilityService.new({ marbles = marbles, physics = physics, round = round, remotes = remotes })
+bots.abilities = abilities
+local micro = MicroSkillService.new({ track = track, marbles = marbles, physics = physics, round = round, abilities = abilities, remotes = remotes, hazards = hazards })
+local chaos = ChaosGateService.new({ track = track, physics = physics, round = round, progress = progress, abilities = abilities, remotes = remotes })
+local perf = PerfService.new({ track = track, bots = bots })
+bots.BotSpawned:Connect(function(bot)
+	micro:_reset(bot) -- a respawn is never a takeoff / never keeps a slipstream (same as humans)
+end)
 
 physics:Start()
+hazards:Start()
 round:Start()
 abilities:Start()
 micro:Start()
-marbles:Start()
+chaos:Start()
+marbles:Start() -- creates the marbles folder and spawns players already present
+bots:Start() -- bots only spawn at Preparing, so they can start after the folder exists
+perf:Start()
 
 -- Studio integration tests can reach the live services through this table (never replicated).
-_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes }
+_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf }
 
 print(string.format("[TumbleCircuit] server ready (%s, protocol v%d)", GameConfig.Version, RoundProtocol.Version))

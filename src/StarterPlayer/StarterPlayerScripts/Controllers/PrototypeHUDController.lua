@@ -274,7 +274,7 @@ function HUD.new(input)
 	self.perfLabel = label(root, {
 		Name = "Perf",
 		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.fromOffset(460, 40),
+		Size = UDim2.fromOffset(540, 60),
 		TextScaled = false,
 		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -485,6 +485,10 @@ function HUD:RecordFrame(dt)
 	local okPing, ping = pcall(function()
 		return Players.LocalPlayer:GetNetworkPing()
 	end)
+	local function attr(name)
+		local value = workspace:GetAttribute(name)
+		return type(value) == "number" and value or -1
+	end
 	local line1 = string.format(
 		"FPS %.0f  p95 %.0f ms  worst %.0f ms  mem %s  ping %s",
 		1 / avg,
@@ -493,8 +497,18 @@ function HUD:RecordFrame(dt)
 		okMem and string.format("%.0f MB", memMb) or "?",
 		okPing and string.format("%.0f ms", ping * 1000) or "?"
 	)
-	local line2 = #self.hitches > 0 and ("hitches: " .. table.concat(self.hitches, " | ")) or "hitches: none"
-	self.perfLabel.Text = line1 .. "\n" .. line2
+	-- A4 PerfService publishes the server's numbers as workspace attributes every 2 s.
+	local line2 = string.format(
+		"SERVER %.0f/%.0f ms  phys %.1f ms  moving %d  marbles %d (bots %d)",
+		attr("Perf_ServerFrameAvgMs"),
+		attr("Perf_ServerFrameP95Ms"),
+		attr("Perf_PhysicsStepMs"),
+		attr("Perf_MovingParts"),
+		attr("Perf_Marbles"),
+		attr("Perf_Bots")
+	)
+	local line3 = #self.hitches > 0 and ("hitches: " .. table.concat(self.hitches, " | ")) or "hitches: none"
+	self.perfLabel.Text = line1 .. "\n" .. line2 .. "\n" .. line3
 end
 
 -- state = { speed, recoverProgress }

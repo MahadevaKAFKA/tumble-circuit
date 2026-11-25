@@ -1,5 +1,6 @@
 --[[
-	MarbleMotorController — client-side steering for the locally owned marble.
+	MarbleMotorController — steering for one marble: the local player's (client) or a bot's
+	(server, A4). Identical code, constants and caps for both.
 
 	Forces only: one VectorForce through the centre of mass (world space), recomputed every frame
 	from PhysicsConfig. The engine integrates it at its own physics rate, so a slow frame does not
@@ -91,6 +92,12 @@ function MarbleMotorController:_modifier()
 	end
 	local terminal = math.min(PhysicsConfig.Movement.TerminalSpeed * best, effects.hardCap or PhysicsConfig.Movement.TerminalSpeed)
 	return best, extra, terminal
+end
+
+-- A4: continuous zone push (fans, conveyors) as fn(position) -> accel Vector3 or nil.
+-- Evaluated from HazardSim(seed, serverTime - epoch), so owner and server agree.
+function MarbleMotorController:SetEnvironmentAccel(fn)
+	self.environmentAccel = fn
 end
 
 function MarbleMotorController:GetSpeedMultiplier()
@@ -270,6 +277,13 @@ function MarbleMotorController:Step(dt, ctx)
 	self.terminalOverride = nil
 	if speed > terminalSpeed then
 		accel = accel - velDir * math.min(m.TerminalDragMax, (speed - terminalSpeed) * m.TerminalDragResponse)
+	end
+
+	if self.environmentAccel and not ball.Anchored then
+		local push = self.environmentAccel(ball.Position)
+		if push then
+			accel = accel + push
+		end
 	end
 
 	if self.grounded then

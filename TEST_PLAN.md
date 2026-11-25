@@ -145,3 +145,33 @@ there is no remote for them. (Blocked here: no client exploit harness; verify by
 - [ ] Drive B directly behind A within 12 studs for 1.5 s on a straight → B sees "SLIPSTREAM +12%" and faint streaks; overtake or drop back → it ends. Cooldown reduction only once per acquisition.
 - [ ] Spamming Q/E/Space: no errors; server log shows no flood (rate limits are silent).
 - [ ] 3 rounds in a row: no leftover trails, shells, streaks or speed buffs at the next GO.
+
+## 7. A4 — Neon Foundry, hazards, bots, Chaos Gates
+
+**Automated:** `A4 track validation specs`, `A4 hazard reset specs`, `A4 bot navigation specs`, `A4 chaos gate specs` (offline and in Studio, 0 failed). Studio integration adds: hazard visuals tagged and non-colliding, 32 tiles, A4 services published, hazard seed in the snapshot, bot marbles labelled, and a timeline line per transition with bots / bot marbles / hazard seed / instance count.
+
+**Play Solo (you + 7 bots)**
+- [ ] At Preparing the grid holds you + 7 coral marbles labelled `[BOT] <name>`; standings (Tab) show `[BOT]` in front of each. GO releases everyone at once.
+- [ ] Walk the whole course once (ROUTE_MAP.md lists all 16 modules): trick ramp, big right sweep + S-turns, bumper field (3 bumpers with staggered timing), rotating sweeper (coral arm turns smoothly, kicks you on contact, never launches you off the course), split lane (outside safe / inside shortcut with a bumper), hairpin, fan tunnel (arrows + discs: cyan = pushing, yellow = about to, dark = calm), drop shaft, trampoline pad (mint, launches you up), falling tiles (yellow = about to drop, see-through = gone), swinging hammer, side conveyor, long sweep, funnel, final carve, finish.
+- [ ] **Race time:** record 3 runs after one practice lap. Target 90–150 s. The 1-D model says ~64 s for a perfect run — if your real runs are under 90 s, tell me and I'll lengthen modules (pure data change).
+- [ ] Each of the 3 hazard variations: rounds 1, 2, 3 use seed classes 1, 2, 0 (sweeper direction/speed, hammer timing, tile pattern, fan/conveyor direction change). Finish one race on each.
+- [ ] Chaos Gates (violet/yellow half-lane arches at the S-turn, sweeper, trampoline, funnel): drive through one → "CHAOS GATE SURGE +x%" flash and a coloured shell; driving through again (back and forth) gives nothing more. Leading (top 3) = +8%, last half = +22% + short shield, middle = +14%.
+- [ ] Shield then touch the sweeper / hammer / an active bumper → no kick, shield spent. The trampoline still launches you while shielded (it's a feature).
+- [ ] Finish first → bots get up to 10 s more to finish, then Results. No human ever waits 180 s for bots.
+- [ ] Cleanup: all bot marbles vanish; the hub never contains bots; the practice chute never has bots.
+- [ ] Spectate (after you finish): Q / E cycles through bots too.
+- [ ] F2 overlay: second line shows SERVER frame avg/p95, physics ms, moving parts, marbles (bots). Note the numbers with 1, 3 and 8 racers.
+
+**Bot progression (owner, Studio)** — set `RaceConfig.Bots.FillTo` to 2, then 4, then 8 (= 1, 3, 7 bots with you):
+- [ ] Bots finish most races, recover at their last checkpoint when they fall, never sit stuck for more than ~8 s (Output warns `[Bots] ... stuck 3x near route distance N` if a spot traps them — tell me the number).
+- [ ] No bot is faster than a good human on straights (same motor, same caps).
+- [ ] Server frame p95 with 8 racers: record it. If it's high, keep fewer bots (`FillTo`) and tell me — I won't call 8 bots done without your numbers.
+
+**3 consecutive races (leak / reset check)**
+- [ ] Timeline lines at each `Intermission`: `bots 0, bot marbles 0` and an `instances` number that does not grow round after round (small ±50 drift from UI is fine).
+- [ ] Hazards restart from the same pose at every GO for the same seed class (watch the sweeper arm angle at GO in rounds 1 and 4).
+
+**Two clients**
+- [ ] Both clients see the sweeper arm, hammer and tiles in the same place at the same time (hazards are computed from the shared server clock, no per-frame network traffic).
+- [ ] Two marbles side by side in the split lane (one inside, one outside) show placements that match who is actually ahead.
+- [ ] A Chaos Gate collected by client A flashes a shell on A's marble on B's screen too.

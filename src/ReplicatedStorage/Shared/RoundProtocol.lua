@@ -18,11 +18,15 @@
 	RequestTrick          client->server   (none)              judged against server takeoff/landing
 	RequestEquip          client->server   (slot 1|2, id)      only outside an active race
 	AbilityState / AbilityOutcome / EffectState / ApplyImpulse / SkillEvent   server->client
+	A4:
+	ChaosGateVFX          server->client   {userId, gateId, tier, label, place, count}
+	Snapshot adds hazardSeed (0..2) and hazardEpoch (server time of GO) so every machine
+	evaluates the same deterministic hazard state; racers[i].isBot marks [BOT] entries.
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 3
+RoundProtocol.Version = 4
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -41,6 +45,8 @@ RoundProtocol.Remotes = {
 	EffectState = { Direction = "ServerToClient" }, -- to owner: active speed modifiers + shield
 	ApplyImpulse = { Direction = "ServerToClient" }, -- to a target: server-approved bounded nudge
 	SkillEvent = { Direction = "ServerToClient" }, -- to owner: trick/slipstream/near-miss/charge feedback
+	-- A4
+	ChaosGateVFX = { Direction = "ServerToClient" }, -- to all: someone collected a Chaos Gate surge
 }
 
 RoundProtocol.States = {

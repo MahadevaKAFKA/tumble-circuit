@@ -9,12 +9,17 @@
 	  Near miss  : one judgement per approach to the bumper while it is telegraphing or active;
 	               an actual contact during Active consumes a Shield instead.
 	Each first-valid event grants Cooldown Charge through AbilityService (3 s global lockout).
+	A4: bumper phases come from the round's hazard clock (HazardService: serverTime - epoch, plus
+	the seed's per-bumper PhaseOffset); sweeper/hammer contact observed at a server sample
+	consumes an active shield (the owner's client skips the kick while shielded). Bots are judged
+	by the same rules; their feedback events are simply not sent anywhere.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local AbilityConfig = require(Shared:WaitForChild("AbilityConfig"))
+local HazardSim = require(Shared:WaitForChild("HazardSim"))
 local HazardTiming = require(Shared:WaitForChild("HazardTiming"))
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
@@ -36,6 +41,7 @@ function MicroSkillService.new(deps)
 	self.round = deps.round
 	self.abilities = deps.abilities
 	self.remotes = deps.remotes
+	self.hazardService = deps.hazards
 	self.players = {}
 	self.maid = Utility.Maid.new()
 	self.limiter = Utility.RateLimiter.new(RoundProtocol.Remotes.RequestTrick.MinInterval)
@@ -63,15 +69,19 @@ end
 function MicroSkillService:Start()
 	local layout = self.track:GetLayout(Protocol.Zones.Race)
 	self.trickZones = layout.TrickZones or {}
-	self.hazards = {}
-	for _, hz in ipairs(layout.Hazards) do
+	self.bumpers, self.movers = {}, {}
+	local resolved = self.hazardService and self.hazardService:GetResolved() or layout.Hazards
+	for _, hz in ipairs(resolved) do
 		if hz.Kind == "PulseBumper" and hz.Frame then
-			table.insert(self.hazards, {
-				floorPoint = hz.Frame.Position + hz.Frame.Right * hz.Offset,
+			table.insert(self.bumpers, {
+				hazard = hz,
+				floorPoint = hz.Frame.Position + hz.Frame.Right * (hz.Offset or 0),
 				axis = hz.Frame.Up,
-				contact = hz.Radius + PhysicsConfig.Ball.Radius,
-				height = hz.Height,
+				contact = hz.Definition.Radius + PhysicsConfig.Ball.Radius,
+				height = hz.Definition.Height,
 			})
+		elseif (hz.Kind == "Sweeper" or hz.Kind == "Hammer") and hz.Frame then
+			table.insert(self.movers, hz)
 		end
 	end
 	-- Never wait here: ServerBootstrap starts this service before MarbleCharacterService:Start(),
@@ -106,6 +116,9 @@ function MicroSkillService:Start()
 end
 
 function MicroSkillService:_event(player, kind, detail)
+	if type(player) == "table" and player.isBot then
+		return
+	end
 	self.remotes.SkillEvent:FireClient(player, { kind = kind, detail = detail, serverTime = workspace:GetServerTimeNow() })
 end
 
@@ -131,9 +144,11 @@ function MicroSkillService:_onSample(player, info)
 	end
 
 	-- Near miss / bumper contact
-	local phase = HazardTiming.PhaseAt(workspace:GetServerTimeNow(), PhysicsConfig.Hazards.PulseBumper)
-	local dangerous = phase ~= "Idle"
-	for i, hz in ipairs(self.hazards) do
+	local hazardTime = self.hazardService and self.hazardService:Time() or workspace:GetServerTimeNow()
+	for i, hz in ipairs(self.bumpers) do
+		local offset = (hz.hazard.Params and hz.hazard.Params.PhaseOffset) or 0
+		local phase = HazardTiming.PhaseAt(hazardTime + offset, PhysicsConfig.Hazards.PulseBumper)
+		local dangerous = phase ~= "Idle"
 		local distance, along = HazardTiming.AxisDistance(info.position, hz.floorPoint, hz.axis)
 		if along > -2 and along < hz.height + 3 then
 			state.near[i] = state.near[i] or {}
@@ -143,6 +158,16 @@ function MicroSkillService:_onSample(player, info)
 				self:_event(player, "NearMiss")
 			elseif result == "Hit" and phase == "Active" then
 				self.abilities:ConsumeShield(player, "Bumper")
+			end
+		end
+	end
+
+	-- Moving hazards: a shield is spent by the first observed sweeper/hammer contact.
+	if self.abilities:IsShielded(player) then
+		for _, hz in ipairs(self.movers) do
+			if hz.Params and HazardSim.Contact(hz, hazardTime, info.position, PhysicsConfig.Ball.Radius + 0.5) then
+				self.abilities:ConsumeShield(player, hz.Kind)
+				break
 			end
 		end
 	end

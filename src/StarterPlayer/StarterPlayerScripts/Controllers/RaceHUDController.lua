@@ -95,6 +95,19 @@ function RaceHUD.new()
 		Visible = false,
 	})
 
+	-- A4 course progress bar (own marble's route distance; display only)
+	local bar = UIKit.panel(root, {
+		Name = "Progress",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 92),
+		Size = UDim2.fromOffset(420, 10),
+		Visible = false,
+	})
+	self.progressFill = UIKit.new("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BackgroundColor3 = palette.Cyan, BorderSizePixel = 0 }, bar)
+	UIKit.corner(self.progressFill, 0.5)
+	self.progressMarks = {}
+	self.progressBar = bar
+
 	local list = UIKit.panel(root, {
 		Name = "Standings",
 		AnchorPoint = Vector2.new(1, 0.5),
@@ -162,7 +175,18 @@ local function remaining(snap, now)
 	return math.max(0, snap.stateEndsAt - now)
 end
 
--- ctx = { now = serverTime, device, queued, spectatingName, stuck }
+-- A4: checkpoint ticks on the progress bar (fractions 0..1 of the route).
+function RaceHUD:SetCheckpointMarks(fractions)
+	for _, mark in ipairs(self.progressMarks) do
+		mark:Destroy()
+	end
+	self.progressMarks = {}
+	for i, f in ipairs(fractions) do
+		self.progressMarks[i] = UIKit.new("Frame", { Name = "Mark" .. i, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(f, 0.5), Size = UDim2.fromOffset(3, 16), BackgroundColor3 = palette.Violet, BorderSizePixel = 0 }, self.progressBar)
+	end
+end
+
+-- ctx = { now = serverTime, device, queued, spectatingName, stuck, progress (0..1 or nil) }
 function RaceHUD:Update(ctx)
 	local snap = self.snapshot
 	if not snap then
@@ -213,6 +237,11 @@ function RaceHUD:Update(ctx)
 		UIKit.setText(self.place, me.finished and UIKit.ordinal(me.place) or UIKit.ordinal(me.place))
 		UIKit.setText(self.placeOf, "of " .. #snap.racers)
 		UIKit.setText(self.checkpoint, me.finished and "FINISHED" or string.format("CP %d / %d", me.checkpoint, snap.checkpointTotal))
+	end
+
+	self.progressBar.Visible = ctx.progress ~= nil and snap.state == S.Racing and me ~= nil and not me.finished
+	if self.progressBar.Visible then
+		self.progressFill.Size = UDim2.fromScale(math.clamp(ctx.progress, 0, 1), 1)
 	end
 
 	-- 3-2-1-GO from the shared server clock

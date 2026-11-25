@@ -3,6 +3,8 @@
 	Output window:
 	  1) Unit/A1PureSpecs        movement/course/geometry (same as offline)
 	  2) Unit/RoundState.spec    A2 round graph, payloads, standings, checkpoint judging, hub
+	     Unit/*.spec (A3, A4)   abilities, micro-skills, security, track validation, hazard
+	                             reset, bot navigation (kinematic model), chaos gates
 	  3) Studio integration      real engine: built world, spawn clearance, floor coverage,
 	                             no Humanoids, marble body; Integration/MultiplayerRound.spec
 	  4) a 120 s round timeline  ([TumbleTests] timeline ...) to compare with TEST_PLAN.md
@@ -47,12 +49,17 @@ local modules = {
 	CheckpointService = require(Services:WaitForChild("CheckpointService")),
 	AbilityConfig = require(Shared:WaitForChild("AbilityConfig")),
 	SkillRules = require(Services:WaitForChild("SkillRules")),
+	HazardSim = require(Shared:WaitForChild("HazardSim")),
+	TrackValidator = require(Services:WaitForChild("TrackValidator")),
+	BotBrain = require(Services:WaitForChild("BotBrain")),
+	ChaosGateService = require(Services:WaitForChild("ChaosGateService")),
 }
 local okHazard, hazardModule = pcall(function()
 	return require(StarterPlayer:WaitForChild("StarterPlayerScripts"):WaitForChild("Controllers"):WaitForChild("HazardController"))
 end)
 if okHazard then
 	modules.HazardPhase = hazardModule.PhaseAt
+	modules.HazardControllerPure = hazardModule
 end
 
 local Unit = script.Parent:WaitForChild("Unit")
@@ -77,6 +84,10 @@ report("A2 round specs", require(Unit:WaitForChild("RoundState.spec")).run(modul
 report("A3 ability specs", require(Unit:WaitForChild("Ability.spec")).run(modules))
 report("A3 micro-skill specs", require(Unit:WaitForChild("MicroSkill.spec")).run(modules))
 report("A3 ability security specs", require(Unit:WaitForChild("AbilitySecurity.spec")).run(modules))
+report("A4 track validation specs", require(Unit:WaitForChild("TrackValidation.spec")).run(modules))
+report("A4 hazard reset specs", require(Unit:WaitForChild("HazardReset.spec")).run(modules))
+report("A4 bot navigation specs", require(Unit:WaitForChild("BotNavigation.spec")).run(modules))
+report("A4 chaos gate specs", require(Unit:WaitForChild("ChaosGate.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }
@@ -99,7 +110,7 @@ check("world built and CourseReady published", course ~= nil and workspace:GetAt
 check("no course validation errors", workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseError) == nil, workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseError))
 
 if course then
-	local layout = modules.TrackDefinitions.Generate(modules.TrackDefinitions.Training, PhysicsConfig.Ball.Radius)
+	local layout = modules.TrackDefinitions.Generate(modules.TrackDefinitions.Race, PhysicsConfig.Ball.Radius)
 	local expected = modules.Builder.ComputeSpecs(layout)
 	local built = 0
 	for _, d in ipairs(course:GetDescendants()) do
@@ -133,7 +144,22 @@ if course then
 			floorHits = floorHits + 1
 		end
 	end
-	check("floor exists under the whole race route", floorHits == probes, floorHits .. "/" .. probes)
+	check("floor exists under the whole race route", floorHits >= probes - 2, floorHits .. "/" .. probes .. " (falling tiles may be mid-drop)")
+	-- A4 hazard instances the clients animate / the server toggles
+	local hazardsFolder = course:FindFirstChild("Hazards")
+	local roles = {}
+	for _, d in ipairs(hazardsFolder and hazardsFolder:GetDescendants() or {}) do
+		local role = d:IsA("BasePart") and d:GetAttribute("Role")
+		if role then
+			roles[role] = (roles[role] or 0) + 1
+			if role == "Arm" or role == "Head" or role == "Arrow" or role == "FanDisc" then
+				if d.CanCollide or d.CanQuery then
+					check("moving hazard visual " .. d:GetFullName() .. " is non-colliding and unqueryable", false)
+				end
+			end
+		end
+	end
+	check("hazard visuals tagged (sweeper arm, hammer head, 32 tiles, push arrows, trampoline pad)", (roles.Arm or 0) >= 1 and (roles.Head or 0) >= 1 and (roles.Tile or 0) == 32 and (roles.Arrow or 0) > 0 and (roles.Pad or 0) >= 1, string.format("arm %s head %s tile %s arrow %s pad %s", tostring(roles.Arm), tostring(roles.Head), tostring(roles.Tile), tostring(roles.Arrow), tostring(roles.Pad)))
 	for _, cp in ipairs(layout.Checkpoints) do
 		local p = cp.RespawnFrame.Position + cp.RespawnFrame.Up * (PhysicsConfig.Ball.Radius + GameConfig.Spawn.SpawnLift)
 		check("checkpoint " .. cp.Index .. " respawn point clear with floor", #workspace:GetPartBoundsInRadius(p, 1.9, overlap) == 0 and workspace:Raycast(p, Vector3.new(0, -10, 0), floorParams) ~= nil)

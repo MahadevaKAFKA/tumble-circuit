@@ -52,6 +52,14 @@ RaceConfig.Collisions = {
 	BumpProximity = 5.5, -- centres within this distance = marble contact
 }
 
+-- A4 bots (ADR-08): fill the grid to FillTo racers when 1-7 humans are queued. Bots never
+-- start a round on their own, never enter the hub, and are excluded from human records.
+RaceConfig.Bots = {
+	Enabled = true,
+	FillTo = 8,
+	HumansDoneGraceSeconds = 10, -- after every human finished, bots get this long to finish
+}
+
 RaceConfig.Snapshot = {
 	StandingsHz = 2, -- standings pushed at most this often, and only when they changed
 }

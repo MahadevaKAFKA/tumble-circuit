@@ -108,6 +108,17 @@ function VFXController:Trick(localUserId)
 	end
 end
 
+-- A4 Chaos Gate surge: a short coloured shell on whoever collected it (any racer, bots too).
+function VFXController:ChaosSurge(userId, tier)
+	if type(userId) ~= "number" or not ballFor(self, userId) then
+		return
+	end
+	local t = workspace:GetServerTimeNow()
+	local color = tier == "Bottom" and palette.Mint or tier == "Top" and palette.Yellow or palette.Violet
+	local shell = effectPart({ Shape = Enum.PartType.Ball, Size = Vector3.new(5, 5, 5), Color = color, Material = Enum.Material.ForceField, Transparency = 0.15 })
+	self:_add({ startedAt = t, endsAt = t + (tier == "Bottom" and 2 or tier == "Middle" and 1.5 or 1), follow = userId, part = shell, cleanup = { shell } })
+end
+
 function VFXController:SetSlipstream(localUserId, active)
 	if active and not self.slipstream then
 		local streaks = {}

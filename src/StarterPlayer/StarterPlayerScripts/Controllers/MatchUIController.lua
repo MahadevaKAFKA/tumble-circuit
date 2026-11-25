@@ -236,7 +236,7 @@ function MatchUI:UpdateBoard(board, ctx)
 		UIKit.setText(sub, "Spectate from the HUD, or keep practising")
 	elseif snap.state == S.Results then
 		local winner = snap.racers[1]
-		UIKit.setText(main, winner and ("WINNER: " .. winner.name) or "RESULTS")
+		UIKit.setText(main, winner and ("WINNER: " .. (winner.isBot and "[BOT] " or "") .. winner.name) or "RESULTS")
 		UIKit.setText(sub, "Next race soon")
 	elseif snap.state == S.Preparing or snap.state == S.Countdown then
 		UIKit.setText(main, "STARTING")

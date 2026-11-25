@@ -2,7 +2,9 @@
 ok    PLACEHOLDER_IDS.lua
 ok    src/ReplicatedStorage/Shared/AbilityConfig.lua
 ok    src/ReplicatedStorage/Shared/GameConfig.lua
+ok    src/ReplicatedStorage/Shared/HazardSim.lua
 ok    src/ReplicatedStorage/Shared/HazardTiming.lua
+ok    src/ReplicatedStorage/Shared/MarbleMotorController.lua
 ok    src/ReplicatedStorage/Shared/PhysicsConfig.lua
 ok    src/ReplicatedStorage/Shared/Protocol.lua
 ok    src/ReplicatedStorage/Shared/RaceConfig.lua
@@ -12,15 +14,22 @@ ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
 ok    src/ReplicatedStorage/Shared/Utility.lua
 ok    src/ServerScriptService/ServerBootstrap.server.lua
 ok    src/ServerScriptService/Services/AbilityService.lua
+ok    src/ServerScriptService/Services/BotBrain.lua
+ok    src/ServerScriptService/Services/BotService.lua
+ok    src/ServerScriptService/Services/ChaosGateService.lua
 ok    src/ServerScriptService/Services/CheckpointService.lua
+ok    src/ServerScriptService/Services/HazardService.lua
 ok    src/ServerScriptService/Services/MarbleCharacterService.lua
 ok    src/ServerScriptService/Services/MicroSkillService.lua
+ok    src/ServerScriptService/Services/PerfService.lua
 ok    src/ServerScriptService/Services/ProgressService.lua
 ok    src/ServerScriptService/Services/RacePhysicsService.lua
 ok    src/ServerScriptService/Services/RaceRules.lua
 ok    src/ServerScriptService/Services/RoundService.lua
 ok    src/ServerScriptService/Services/SkillRules.lua
+ok    src/ServerScriptService/Services/TrackValidator.lua
 ok    src/ServerScriptService/Services/TrainingTrackService.lua
+ok    src/ServerStorage/ProceduralBuilders/BotFactory.lua
 ok    src/ServerStorage/ProceduralBuilders/HubBuilder.lua
 ok    src/ServerStorage/ProceduralBuilders/TrainingTrackBuilder.lua
 ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
@@ -28,7 +37,6 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/AbilityController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
-ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MarbleMotorController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
@@ -41,10 +49,15 @@ ok    src/Tests/TestRunner.server.lua
 ok    src/Tests/Unit/A1PureSpecs.lua
 ok    src/Tests/Unit/Ability.spec.lua
 ok    src/Tests/Unit/AbilitySecurity.spec.lua
+ok    src/Tests/Unit/BotNavigation.spec.lua
+ok    src/Tests/Unit/ChaosGate.spec.lua
+ok    src/Tests/Unit/HazardReset.spec.lua
 ok    src/Tests/Unit/MicroSkill.spec.lua
 ok    src/Tests/Unit/RoundState.spec.lua
+ok    src/Tests/Unit/TrackValidation.spec.lua
 ok    tools/offline/harness.lua
 ok    tools/offline/roblox_shim.lua
+ok    tools/offline/route_map.lua
 ok    tools/offline/run_tests.lua
 
 == A1 pure specs ==
@@ -205,4 +218,77 @@ PASS  every client argument is bounded (numbers enumerated, strings length-cappe
 PASS  no client remote can name targets, positions, impulses or cooldowns
 PASS  protocol version bumped for A3
 
-140 passed, 0 failed (+ 0 syntax failures)
+-- A4 track validation specs --
+PASS  the race track is the Neon Foundry
+PASS  Neon Foundry passes TrackValidator with 0 errors
+PASS  12-16 modules
+PASS  every module exit meets the next entry (no gap, same facing)
+PASS  module metadata: route length, widths, elevation delta present
+PASS  route length inside 1500-3500 studs
+PASS  checkpoints strictly ordered along the route, each with a respawn frame
+PASS  no checkpoint gap longer than 650 studs (recovery never costs a huge chunk)
+PASS  8-20 grid slots
+PASS  3-4 chaos gates
+PASS  hazard variety: bumper, sweeper, hammer, tiles, fan, conveyor, trampoline
+PASS  generated track never passes through itself
+PASS  race course stays clear of the hub platform
+PASS  split lane: inside and outside marbles level with each other get the same progress (+-2 studs)
+PASS  mutation: hammer swinging out of the lane is rejected
+PASS  mutation: impassable falling-tile pattern is rejected
+PASS  mutation: unknown hazard kind is rejected
+PASS  mutation: a split-lane divider that never rejoins is rejected
+PASS  mutation: too few grid slots is rejected
+info  Neon Foundry: 16 modules, 2931 studs, 8 checkpoints, 10 hazards, 4 chaos gates
+info  1-D MODEL perfect run (full throttle, no hazards/braking/steering losses) ~64 s -- not a measurement; target 90-150 s is a playtest item
+
+-- A4 hazard reset specs --
+PASS  same seed + same t -> identical sweeper/hammer/tiles/fan state
+PASS  t = 0 at GO: a new round starts every hazard from the same phase
+PASS  seed classes 0/1/2 produce different hazard timing
+PASS  Params never mutates the definition (no cross-round leakage)
+PASS  seed classes wrap: 3 hazard variations exist
+PASS  hazard contacts happen and every kick is <= KickCap + 15 studs/s
+PASS  fan pushes inside its zone while On
+PASS  fan never pushes outside its zone
+PASS  fan is calm while Off (players get a window)
+PASS  conveyor push is sideways (perpendicular to travel) and bounded
+PASS  sweeper arm visual centre is inside the contact model
+PASS  the opposite side of the post is clear while the arm points away
+PASS  hammer head visual is where the contact model hits
+
+-- A4 bot navigation specs --
+PASS  steers toward the lane target (left of target -> steer right)
+PASS  dodges a bumper dead ahead by at least its radius + ball
+PASS  hammer predicted on the right -> bot takes the left
+PASS  falling tiles: aims at the nearest solid column
+PASS  sweeper arm predicted on the right at arrival -> bot passes on the left
+PASS  split lane: never aims at the centre divider
+PASS  no hidden speed: throttle is 0..1 for every skill (motor caps apply)
+PASS  bot RNG is deterministic per seed
+PASS  ability choice only from ready abilities
+PASS  bots raise a shield before hazards (same AbilityService path as humans)
+PASS  lane model: bots never drive into the split-lane divider
+PASS  lane model: bots stay on the course width the whole race
+PASS  lane model: skilled bots (1.2) hit no more hazards than 0.8 bots
+PASS  lane model: a skill 1.0 bot averages <= 4 hazard hits + tile drops per run
+info  kinematic lane model (fixed 38 studs/s, NOT physics): skill 0.8: 1.3 hazard hits, 0.6 tile drops per run; skill 1.0: 2.1 hazard hits, 0.7 tile drops per run; skill 1.2: 0.7 hazard hits, 0.3 tile drops per run
+
+-- A4 chaos gate specs --
+PASS  1 racer: top
+PASS  2 racers: both top (top-three precedence beats bottom half)
+PASS  8 racers: 1-3 top, 4 middle, 5-8 bottom
+PASS  12 racers: 1-3 top, 4-6 middle, 7-12 bottom
+PASS  tier values match the spec (+8%/1s, +22%/2s+shield, +14%/1.5s)
+PASS  gate pays once even when a marble bounces back and forth across it
+PASS  7th of 8 gets the bottom-half comeback surge + shield
+PASS  surge uses the ChaosGate modifier slot (strongest-wins, never stacks)
+PASS  crossing the route distance outside the gate's lateral span pays nothing
+PASS  a bot can still collect it later only by actually passing through
+PASS  a new round resets collection (each gate once per round)
+PASS  every payout is announced for VFX
+PASS  no client remote can claim a gate (server-observed crossing only)
+PASS  bot fill: 0 humans -> no bots (bots never race alone)
+PASS  bot fill: 1 human -> 7 bots, 7 -> 1, 8+ -> 0
+PASS  bot fill respects the grid size and the kill switch
+
+202 passed, 0 failed (+ 0 syntax failures)

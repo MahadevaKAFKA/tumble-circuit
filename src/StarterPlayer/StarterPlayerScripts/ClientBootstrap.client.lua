@@ -56,7 +56,7 @@ local PlaceholderIds = require(Shared:WaitForChild("PlaceholderIds"))
 
 local InputController = require(Controllers:WaitForChild("InputController"))
 local TouchControls = require(Controllers:WaitForChild("TouchControls"))
-local MarbleMotorController = require(Controllers:WaitForChild("MarbleMotorController"))
+local MarbleMotorController = require(Shared:WaitForChild("MarbleMotorController")) -- shared with server bots (A4)
 local CameraController = require(Controllers:WaitForChild("CameraController"))
 local HazardController = require(Controllers:WaitForChild("HazardController"))
 local HUD = require(Controllers:WaitForChild("PrototypeHUDController"))
@@ -171,11 +171,27 @@ course:WaitForChild("Hazards", 5)
 hubRoot:WaitForChild("PracticeChute", 5)
 
 local layouts = {
-	[ZONES.Race] = TrackDefinitions.Generate(TrackDefinitions.Training, PhysicsConfig.Ball.Radius),
+	[ZONES.Race] = TrackDefinitions.Generate(TrackDefinitions.Race, PhysicsConfig.Ball.Radius), -- A4 Neon Foundry
 	[ZONES.Hub] = TrackDefinitions.Generate(TrackDefinitions.PracticeChute, PhysicsConfig.Ball.Radius),
 }
-local hazards = HazardController.new(course, motor, sound)
+local hazards = HazardController.new(course, motor, sound, layouts[ZONES.Race])
 motor:SetMarblesFolder(marblesFolder)
+local currentZone -- declared early: the environment push below only applies on the race course
+motor:SetEnvironmentAccel(function(position)
+	if currentZone == ZONES.Race then
+		return hazards:EnvironmentAccel(position)
+	end
+	return nil
+end)
+do
+	local raceLayout = layouts[ZONES.Race]
+	local total = raceLayout.Route.total
+	local marks = {}
+	for i, cp in ipairs(raceLayout.Checkpoints) do
+		marks[i] = cp.S / total
+	end
+	raceHud:SetCheckpointMarks(marks)
+end
 
 -- A3 abilities + micro-skills (display/requests only; the server judges everything)
 local abilities = maid:Give(AbilityController.new({
@@ -203,6 +219,7 @@ end))
 maid:Give(abilities.ReducedMotionChanged:Connect(function(value)
 	reducedMotion = value
 	vfx:SetReducedMotion(value)
+	hazards:SetReducedMotion(value)
 end))
 maid:Give(remote.SkillEvent.OnClientEvent:Connect(function(data)
 	if type(data) == "table" and (data.kind == "SlipstreamOn" or data.kind == "SlipstreamOff") then
@@ -242,7 +259,7 @@ end
 local uiState = "Title" -- "Title" | "Live"
 local snapshot = nil
 local currentBall = nil
-local currentZone = ZONES.Hub
+currentZone = ZONES.Hub
 local tracker = RouteTracker.new(layouts[ZONES.Hub].Route)
 local steerForward = Vector3.new(1, 0, 0)
 local tutorial = { active = false, done = false, left = 0, right = 0 }
@@ -335,7 +352,7 @@ local function spectateCandidates()
 		return ids
 	end
 	for _, entry in ipairs(snapshot.racers or {}) do
-		if entry.userId ~= player.UserId and not entry.isBot then
+		if entry.userId ~= player.UserId then -- A4: bots can be spectated too
 			ids[#ids + 1] = entry.userId
 		end
 	end
@@ -415,6 +432,10 @@ local function bindBall(ball)
 	tracker = RouteTracker.new(layouts[currentZone].Route)
 	input:ResetState()
 	motor:Bind(ball, groundIgnore)
+	local plate = ball:FindFirstChild("Nameplate")
+	if plate then
+		plate.Enabled = false -- your own name never floats in front of the chase camera
+	end
 	local start = layouts[currentZone].Route
 	steerForward = flatUnit(RouteTracker.TangentAtS(start, tracker:Update(ball.Position).s), Vector3.new(1, 0, 0))
 	stuck.seconds = 0
@@ -472,6 +493,7 @@ maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 		return
 	end
 	snapshot = snap
+	hazards:SetRound(snap.hazardSeed, snap.hazardEpoch)
 	raceHud:ApplySnapshot(snap, player.UserId)
 	matchUi:ApplySnapshot(snap, player.UserId)
 	if snap.state ~= lastState then
@@ -510,7 +532,17 @@ maid:Give(remote.FinishNotice.OnClientEvent:Connect(function(data)
 		raceHud:Flash(string.format("FINISHED  #%d", data.place), GameConfig.Palette.Mint, 2.5)
 		sound:Play("Finish")
 	else
-		hud:Toast(string.format("%s finished #%d", tostring(data.name), data.place), 2)
+		hud:Toast(string.format("%s%s finished #%d", data.isBot and "[BOT] " or "", tostring(data.name), data.place), 2)
+	end
+end))
+maid:Give(remote.ChaosGateVFX.OnClientEvent:Connect(function(data)
+	if type(data) ~= "table" or type(data.label) ~= "string" then
+		return
+	end
+	vfx:ChaosSurge(data.userId, data.tier)
+	if data.userId == player.UserId then
+		raceHud:Flash("CHAOS GATE  " .. data.label, data.tier == "Bottom" and GameConfig.Palette.Mint or GameConfig.Palette.Violet, 1.6)
+		sound:Play("Checkpoint")
 	end
 end))
 remote.RequestSnapshot:FireServer()
@@ -756,7 +788,8 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	hud:Update({ speed = speed, recoverProgress = input.recoverProgress })
 	local now = workspace:GetServerTimeNow()
 	local queued = snapshot and snapshot.queued and snapshot.queued[tostring(player.UserId)] == true
-	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown })
+	local progressFraction = currentZone == ZONES.Race and progressS / layouts[ZONES.Race].Route.total or nil
+	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown, progress = progressFraction })
 	matchUi:Update({ now = now, racing = amRacing(), raceRunning = raceRunning(), spectating = spectate.active })
 	boardTimer = boardTimer + dt
 	if boardTimer >= 0.25 then

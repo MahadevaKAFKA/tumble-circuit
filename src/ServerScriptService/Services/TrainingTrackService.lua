@@ -1,6 +1,7 @@
 --[[
-	TrainingTrackService — builds and owns every course (A2):
-	  zone "Race": the Training Chute race track (checkpoints, grid, start gate)
+	TrainingTrackService — builds and owns every course (A2, A4):
+	  zone "Race": TrackDefinitions.Race = the Neon Foundry (A4, 16 modules, checkpoints, grid,
+	               start gate, hazards, Chaos Gates); validated by TrackValidator before use
 	  zone "Hub" : the Orbital Garage platform + Practice Chute
 	Both are built ONCE at boot and reused every round (only the start gate toggles).
 	Exposes layouts, spawn CFrames, kill heights and the gate to the other services.
@@ -18,6 +19,7 @@ local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 local Builders = ServerStorage:WaitForChild("ProceduralBuilders")
 local Builder = require(Builders:WaitForChild("TrainingTrackBuilder"))
 local HubBuilder = require(Builders:WaitForChild("HubBuilder"))
+local TrackValidator = require(script.Parent:WaitForChild("TrackValidator"))
 
 local TrainingTrackService = {}
 TrainingTrackService.__index = TrainingTrackService
@@ -59,8 +61,9 @@ function TrainingTrackService:ApplyEnvironment()
 	grade.Parent = Lighting
 end
 
-local function validate(self, def, layout)
-	for _, message in ipairs(TrackDefinitions.Validate(def, layout)) do
+local function validate(self, def, layout, full)
+	local errors = full and TrackValidator.Validate(def, layout) or TrackDefinitions.Validate(def, layout)
+	for _, message in ipairs(errors) do
 		table.insert(self.validationErrors, def.Id .. ": " .. message)
 		warn("[Track] validation " .. def.Id .. ": " .. message)
 	end
@@ -77,9 +80,9 @@ function TrainingTrackService:Build()
 	end
 
 	-- Race track
-	local raceDef = TrackDefinitions.Training
+	local raceDef = TrackDefinitions.Race
 	local race = TrackDefinitions.Generate(raceDef, radius)
-	validate(self, raceDef, race)
+	validate(self, raceDef, race, true)
 	local raceRoot, raceCount = Builder.Build(race, workspace, Protocol.CourseModelName)
 	self.layouts[ZONES.Race] = race
 	self.raceRoot = raceRoot
