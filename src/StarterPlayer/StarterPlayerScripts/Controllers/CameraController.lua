@@ -43,6 +43,8 @@ function CameraController.new()
 	self.params.FilterType = Enum.RaycastFilterType.Exclude
 	self.params.IgnoreWater = true
 	self.ModeChanged = Utility.Signal.new()
+	self.fovTarget = cfg.FieldOfView
+	self.fov = cfg.FieldOfView
 
 	self.maid:Give(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 		self.camera = workspace.CurrentCamera
@@ -77,6 +79,11 @@ end
 -- Keep the last view while there is no marble (e.g. between a fall and the respawn).
 function CameraController:Unbind()
 	self.ball = nil
+end
+
+-- A3: boost FOV pulse (70 -> up to 82). The caller passes the base FOV under Reduced Motion.
+function CameraController:SetFovTarget(fov)
+	self.fovTarget = math.clamp(fov, 60, 82)
 end
 
 function CameraController:GetMode()
@@ -154,6 +161,8 @@ function CameraController:Step(dt, progressS)
 
 	local cameraPosition = focus + offsetDir * self.distance
 	local aim = focus + self.heading * cfg.AimAheadStuds
+	self.fov = Utility.lerp(self.fov, self.fovTarget, Utility.expAlpha(6, dt))
+	camera.FieldOfView = self.fov
 	camera.CFrame = CFrame.lookAt(cameraPosition, aim, UP)
 	camera.Focus = CFrame.new(focus)
 end

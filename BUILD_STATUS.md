@@ -1,13 +1,30 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** A2 approved on the owner's phone (2026-11-25); A3 waiting for its spec/source
-**State:** A1 played on the owner's phone (2026-11-23): **go** on every A1 question. A2 source merged
-with the phone fixes, offline-verified (92 specs), built by Rojo in GitHub Actions and published
-privately — **A2 has not been played in Roblox yet** (first runtime test = owner's next phone session).
-**Last updated:** 2026-11-23
+**Active milestone:** A3 — abilities and micro-skills (owner: "proceed to the next phase", 2026-11-25)
+**State:** A1 and A2 played and approved on the owner's phone (2026-11-23 / 2026-11-25). A3 source
+(written 2026-11-21/22) merged with the phone build, offline-verified (140 specs), built by Rojo in
+GitHub Actions and published privately — **A3 has not been played in Roblox yet**.
+**Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — A3 merged onto the phone build
+
+Three-way merge (base = owner's A2 upload, ours = this repo, theirs = A3 upload): **no conflicts**.
+Everything kept: TouchStarted → touch layout, CurrentCamera wait, chord-smoothed camera/steering,
+stats box + hitch log, GO = fresh free marble, SIT OUT / JOIN RACE button, closable results, LIST.
+- Checked by reading: A3's spawn hooks (AbilityService cancels effects, MicroSkillService resets on
+  `MarbleSpawned`) are harmless with the GO respawn; abilities require an unanchored race marble.
+- Touch layout checked in reference units: A3's ability buttons (above BRAKE), TRICK (left of
+  RESET), CAM and LIST do not overlap.
+- One phone change: the hub ABILITIES panel moves from the bottom-left corner (where the stick is
+  grabbed, also in the practice chute) to the upper left on touch.
+- `tools/luau_check.py`: config check now reads balanced tables (a one-line `X.Owned = { ... }`
+  swallowed the sections after it and reported 6 false errors in AbilityConfig users);
+  mutation-tested (bad section and bad key still reported).
+- Place expectations: +10 scripts (44 total); `RequestTrick` (created from RoundProtocol.Remotes by
+  RoundService) and `Features` (course folder built by TrainingTrackBuilder) added as runtime names.
 
 ## 2026-11-23 — A2 merged onto the phone build
 
@@ -77,6 +94,19 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | A2 hub | Orbital Garage minimal: round glass platform, rim, board (client-rendered text), podium blocks, 16 spawn spots, Practice Chute (174 studs) that loops back to the hub. |
 | Protocol | Remotes: RequestSnapshot, RequestRecover, RequestJoinRace(boolean) [client→server, schema-checked, rate-limited]; RoundSnapshot, CheckpointFeedback, FinishNotice [server→client]. No client-sent checkpoint/time/position remote exists. |
 
+## A3 decisions
+| Topic | Decision |
+|---|---|
+| Authority | Server owns loadout, cooldown timestamps (server time), shield, every effect and every Pulse target (from server-observed positions). Client sends only `RequestAbility(slot 1|2)`, `RequestTrick()`, `RequestEquip(slot, id)` (lobby/results only). |
+| Speed effects | Server sends timed modifiers (Boost x1.3 1.6 s, Trick x1.15 1.2 s, Slipstream x1.12 while held) to the owner's motor, which scales thrust, thrust target and terminal envelope; strongest wins (no stacking); hard cap 96 studs/s (< 108 audit envelope). Boost also pushes forward without W. |
+| Pulse | ≤ 18 studs/s at the centre falling to 9 at 12 studs, horizontal, skips protected/frozen marbles, 1.2 s anti-chain per target. Delivered to the target's owner as an impulse (client ownership: a modified client could ignore it — logged limitation). |
+| Shield | 2.5 s or first Pulse / active-bumper contact (server judged from positions); client also skips the bumper kick while its server-confirmed shield is up. |
+| Ramp Trick | Tagged half-width kicker (26°) on the long straight. Server judges takeoff (lip crossing, launched height, speed, on the kicker), press window (0.3 s early / 0.45 s late), landing within 1.4 s. Visual spin is a separate local shell, never BallRoot. |
+| Slipstream | ≤ 12 studs behind, route distance ahead 0–14, ahead dot ≥ 0.7, server raycast LOS, held 1.5 s; 0.25 s grace; ends on overtake. |
+| Near Miss | One judgement per approach (16-stud radius) to the bumper while telegraphing/active, closest gap ≤ 3.5 without contact. |
+| Charge | First valid trick / slipstream acquisition / near miss: −1.5 s on cooling slots, clamped at now, 3 s global lockout, no lockout if nothing was cooling. |
+| UX | Two ability buttons with cooldown fill (Q/E, LB/RB, tap), TRICK button on touch, hub loadout panel, quiet toasts, 3 skippable hints, Reduced Motion switch (FOV pulse + spin off). |
+
 ## Ledger
 ### Done (verified by tests that ran here)
 - [x] A1: config ranges, smoothing, course generator/validator, floor geometry exactness (mutation-tested), steering-frame stability, route tracking, spawn clearance, hazard cycle, no invented ids
@@ -86,7 +116,10 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 - [x] A2: grid shuffle deterministic permutation, varies per round; 16 grid slots validated (spacing, rails, behind gate)
 - [x] A2: checkpoint judging with simulated samples — ordered CP1→CP3→finish, interpolated finish time, teleport jump rejected, corridor rejected, impossible split rejected, respawn never crosses, progress capped
 - [x] A2: hub spawns spaced/inside rim, chute flush with hub edge, rim gap open, chute validates
-- [x] 37 files parse; place file well-formed (rebuilt each milestone)
+- [x] A3: config values, cooldown readiness, charge (−1.5 s, clamp, 3 s lockout, no lockout when idle), non-stacking modifiers, hard cap, Pulse falloff/targets/bounds, loadout validation
+- [x] A3: trick (early/late press, no press, flat lane, beside kicker, too slow, duplicate, no landing, respawn), slipstream (hold, single acquisition, grace, loss, no oscillation farming), near miss (once per pass, idle hazard, hit, boundary bobbing)
+- [x] A3: malformed/out-of-range/NaN/inf/server-only requests rejected; every client argument bounded; no client remote names targets/positions/impulses/cooldowns
+- [x] 47 files parse; Rojo builds the place in CI (44 scripts, every lookup resolves)
 
 ### Implemented, untested (needs Studio — TEST_PLAN sections 3 and 5)
 - [ ] Everything engine-side from A1 (feel, camera, devices, UI)
@@ -94,6 +127,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 - [ ] Grid freeze/release, gate toggle, protection ghosting, marble bumps + limiter
 - [ ] Checkpoint flashes, placement badge, standings, results, DNF, disconnect handling, spectate cycling
 - [ ] Practice chute loop, hub board text
+
+- [ ] A3 on the phone: every docs/ANDROID_PLAYTEST.md A3 item (feel of Boost/Shield, trick timing, near miss, VFX cleanup); Pulse and Slipstream need 2 players (TEST_PLAN §6)
 
 ### Blocked
 - [ ] **2-client network verification** — no Studio here. Steps + expected log order: TEST_PLAN §5.
@@ -112,6 +147,7 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-19 | `texlua tools/offline/run_tests.lua .` (A1) | 26 files parse; 57 passed |
 | 2026-11-21 | `texlua tools/offline/run_tests.lua .` (A1+A2) | 37 files parse; **83 passed, 0 failed** (A1 56 + A2 27) |
 | 2026-11-21 | `python3 tools/build_rbxlx.py . TumbleCircuit.rbxlx` + XML parse | well-formed |
+| 2026-11-22 | `texlua tools/offline/run_tests.lua .` (A1–A3, original A3 upload) | 47 files parse; **131 passed, 0 failed** |
 | 2026-11-23 | `python3 tools/luau_check.py src PLACEHOLDER_IDS.lua` (Linux, Python 3.13) | 23 files: 0 errors, 0 warnings; injected typos caught |
 | 2026-11-23 | Offline place build (Rojo-compatible) + `tests/verify_place.py` (Python 3.13) | 35 instances, 23 scripts, all references resolve |
 | 2026-11-23 | `python3 tests/test_publish.py` (Python 3.13) | 10 passed, 0 failed |
@@ -128,4 +164,6 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-23 | GitHub Actions **Deploy** run 45173389534 (A2 commit 84d195d: Rojo build, Selene, Lune, 92 specs, publish) | **success**: Selene 0 errors / 19 style warnings (shadowing, `_G` in tests, UDim2 style); Lune: 48 instances, 34 scripts, all references resolve; **version 7** published, visibility PRIVATE |
 | 2026-11-23 | **A2 first phone playtest** (owner, v7, Roblox Android app): (1) after GO the marble could not move until a manual reset; (2) results screen: tapping the button did nothing visible until the round moved everyone to the hub; (3) in the hub the player was "sitting out", told to "press JOIN" (no such button) and no race started. | Diagnosis by code reading: (1) GO unanchored the grid ball in place; a reset (fresh, never-anchored ball on the same slot) worked → GO now takes the reset path (`MarbleCharacterService:Release` respawns, reason `Go`; checkpoint records begin first). Root cause of the stuck anchored ball not confirmed in a runtime. (2)+(3) the queue chip showed the current state ("IN NEXT RACE"), so tapping it sat the player out; results PLAY AGAIN gave no feedback → queue button now names its action (SIT OUT / JOIN RACE), updates instantly, toasts; results buttons close the panel; hint says JOIN RACE. 92 specs pass, 0 lint errors |
 | 2026-11-25 | A2 phone re-test of v8 (owner, Roblox Android app) | **owner: "everything is going smoothly"** — marble moves at GO, join/sit-out and results work; A2 approved, go to A3 |
+| 2026-11-25 | A3 merge + `luau_check` (44 files) + offline specs + offline place build + `verify_place.py` | 0 errors (3 unused-local warnings); **140 passed, 0 failed**; 58 instances, 44 scripts, all references resolve; smoothed heading defined on both routes (worst 0.75 / 0.92 °/stud) |
+| — | A3 first phone playtest (solo) | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

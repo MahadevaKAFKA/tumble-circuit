@@ -16,19 +16,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
+local HazardTiming = require(Shared:WaitForChild("HazardTiming"))
 
 local HazardController = {}
 HazardController.__index = HazardController
 
-function HazardController.PhaseAt(serverTime, cfg)
-	local phase = serverTime % cfg.Period
-	if phase >= cfg.ActiveAt then
-		return "Active", 1
-	elseif phase >= cfg.TelegraphAt then
-		return "Telegraph", (phase - cfg.TelegraphAt) / (cfg.ActiveAt - cfg.TelegraphAt)
-	end
-	return "Idle", 0
-end
+-- Shared with the server's near-miss / shield judging (Shared/HazardTiming).
+HazardController.PhaseAt = HazardTiming.PhaseAt
 
 function HazardController.new(courseRoot, motor, sound)
 	local self = setmetatable({}, HazardController)
@@ -57,6 +51,11 @@ function HazardController.new(courseRoot, motor, sound)
 		end
 	end
 	return self
+end
+
+-- A3: while the local marble's server-confirmed Shield is up, the bumper kick is absorbed.
+function HazardController:SetShieldQuery(fn)
+	self.isShielded = fn
 end
 
 function HazardController:Step(ball)
@@ -93,7 +92,8 @@ function HazardController:Step(ball)
 			if along > -1 and along < bumper.height + 1 then
 				local radial = rel - bumper.axis * along
 				local d = radial.Magnitude
-				if d > 1e-3 and d <= bumper.radius + ballRadius + cfg.ContactPadding then
+				local shielded = self.isShielded and self.isShielded()
+				if d > 1e-3 and d <= bumper.radius + ballRadius + cfg.ContactPadding and not shielded then
 					if self.motor:ApplyKick(radial / d, cfg.KickSpeed) then
 						bumper.cooldownUntil = now + cfg.CooldownSeconds
 						self.sound:Play("BumperKick")

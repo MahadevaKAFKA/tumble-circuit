@@ -13,11 +13,16 @@
 	RoundSnapshot         server->client   snapshot table      on join, transitions, standings
 	CheckpointFeedback    server->client   {roundId, index, total, serverTime}
 	FinishNotice          server->client   {roundId, userId, name, place, seconds}
+	A3:
+	RequestAbility        client->server   (slot 1|2)          server looks up the equipped ability
+	RequestTrick          client->server   (none)              judged against server takeoff/landing
+	RequestEquip          client->server   (slot 1|2, id)      only outside an active race
+	AbilityState / AbilityOutcome / EffectState / ApplyImpulse / SkillEvent   server->client
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 2
+RoundProtocol.Version = 3
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -27,6 +32,15 @@ RoundProtocol.Remotes = {
 	RoundSnapshot = { Direction = "ServerToClient" },
 	CheckpointFeedback = { Direction = "ServerToClient" },
 	FinishNotice = { Direction = "ServerToClient" },
+	-- A3
+	RequestAbility = { Direction = "ClientToServer", Args = { { type = "number", oneOf = { 1, 2 } } }, MinInterval = 0.15 },
+	RequestTrick = { Direction = "ClientToServer", Args = {}, MinInterval = 0.1 },
+	RequestEquip = { Direction = "ClientToServer", Args = { { type = "number", oneOf = { 1, 2 } }, { type = "string", maxLength = 16 } }, MinInterval = 0.2 },
+	AbilityState = { Direction = "ServerToClient" }, -- to owner: loadout, owned, cooldown end times
+	AbilityOutcome = { Direction = "ServerToClient" }, -- to all: who used what (VFX), targets, blocks
+	EffectState = { Direction = "ServerToClient" }, -- to owner: active speed modifiers + shield
+	ApplyImpulse = { Direction = "ServerToClient" }, -- to a target: server-approved bounded nudge
+	SkillEvent = { Direction = "ServerToClient" }, -- to owner: trick/slipstream/near-miss/charge feedback
 }
 
 RoundProtocol.States = {
@@ -70,8 +84,26 @@ function RoundProtocol.ValidateArgs(remoteName, ...)
 	end
 	for i, expected in ipairs(spec.Args) do
 		local value = select(i, ...)
-		if type(value) ~= expected then
-			return false, string.format("argument %d must be %s", i, expected)
+		local rule = type(expected) == "table" and expected or { type = expected }
+		if type(value) ~= rule.type then
+			return false, string.format("argument %d must be %s", i, rule.type)
+		end
+		if rule.type == "number" and (value ~= value or value == math.huge or value == -math.huge) then
+			return false, string.format("argument %d is not a finite number", i)
+		end
+		if rule.oneOf then
+			local found = false
+			for _, allowed in ipairs(rule.oneOf) do
+				if value == allowed then
+					found = true
+				end
+			end
+			if not found then
+				return false, string.format("argument %d not an allowed value", i)
+			end
+		end
+		if rule.maxLength and #value > rule.maxLength then
+			return false, string.format("argument %d too long", i)
 		end
 	end
 	return true

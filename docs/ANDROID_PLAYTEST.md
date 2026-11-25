@@ -23,7 +23,37 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
-## Current build: A2 — multiplayer rounds
+## Current build: A3 — abilities and micro-skills
+
+Everything from A2 still applies (hub, automatic rounds, results). A3 adds:
+
+- **Two ability buttons** (above BRAKE, bottom right) during a race. You start with **BOOST**
+  (+30% speed for 1.6 s, 20 s cooldown) and **SHIELD** (blocks one Pulse or bumper kick, 2.5 s,
+  28 s cooldown). The dark fill drains as the cooldown runs out.
+- **ABILITIES panel** in the hub (upper left on a phone): tap a slot to swap in **PULSE** (nudges
+  rivals within 12 studs, 26 s cooldown). It is hidden during races.
+- **TRICK button** (left of RESET, race only): jump the green kicker on the left half of the long
+  straight and tap TRICK in the air → spin, "TRICK! +15% speed", and both cooldowns drop 1.5 s.
+- Small speed rewards you earn by playing well: **NEAR MISS** (pass close to the bumper while it's
+  yellow or coral without touching it) and **SLIPSTREAM** (follow another marble; needs two players).
+- **REDUCED MOTION** switch in the ABILITIES panel turns off the camera widening and the trick spin.
+
+### What to check (A3, solo)
+- [ ] Hub: ABILITIES panel shows BOOST and SHIELD; tapping a slot cycles it; it doesn't get in the
+      way of steering in the practice chute.
+- [ ] Race: both ability buttons show READY after GO. BOOST visibly speeds you up, then the
+      button counts down. SHIELD shows a violet shell; touching the coral bumper with it on → no
+      kick, "Shield blocked it!".
+- [ ] Tapping an ability on the grid, in the hub or after finishing → "Abilities work during a race".
+- [ ] Trick ramp: jump + TRICK → reward. TRICK on flat ground → "Can't trick here".
+- [ ] NEAR MISS appears once when you skim past the bumper.
+- [ ] Three rounds in a row: no leftover trails, shells or speed at the next GO; abilities READY
+      again each race.
+- [ ] Stats box: no new hitches when using abilities.
+
+Pulse and Slipstream need a second player to test properly; that can wait.
+
+## A2 — multiplayer rounds
 
 You join in the **Orbital Garage** hub (round glass platform). The **practice chute** loops back
 to the hub so you can roll while you wait. Every round runs on its own, and one player is enough:

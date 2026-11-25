@@ -399,6 +399,35 @@ function Builder.ComputeSpecs(layout)
 		})
 	end
 
+	-- A3 trick ramp kicker (collidable, its own folder so the camera ignores it).
+	for i, zone in ipairs(layout.TrickZones or {}) do
+		local mid = zone.MidFrame
+		local center = mid.Position + mid.Right * zone.Offset + mid.Up * (zone.Height / 2)
+		-- WedgePart: high edge on local +Z. Point +Z along travel so balls roll up and launch.
+		add({
+			Class = "WedgePart",
+			Name = "TrickRamp" .. i,
+			Folder = "Features",
+			Size = Vector3.new(zone.Width, zone.Height, zone.Length),
+			CFrame = CFrame.fromMatrix(center, -mid.Right, mid.Up),
+			Color = palette.Mint:Lerp(palette.Navy, 0.35),
+			Material = "SmoothPlastic",
+			Physics = floorPhysics,
+			Attributes = { Feature = "TrickRamp" },
+		})
+		local lip = zone.LipFrame
+		add({
+			Class = "Part",
+			Name = "TrickLip",
+			Folder = "Decor",
+			Size = Vector3.new(zone.Width, 0.2, 0.5),
+			CFrame = CFrame.fromMatrix(lip.Position + lip.Right * zone.Offset + lip.Up * (zone.Height + 0.1), lip.Right, lip.Up),
+			Color = palette.Mint,
+			Material = "Neon",
+			Collide = false,
+		})
+	end
+
 	-- Floating signs (billboards, distance-limited).
 	for i, sign in ipairs(layout.Signs) do
 		add({
@@ -580,7 +609,7 @@ function Builder.Build(layout, parent, name)
 		end
 		return parentFolder
 	end
-	for _, folderName in ipairs({ "Floor", "Rails", "Decor", "Hazards", "Gates" }) do
+	for _, folderName in ipairs({ "Floor", "Rails", "Decor", "Hazards", "Gates", "Features" }) do
 		folderFor(folderName)
 	end
 

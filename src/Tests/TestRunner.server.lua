@@ -45,6 +45,8 @@ local modules = {
 	HubBuilder = require(Builders:WaitForChild("HubBuilder")),
 	RaceRules = require(Services:WaitForChild("RaceRules")),
 	CheckpointService = require(Services:WaitForChild("CheckpointService")),
+	AbilityConfig = require(Shared:WaitForChild("AbilityConfig")),
+	SkillRules = require(Services:WaitForChild("SkillRules")),
 }
 local okHazard, hazardModule = pcall(function()
 	return require(StarterPlayer:WaitForChild("StarterPlayerScripts"):WaitForChild("Controllers"):WaitForChild("HazardController"))
@@ -72,6 +74,9 @@ end
 
 report("A1 pure specs", require(Unit:WaitForChild("A1PureSpecs")).run(modules))
 report("A2 round specs", require(Unit:WaitForChild("RoundState.spec")).run(modules))
+report("A3 ability specs", require(Unit:WaitForChild("Ability.spec")).run(modules))
+report("A3 micro-skill specs", require(Unit:WaitForChild("MicroSkill.spec")).run(modules))
+report("A3 ability security specs", require(Unit:WaitForChild("AbilitySecurity.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

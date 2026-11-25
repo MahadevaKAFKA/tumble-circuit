@@ -814,10 +814,23 @@ def cross_reference(files: list[str]) -> dict[str, list[str]]:
 def config_keys(config_path: str, name: str) -> dict[str, set[str]]:
     with open(config_path, encoding="utf-8") as f:
         src = f.read()
+    code = strip_comments_and_strings(src)
     sections: dict[str, set[str]] = {}
-    for m in re.finditer(rf"{name}\.(\w+)\s*=\s*\{{(.*?)\n\}}", src, flags=re.S):
-        sections[m.group(1)] = set(re.findall(r"(?m)^\s*(\w+)\s*=", m.group(2)))
-    for m in re.finditer(rf"{name}\.(\w+)\s*=\s*[^{{\s]", src):
+    # `Name.Section = { ... }`: take the balanced table (a one-line table such as
+    # `X.Owned = { "a", "b" }` must not swallow the sections that follow it)
+    for m in re.finditer(rf"(?m)^{name}\.(\w+)\s*=\s*\{{", code):
+        depth, i = 0, m.end() - 1
+        while i < len(code):
+            if code[i] == "{":
+                depth += 1
+            elif code[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            i += 1
+        body = code[m.end():i]
+        sections[m.group(1)] = set(re.findall(r"(?m)^\s*(\w+)\s*=", body))
+    for m in re.finditer(rf"(?m)^{name}\.(\w+)\s*=\s*[^{{\s]", code):
         sections.setdefault(m.group(1), set())
     return sections
 

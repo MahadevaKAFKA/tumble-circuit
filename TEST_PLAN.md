@@ -120,3 +120,28 @@ once per minute (`[Round] rejected: malformed ...`). A client cannot send checkp
 there is no remote for them. (Blocked here: no client exploit harness; verify by reading RoundProtocol.)
 
 **Network latency:** Studio's network simulation settings are a manual QA step (ADR-19); note any desync you see.
+
+## 6. A3 — abilities and micro-skills
+
+**Automated:** `A3 ability specs`, `A3 micro-skill specs`, `A3 ability security specs` (0 failed).
+
+**Play Solo**
+- [ ] Hub: the ABILITIES panel (bottom left; upper left on phones, so the stick keeps its corner) shows Q: BOOST, E: SHIELD. Tap a slot → it cycles (Boost/Shield/Pulse); choosing the other slot's ability swaps them. During a race the panel is hidden and changes are refused.
+- [ ] Race: two round buttons bottom right with READY. Q (or LB / tap) → Boost: cyan trail, camera FOV widens slightly, speed rises to ~1.3x for 1.6 s then settles; button shows a 20 s countdown fill.
+- [ ] E → Shield: violet shell for 2.5 s. Touch the coral (active) bumper while shielded: no kick, "Shield blocked it!", shell disappears.
+- [ ] Pressing an ability during countdown, in the hub, after finishing → "Abilities work during a race", nothing happens.
+- [ ] Pressing while cooling → "Cooling down".
+- [ ] Trick ramp (green kicker, left half of the long straight): jump it and press SPACE / (A) / TRICK in the air → spin + stars, "TRICK! +15% speed", both ability timers drop by 1.5 s ("Cooldowns -1.5 s").
+- [ ] Jump without pressing → no reward. Press SPACE on flat ground → "Can't trick here - use the TRICK RAMP". Press twice in one jump → "One trick per jump".
+- [ ] Pass close to the bumper while yellow/coral without touching → "NEAR MISS!" once per pass.
+- [ ] Three events within 3 s give only one cooldown reduction.
+- [ ] Respawn (hold R) cancels an active Boost/Shield; a new race starts with both abilities READY.
+- [ ] Reduced Motion ON (hub panel): no FOV change on Boost, no spin/stars on Trick.
+
+**Two clients (Test tab, 2 players)**
+- [ ] Equip Pulse on client A. Drive A within ~12 studs of B and press it: coral ring on both screens; B gets nudged sideways (bounded, no launch) and sees "PULSED!".
+- [ ] B activates Shield first, then A pulses: B is not moved; both see the shield vanish; B sees "Shield blocked it!".
+- [ ] Pulse twice quickly on the same target: second hit within 1.2 s is ignored (anti-chain).
+- [ ] Drive B directly behind A within 12 studs for 1.5 s on a straight → B sees "SLIPSTREAM +12%" and faint streaks; overtake or drop back → it ends. Cooldown reduction only once per acquisition.
+- [ ] Spamming Q/E/Space: no errors; server log shows no flood (rate limits are silent).
+- [ ] 3 rounds in a row: no leftover trails, shells, streaks or speed buffs at the next GO.

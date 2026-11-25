@@ -54,6 +54,8 @@ local modules = {
 	RoundProtocol = H.module("ReplicatedStorage/Shared/RoundProtocol"),
 	RaceRules = H.module("ServerScriptService/Services/RaceRules"),
 	CheckpointService = H.module("ServerScriptService/Services/CheckpointService"),
+	AbilityConfig = H.module("ReplicatedStorage/Shared/AbilityConfig"),
+	SkillRules = H.module("ServerScriptService/Services/SkillRules"),
 }
 -- HazardController.PhaseAt is pure; load the client module file directly for that one function.
 do
@@ -65,6 +67,9 @@ end
 local suites = {
 	{ "A1 pure specs", root .. "/src/Tests/Unit/A1PureSpecs.lua" },
 	{ "A2 round specs", root .. "/src/Tests/Unit/RoundState.spec.lua" },
+	{ "A3 ability specs", root .. "/src/Tests/Unit/Ability.spec.lua" },
+	{ "A3 micro-skill specs", root .. "/src/Tests/Unit/MicroSkill.spec.lua" },
+	{ "A3 ability security specs", root .. "/src/Tests/Unit/AbilitySecurity.spec.lua" },
 }
 local passed, failed = 0, 0
 for _, suite in ipairs(suites) do

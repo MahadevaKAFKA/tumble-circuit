@@ -85,6 +85,11 @@ TrackDefinitions.Training = {
 	-- columns lateral offsets. Validator checks spacing and rail clearance.
 	Grid = { Piece = "StartPad", Rows = { 26, 20, 14, 8 }, Columns = { -9, -3, 3, 9 } },
 	StartGate = { Piece = "StartPad", At = 33, Height = 5 },
+	-- A3: tagged qualifying ramp for the Ramp Trick. Half-width kicker on the left; the right half
+	-- stays flat (safe line). Lip = piece-relative At; it rises over Length to Height.
+	Features = {
+		{ Kind = "TrickRamp", Piece = "StraightRamp", At = 100, Offset = -5.5, Width = 9, Length = 7, Height = 3.4 },
+	},
 	Validation = { MinSegments = 4, MaxSegments = 6, MinLength = 500, MaxLength = 2000 },
 
 	Hazards = {
@@ -97,6 +102,7 @@ TrackDefinitions.Training = {
 	},
 	Signs = {
 		{ Piece = "StartPad", At = 26, Text = "ROLL FORWARD TO START", Lift = 11 },
+		{ Piece = "StraightRamp", At = 78, Text = "TRICK RAMP  -  JUMP, PRESS TRICK IN THE AIR", Lift = 10 },
 		{ Piece = "SCurveA", At = 2, Text = "S-TURN", Lift = 10 },
 		{ Piece = "BumperApproach", At = 6, Text = "PULSE BUMPER  -  CORAL = KICK", Lift = 10 },
 		{ Piece = "BankedDropIn", At = 0, Text = "BANKED DROP  -  BRAKE IF FAST", Lift = 10 },
@@ -337,6 +343,28 @@ function TrackDefinitions.Generate(def, ballRadius)
 	end
 	layout.StartGateFrame = def.StartGate and resolve(def.StartGate)
 
+	layout.TrickZones = {}
+	for _, feature in ipairs(def.Features or {}) do
+		if feature.Kind == "TrickRamp" then
+			local lip = resolve(feature)
+			local rec = pieceByName[feature.Piece]
+			local mid = rec and TrackDefinitions.SampleAtH(layout, rec.StartH + feature.At - feature.Length / 2)
+			if lip and mid then
+				layout.TrickZones[#layout.TrickZones + 1] = {
+					LipS = lip.S,
+					LipFrame = lip,
+					MidFrame = mid,
+					Offset = feature.Offset,
+					Width = feature.Width,
+					Length = feature.Length,
+					Height = feature.Height,
+					LateralMin = feature.Offset - feature.Width / 2,
+					LateralMax = feature.Offset + feature.Width / 2,
+				}
+			end
+		end
+	end
+
 	layout.Hazards = {}
 	for i, hz in ipairs(def.Hazards or {}) do
 		layout.Hazards[i] = { Kind = hz.Kind, Frame = resolve(hz), Offset = hz.Offset or 0, Radius = hz.Radius, Height = hz.Height }
@@ -513,6 +541,18 @@ function TrackDefinitions.Validate(def, layout)
 	end
 	if layout.FinishLineS and layout.FinishLineS >= layout.Route.total - diameter * 2 then
 		fail("finish line needs a run-off area after it")
+	end
+
+	for _, zone in ipairs(layout.TrickZones or {}) do
+		local half = zone.LipFrame.Width / 2
+		local freeLeft = (zone.LateralMin + half)
+		local freeRight = (half - zone.LateralMax)
+		if math.max(freeLeft, freeRight) < diameter * 2 then
+			fail("trick ramp leaves no flat lane beside it")
+		end
+		if math.atan(zone.Height / zone.Length) > math.rad(35) then
+			fail("trick ramp steeper than 35 degrees")
+		end
 	end
 
 	for _, sign in ipairs(layout.Signs) do

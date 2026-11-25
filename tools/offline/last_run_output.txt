@@ -1,6 +1,8 @@
 == Syntax (Lua 5.3 parser over Lua-5.1-subset Luau) ==
 ok    PLACEHOLDER_IDS.lua
+ok    src/ReplicatedStorage/Shared/AbilityConfig.lua
 ok    src/ReplicatedStorage/Shared/GameConfig.lua
+ok    src/ReplicatedStorage/Shared/HazardTiming.lua
 ok    src/ReplicatedStorage/Shared/PhysicsConfig.lua
 ok    src/ReplicatedStorage/Shared/Protocol.lua
 ok    src/ReplicatedStorage/Shared/RaceConfig.lua
@@ -9,16 +11,20 @@ ok    src/ReplicatedStorage/Shared/RouteTracker.lua
 ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
 ok    src/ReplicatedStorage/Shared/Utility.lua
 ok    src/ServerScriptService/ServerBootstrap.server.lua
+ok    src/ServerScriptService/Services/AbilityService.lua
 ok    src/ServerScriptService/Services/CheckpointService.lua
 ok    src/ServerScriptService/Services/MarbleCharacterService.lua
+ok    src/ServerScriptService/Services/MicroSkillService.lua
 ok    src/ServerScriptService/Services/ProgressService.lua
 ok    src/ServerScriptService/Services/RacePhysicsService.lua
 ok    src/ServerScriptService/Services/RaceRules.lua
 ok    src/ServerScriptService/Services/RoundService.lua
+ok    src/ServerScriptService/Services/SkillRules.lua
 ok    src/ServerScriptService/Services/TrainingTrackService.lua
 ok    src/ServerStorage/ProceduralBuilders/HubBuilder.lua
 ok    src/ServerStorage/ProceduralBuilders/TrainingTrackBuilder.lua
 ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/AbilityController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
@@ -29,9 +35,13 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SoundController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/TouchControls.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/UIKit.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/VFXController.lua
 ok    src/Tests/Integration/MultiplayerRound.spec.lua
 ok    src/Tests/TestRunner.server.lua
 ok    src/Tests/Unit/A1PureSpecs.lua
+ok    src/Tests/Unit/Ability.spec.lua
+ok    src/Tests/Unit/AbilitySecurity.spec.lua
+ok    src/Tests/Unit/MicroSkill.spec.lua
 ok    src/Tests/Unit/RoundState.spec.lua
 ok    tools/offline/harness.lua
 ok    tools/offline/roblox_shim.lua
@@ -109,7 +119,7 @@ PASS  hazard telegraph lasts 0.5-1.0 s before activating
 info  tunables: accel 35, lateral cap 22, terminal 80, air 40%, brake x0.65, deadzone 0.12 (spec hypotheses 35/22/80/40%/0.65/0.12)
 info  camera turn-rate kick at 35 studs/s, 60 fps: 1.31 deg/s per frame (raw polyline: ~20)
 info  floor: 19 flat quads as boxes, 252 wedges for curved/banked quads
-info  course parts: 714 total, 439 collidable
+info  course parts: 717 total, 440 collidable
 info  route 947 studs; 1-D MODEL (full throttle, no braking/steering losses) clean run ~17.9 s, end speed 60 -- not a measurement
 
 -- A2 round specs --
@@ -141,4 +151,58 @@ PASS  hub rim leaves the chute entrance open
 PASS  practice chute validates
 PASS  race track has >= 3 checkpoints and 16 grid slots
 
-92 passed, 0 failed (+ 0 syntax failures)
+-- A3 ability specs --
+PASS  starter cooldowns 20 / 28 / 26 s
+PASS  Boost +30% for 1.6 s; Shield 2.5 s; Pulse 12 studs / 18 studs/s
+PASS  hard speed cap above terminal but inside the movement audit envelope
+PASS  Pulse impulse below the marble-bump cap
+PASS  default loadout Boost + Shield, 3 starters owned
+PASS  ready only at/after the cooldown end
+PASS  charge removes 1.5 s from cooling slots only, never below now
+PASS  second charge inside the 3 s global lockout is refused
+PASS  charge works again after the lockout
+PASS  charge clamps at now (no negative / past timestamps)
+PASS  nothing cooling: no change and lockout not consumed
+PASS  modifiers never stack: strongest active wins
+PASS  expired modifiers ignored; open-ended ones stay
+PASS  effective terminal respects the hard cap
+PASS  Pulse 18 at centre, half at the edge, none outside
+PASS  Pulse falloff never increases with distance
+PASS  Pulse targets: in radius only, skips protected/frozen
+PASS  Pulse impulses bounded and horizontal unit directions (incl. zero offset)
+PASS  loadout: default valid
+PASS  loadout: duplicate rejected
+PASS  loadout: unknown id rejected
+PASS  loadout: wrong slot count rejected
+PASS  loadout: unowned rejected
+
+-- A3 micro-skill specs --
+PASS  training track has a tagged trick ramp
+PASS  trick ramp leaves a flat lane (validator)
+PASS  early press (just before the lip) -> takeoff -> success
+PASS  press in the air after takeoff -> success
+PASS  jump without pressing -> no reward
+PASS  press on the flat lane never becomes a trick
+PASS  crossing the lip beside the kicker is not a takeoff
+PASS  crawling over the lip (too slow) is not a takeoff
+PASS  one trick per airtime (second press is a duplicate)
+PASS  no landing within the airtime window -> fail, no reward
+PASS  a respawn (fresh state, no previous sample) is never a takeoff
+PASS  draft geometry: directly behind a leader within 12 studs
+PASS  draft geometry: not when you are ahead, alongside or too far
+PASS  slipstream acquires once after a 1.5 s hold and does not repeat every sample
+PASS  brief LOS flicker (< grace) keeps it
+PASS  breaking the draft ends it
+PASS  re-acquiring needs another full hold (no oscillation farming)
+PASS  clean close pass while dangerous -> exactly one near miss
+PASS  close pass while the hazard is idle is not a near miss
+PASS  touching the hazard is a hit, never a near miss
+PASS  bobbing at the approach boundary far from the hazard farms nothing
+
+-- A3 ability security specs --
+PASS  A3 payload schema rejects every malformed / out-of-range / server-only call
+PASS  every client argument is bounded (numbers enumerated, strings length-capped, no tables)
+PASS  no client remote can name targets, positions, impulses or cooldowns
+PASS  protocol version bumped for A3
+
+140 passed, 0 failed (+ 0 syntax failures)

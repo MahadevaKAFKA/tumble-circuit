@@ -68,6 +68,48 @@ function MarbleMotorController:Bind(ball, excludeInstances)
 	self.skipBumpCheck = true
 end
 
+-- A3: server-sent timed speed modifiers. Strongest active one applies (never stacked);
+-- effects = { modifiers = { {kind, multiplier, endsAt (server time or nil), extraAccel} }, hardCap }
+function MarbleMotorController:SetEffects(effects)
+	self.effects = effects
+end
+
+function MarbleMotorController:_modifier()
+	local effects = self.effects
+	if not effects or not effects.modifiers then
+		return 1, 0, PhysicsConfig.Movement.TerminalSpeed
+	end
+	local now = workspace:GetServerTimeNow()
+	local best, extra = 1, 0
+	for _, mod in ipairs(effects.modifiers) do
+		if mod.endsAt == nil or now < mod.endsAt then
+			if mod.multiplier > best then
+				best = mod.multiplier
+			end
+			extra = math.max(extra, mod.extraAccel or 0)
+		end
+	end
+	local terminal = math.min(PhysicsConfig.Movement.TerminalSpeed * best, effects.hardCap or PhysicsConfig.Movement.TerminalSpeed)
+	return best, extra, terminal
+end
+
+function MarbleMotorController:GetSpeedMultiplier()
+	local mult = self:_modifier()
+	return mult
+end
+
+-- A3: a server-approved impulse (Pulse). Bounded by the caller and here.
+function MarbleMotorController:ApplyExternalImpulse(direction, deltaV, cap)
+	local ball = self.ball
+	if not ball or not ball.Parent or ball.Anchored then
+		return false
+	end
+	local dv = math.min(deltaV, cap or 18)
+	ball:ApplyImpulse(direction.Unit * (dv * ball.AssemblyMass))
+	self.skipBumpCheck = true
+	return true
+end
+
 -- Folder holding every marble, used to tell marble bumps from wall bounces.
 function MarbleMotorController:SetMarblesFolder(folder)
 	self.marblesFolder = folder
@@ -187,15 +229,21 @@ function MarbleMotorController:Step(dt, ctx)
 		lateralAccel = Utility.clamp(lateralAccel, -m.LateralAccelMax, m.LateralAccelMax)
 		accel = accel + right * (lateralAccel * control)
 
-		-- Forward thrust / back bias (no thrust while braking)
+		-- Forward thrust / back bias (no thrust while braking). A3 modifiers scale the thrust,
+		-- its target and the terminal envelope; Boost adds a forward push up to the cap.
+		local mult, extraAccel, terminal = self:_modifier()
 		local throttle = ctx.brake and 0 or ctx.steer.Y
 		local forwardSpeed = v:Dot(fwd)
 		if throttle > 0 then
-			local taper = Utility.clamp((m.ThrottleTargetSpeed - forwardSpeed) / m.ThrottleTaperRange, 0, 1)
-			accel = accel + fwd * (m.AlongTrackAccel * throttle * taper * control)
+			local taper = Utility.clamp((m.ThrottleTargetSpeed * mult - forwardSpeed) / m.ThrottleTaperRange, 0, 1)
+			accel = accel + fwd * (m.AlongTrackAccel * mult * throttle * taper * control)
 		elseif throttle < 0 and forwardSpeed > -m.ReverseSpeedCap then
 			accel = accel + fwd * (m.ReverseAccel * throttle * control)
 		end
+		if extraAccel > 0 and not ctx.brake and forwardSpeed < terminal then
+			accel = accel + fwd * (extraAccel * control)
+		end
+		self.terminalOverride = terminal
 
 		-- Brake: bounded pull toward a target captured at press (see PhysicsConfig)
 		if ctx.brake then
@@ -218,8 +266,10 @@ function MarbleMotorController:Step(dt, ctx)
 		accel = accel - velDir * (m.RollingResistance * Utility.clamp(speed / 3, 0, 1))
 	end
 	accel = accel - v * m.LinearDrag
-	if speed > m.TerminalSpeed then
-		accel = accel - velDir * math.min(m.TerminalDragMax, (speed - m.TerminalSpeed) * m.TerminalDragResponse)
+	local terminalSpeed = (ctx.mode == MarbleMotorController.Modes.Play and self.terminalOverride) or m.TerminalSpeed
+	self.terminalOverride = nil
+	if speed > terminalSpeed then
+		accel = accel - velDir * math.min(m.TerminalDragMax, (speed - terminalSpeed) * m.TerminalDragResponse)
 	end
 
 	if self.grounded then

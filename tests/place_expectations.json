@@ -175,6 +175,46 @@
     {
       "path": "StarterPlayer/StarterPlayerScripts/Controllers/UIKit",
       "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/AbilityConfig",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/HazardTiming",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/AbilityService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/MicroSkillService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/SkillRules",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/Ability.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/AbilitySecurity.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/MicroSkill.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/AbilityController",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/VFXController",
+      "class": "ModuleScript"
     }
   ],
   "properties": [
@@ -218,6 +258,8 @@
     "Board",
     "NextRaceBoard",
     "BoardMain",
-    "BoardSub"
+    "BoardSub",
+    "RequestTrick",
+    "Features"
   ]
 }

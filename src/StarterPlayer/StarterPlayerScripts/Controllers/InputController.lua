@@ -104,6 +104,8 @@ function InputController.new()
 	self.PerfToggleRequested = Utility.Signal.new()
 	self.PrimaryActionRequested = Utility.Signal.new()
 	self.SpectateCycleRequested = Utility.Signal.new() -- (direction -1 | 1), Q/E or LB/RB
+	self.AbilityRequested = Utility.Signal.new() -- (slot 1 | 2), Q/E or LB/RB (A3; consumer checks state)
+	self.TrickRequested = Utility.Signal.new() -- Space / A (A3)
 	self.ScoreboardToggleRequested = Utility.Signal.new() -- Tab / D-pad up
 
 	local function setDevice(device)
@@ -148,9 +150,14 @@ function InputController.new()
 			self.PerfToggleRequested:Fire()
 		elseif code == KEY.Return or code == KEY.KeypadEnter or code == KEY.Space or code == KEY.ButtonA then
 			self.PrimaryActionRequested:Fire()
+			if code == KEY.Space or code == KEY.ButtonA then
+				self.TrickRequested:Fire()
+			end
 		elseif code == KEY.Q or code == KEY.ButtonL1 then
+			self.AbilityRequested:Fire(1)
 			self.SpectateCycleRequested:Fire(-1)
 		elseif code == KEY.E or code == KEY.ButtonR1 then
+			self.AbilityRequested:Fire(2)
 			self.SpectateCycleRequested:Fire(1)
 		elseif code == KEY.Tab or code == KEY.DPadUp then
 			self.ScoreboardToggleRequested:Fire()

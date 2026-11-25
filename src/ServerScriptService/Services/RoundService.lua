@@ -575,6 +575,25 @@ function RoundService:_maybeBroadcastStandings(force)
 	end
 end
 
+-- A3: abilities and micro-skills only count for a live, unfinished racer during Racing.
+function RoundService:IsActiveRacer(player)
+	local racer = self.racerByPlayer[player]
+	return self.state == S.Racing and racer ~= nil and not racer.finished
+end
+
+function RoundService:GetActiveRacers()
+	local out = {}
+	if self.state ~= S.Racing then
+		return out
+	end
+	for _, racer in ipairs(self.racers) do
+		if not racer.finished and racer.player and racer.player.Parent then
+			out[#out + 1] = racer.player
+		end
+	end
+	return out
+end
+
 function RoundService:GetState()
 	return self.state
 end

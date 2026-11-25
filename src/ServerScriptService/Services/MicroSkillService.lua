@@ -1,0 +1,217 @@
+--[[
+	MicroSkillService — A3 micro-skills, judged from SERVER-observed samples (ADR-10):
+	  Ramp Trick : takeoff = crossing the tagged kicker lip launched (height above the route plane,
+	               speed, lateral inside the kicker); press (RequestTrick) within the early/late
+	               window; landing back on the route plane within MaxAirtime -> +15% for 1.2 s.
+	               One trick per airtime; respawn resets the state (a respawn is never a takeoff).
+	  Slipstream : behind another live racer on the same route stretch, <= 12 studs, ahead dot
+	               >= 0.7, server raycast line of sight, held 1.5 s -> +12% while held.
+	  Near miss  : one judgement per approach to the bumper while it is telegraphing or active;
+	               an actual contact during Active consumes a Shield instead.
+	Each first-valid event grants Cooldown Charge through AbilityService (3 s global lockout).
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local AbilityConfig = require(Shared:WaitForChild("AbilityConfig"))
+local HazardTiming = require(Shared:WaitForChild("HazardTiming"))
+local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
+local Protocol = require(Shared:WaitForChild("Protocol"))
+local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
+local Utility = require(Shared:WaitForChild("Utility"))
+local SkillRules = require(script.Parent:WaitForChild("SkillRules"))
+
+local MicroSkillService = {}
+MicroSkillService.__index = MicroSkillService
+
+local CFG = AbilityConfig.MicroSkills
+local S = RoundProtocol.States
+
+function MicroSkillService.new(deps)
+	local self = setmetatable({}, MicroSkillService)
+	self.track = deps.track
+	self.marbles = deps.marbles
+	self.physics = deps.physics
+	self.round = deps.round
+	self.abilities = deps.abilities
+	self.remotes = deps.remotes
+	self.players = {}
+	self.maid = Utility.Maid.new()
+	self.limiter = Utility.RateLimiter.new(RoundProtocol.Remotes.RequestTrick.MinInterval)
+	self.losParams = RaycastParams.new()
+	self.losParams.FilterType = Enum.RaycastFilterType.Exclude
+	return self
+end
+
+function MicroSkillService:_state(player)
+	local state = self.players[player]
+	if not state then
+		state = { trick = {}, slip = {}, near = {}, info = nil }
+		self.players[player] = state
+	end
+	return state
+end
+
+function MicroSkillService:_reset(player)
+	if self.players[player] then
+		self.abilities:RemoveModifier(player, "Slipstream")
+	end
+	self.players[player] = nil
+end
+
+function MicroSkillService:Start()
+	local layout = self.track:GetLayout(Protocol.Zones.Race)
+	self.trickZones = layout.TrickZones or {}
+	self.hazards = {}
+	for _, hz in ipairs(layout.Hazards) do
+		if hz.Kind == "PulseBumper" and hz.Frame then
+			table.insert(self.hazards, {
+				floorPoint = hz.Frame.Position + hz.Frame.Right * hz.Offset,
+				axis = hz.Frame.Up,
+				contact = hz.Radius + PhysicsConfig.Ball.Radius,
+				height = hz.Height,
+			})
+		end
+	end
+	self.losParams.FilterDescendantsInstances = { workspace:WaitForChild(Protocol.MarblesFolderName) }
+
+	local remote = self.remotes:WaitForChild("RequestTrick")
+	self.maid:Give(remote.OnServerEvent:Connect(function(player, ...)
+		if RoundProtocol.ValidateArgs("RequestTrick", ...) and self.limiter:Try(player) then
+			self:HandleTrickPress(player)
+		end
+	end))
+	self.maid:Give(self.physics.Progress:Connect(function(player, info)
+		self:_onSample(player, info)
+	end))
+	self.maid:Give(self.physics.SampleComplete:Connect(function()
+		self:_evaluateSlipstreams()
+	end))
+	self.maid:Give(self.marbles.MarbleSpawned:Connect(function(player)
+		self:_reset(player)
+	end))
+	self.maid:Give(self.marbles.PlayerLeaving:Connect(function(player)
+		self.players[player] = nil
+	end))
+	self.maid:Give(self.round.StateChanged:Connect(function(state)
+		if state ~= S.Racing then
+			for player in pairs(self.players) do
+				self:_reset(player)
+			end
+		end
+	end))
+end
+
+function MicroSkillService:_event(player, kind, detail)
+	self.remotes.SkillEvent:FireClient(player, { kind = kind, detail = detail, serverTime = workspace:GetServerTimeNow() })
+end
+
+function MicroSkillService:_onSample(player, info)
+	if info.zone ~= Protocol.Zones.Race or info.frozen or not self.round:IsActiveRacer(player) then
+		return
+	end
+	local state = self:_state(player)
+	state.info = info
+
+	-- Ramp Trick
+	for _, zone in ipairs(self.trickZones) do
+		local result = SkillRules.TrickStep(state.trick, info, zone, CFG.Trick)
+		if result == "Success" then
+			self.abilities:SetModifier(player, "Trick", CFG.Trick.SpeedMultiplier, CFG.Trick.Duration)
+			self.abilities:ApplyCharge(player, "Trick")
+			self:_event(player, "TrickSuccess")
+		elseif result == "Takeoff" then
+			self:_event(player, "Takeoff", state.trick.pressed and "armed" or nil)
+		elseif result == "NoLanding" then
+			self:_event(player, "TrickFail", "No clean landing")
+		end
+	end
+
+	-- Near miss / bumper contact
+	local phase = HazardTiming.PhaseAt(workspace:GetServerTimeNow(), PhysicsConfig.Hazards.PulseBumper)
+	local dangerous = phase ~= "Idle"
+	for i, hz in ipairs(self.hazards) do
+		local distance, along = HazardTiming.AxisDistance(info.position, hz.floorPoint, hz.axis)
+		if along > -2 and along < hz.height + 3 then
+			state.near[i] = state.near[i] or {}
+			local result = SkillRules.NearMissStep(state.near[i], distance, hz.contact, dangerous, CFG.NearMiss)
+			if result == "NearMiss" then
+				self.abilities:ApplyCharge(player, "NearMiss")
+				self:_event(player, "NearMiss")
+			elseif result == "Hit" and phase == "Active" then
+				self.abilities:ConsumeShield(player, "Bumper")
+			end
+		end
+	end
+end
+
+function MicroSkillService:HandleTrickPress(player)
+	if not self.round:IsActiveRacer(player) then
+		return
+	end
+	local state = self:_state(player)
+	local t = os.clock() -- same clock as RacePhysics samples
+	local result = SkillRules.TrickPress(state.trick, t, CFG.Trick)
+	if result == "Accepted" then
+		self:_event(player, "TrickArmed")
+	elseif result == "Duplicate" then
+		self:_event(player, "TrickFail", "One trick per jump")
+	elseif result == "TooLate" then
+		self:_event(player, "TrickFail", "Too late - press right after the lip")
+	elseif result == "Pending" then
+		task.delay(CFG.Trick.EarlyPressSeconds + 0.1, function()
+			local current = self.players[player]
+			if current == state and state.trick.pressTime == t then
+				state.trick.pressTime = nil
+				self:_event(player, "TrickFail", "Can't trick here - use the TRICK RAMP")
+			end
+		end)
+	end
+end
+
+function MicroSkillService:_evaluateSlipstreams()
+	local racers = self.round:GetActiveRacers()
+	if #racers == 0 then
+		return
+	end
+	local t = os.clock()
+	for _, follower in ipairs(racers) do
+		local fState = self.players[follower]
+		local fInfo = fState and fState.info
+		if fInfo then
+			local condition = false
+			for _, leader in ipairs(racers) do
+				local lState = leader ~= follower and self.players[leader]
+				local lInfo = lState and lState.info
+				if lInfo and SkillRules.SlipstreamGeometry(
+					{ position = fInfo.position, s = fInfo.s, tangent = fInfo.tangent },
+					{ position = lInfo.position, s = lInfo.s, tangent = lInfo.tangent },
+					CFG.Slipstream
+				) then
+					local hit = workspace:Raycast(fInfo.position, lInfo.position - fInfo.position, self.losParams)
+					if not hit then
+						condition = true
+						break
+					end
+				end
+			end
+			local result = SkillRules.SlipstreamStep(fState.slip, condition, t, CFG.Slipstream)
+			if result == "Acquired" then
+				self.abilities:SetModifier(follower, "Slipstream", CFG.Slipstream.SpeedMultiplier, nil)
+				self.abilities:ApplyCharge(follower, "Slipstream")
+				self:_event(follower, "SlipstreamOn")
+			elseif result == "Lost" then
+				self.abilities:RemoveModifier(follower, "Slipstream")
+				self:_event(follower, "SlipstreamOff")
+			end
+		end
+	end
+end
+
+function MicroSkillService:Destroy()
+	self.maid:Cleanup()
+	self.players = {}
+end
+
+return MicroSkillService

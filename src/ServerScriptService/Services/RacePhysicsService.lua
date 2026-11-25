@@ -107,7 +107,12 @@ function RacePhysicsService:_observe(player, entry, elapsed, now)
 	info.time = now
 	info.prevS = entry.lastS
 	info.prevTime = entry.lastTime
-	info.halfWidth = entry.layout.Sections[math.min(info.index, #entry.layout.Sections)].Width / 2
+	local section = entry.layout.Sections[math.min(info.index, #entry.layout.Sections)]
+	info.halfWidth = section.Width / 2
+	local rel = position - info.closest
+	info.height = rel:Dot(section.Up) -- 0 while rolling on the floor, > 0 when launched (A3 trick)
+	info.lateral = rel:Dot(section.Right)
+	info.tangent = info.tangent
 	info.frozen = ball.Anchored
 	entry.lastS = info.s
 	entry.lastTime = now

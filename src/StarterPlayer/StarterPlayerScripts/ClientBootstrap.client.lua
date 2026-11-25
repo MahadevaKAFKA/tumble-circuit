@@ -63,6 +63,8 @@ local HUD = require(Controllers:WaitForChild("PrototypeHUDController"))
 local RaceHUD = require(Controllers:WaitForChild("RaceHUDController"))
 local MatchUI = require(Controllers:WaitForChild("MatchUIController"))
 local SoundController = require(Controllers:WaitForChild("SoundController"))
+local AbilityController = require(Controllers:WaitForChild("AbilityController"))
+local VFXController = require(Controllers:WaitForChild("VFXController"))
 
 local ATTR = Protocol.PlayerAttributes
 local BALL = Protocol.BallAttributes
@@ -158,6 +160,40 @@ local layouts = {
 local hazards = HazardController.new(course, motor, sound)
 motor:SetMarblesFolder(marblesFolder)
 
+-- A3 abilities + micro-skills (display/requests only; the server judges everything)
+local abilities = maid:Give(AbilityController.new({
+	remotes = remote,
+	motor = motor,
+	input = input,
+	toast = function(text, seconds)
+		hud:Toast(text, seconds)
+	end,
+	flash = function(text, color, seconds)
+		raceHud:Flash(text, color, seconds)
+	end,
+}))
+local vfx = maid:Give(VFXController.new(marblesFolder))
+hazards:SetShieldQuery(function()
+	return abilities:IsShielded()
+end)
+local reducedMotion = false
+maid:Give(abilities.OutcomeReceived:Connect(function(outcome)
+	vfx:OnOutcome(outcome)
+end))
+maid:Give(abilities.TrickPressed:Connect(function()
+	vfx:Trick(player.UserId)
+end))
+maid:Give(abilities.ReducedMotionChanged:Connect(function(value)
+	reducedMotion = value
+	vfx:SetReducedMotion(value)
+end))
+maid:Give(remote.SkillEvent.OnClientEvent:Connect(function(data)
+	if type(data) == "table" and (data.kind == "SlipstreamOn" or data.kind == "SlipstreamOff") then
+		vfx:SetSlipstream(player.UserId, data.kind == "SlipstreamOn")
+	end
+end))
+local trickZones = layouts[ZONES.Race].TrickZones or {}
+
 local function present(list)
 	local out = {}
 	for _, item in pairs(list) do
@@ -173,6 +209,7 @@ local cameraIgnore = present({
 	course:FindFirstChild("Rails"), course:FindFirstChild("Decor"), course:FindFirstChild("Hazards"), course:FindFirstChild("Gates"),
 	hubRoot:FindFirstChild("Rails"), hubRoot:FindFirstChild("Decor"),
 	chute and chute:FindFirstChild("Rails"), chute and chute:FindFirstChild("Decor"),
+	course:FindFirstChild("Features"),
 })
 local groundIgnore = { marblesFolder }
 local boardPart = hubRoot:FindFirstChild("Decor") and hubRoot.Decor:FindFirstChild("NextRaceBoard")
@@ -251,6 +288,18 @@ local function refreshGates()
 	hud:SetHudVisible(uiState == "Live")
 	raceHud:SetVisible(uiState == "Live")
 	matchUi:SetVisible(uiState == "Live")
+	local abilityMode = "Hidden"
+	if uiState == "Live" and not spectate.active then
+		local me = myEntry()
+		if roundState() == S.Racing and me and not me.finished and currentZone == ZONES.Race then
+			abilityMode = "Race"
+		elseif not amRacing() then
+			abilityMode = "Hub"
+		end
+	end
+	if abilities then
+		abilities:SetMode(abilityMode, input.device)
+	end
 end
 
 local resetLimiter = Utility.RateLimiter.new(GameConfig.Spawn.ClientResetThrottleSeconds)
@@ -511,6 +560,16 @@ maid:Give(input.SpectateCycleRequested:Connect(function(direction)
 		cycleSpectate(direction)
 	end
 end))
+maid:Give(input.AbilityRequested:Connect(function(slot)
+	if not spectate.active then
+		abilities:RequestAbility(slot)
+	end
+end))
+maid:Give(input.TrickRequested:Connect(function()
+	if not spectate.active and hud:GetOverlay() ~= "Title" then
+		abilities:RequestTrick()
+	end
+end))
 maid:Give(input.ScoreboardToggleRequested:Connect(function()
 	raceHud:ToggleStandings()
 end))
@@ -662,7 +721,19 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 			end
 		end
 	end
+	local multiplier = motor:GetSpeedMultiplier()
+	cameraController:SetFovTarget(reducedMotion and GameConfig.Camera.FieldOfView or GameConfig.Camera.FieldOfView + (multiplier - 1) * 40)
 	cameraController:Step(dt, cameraS)
+	abilities:Update()
+	vfx:Step()
+	if currentZone == ZONES.Race and state == S.Racing and me and not me.finished then
+		abilities:ShowHint("ability", "ABILITIES: " .. (input.device == "Gamepad" and "LB / RB" or input.device == "Touch" and "the two round buttons" or "Q / E") .. " - your loadout is set in the hub.")
+		for _, zone in ipairs(trickZones) do
+			if progressS > zone.LipS - 70 and progressS < zone.LipS - 15 then
+				abilities:ShowHint("trick", "TRICK RAMP ahead (green, left side): jump it and press " .. (input.device == "Gamepad" and "(A)" or input.device == "Touch" and "TRICK" or "SPACE") .. " in the air for +15% speed.")
+			end
+		end
+	end
 
 	touch:SetRecoverProgress(input.recoverProgress)
 	hud:Update({ speed = speed, recoverProgress = input.recoverProgress })

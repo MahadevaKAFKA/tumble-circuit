@@ -1,6 +1,7 @@
 # Tumble Circuit: Chaos Drop — install & play
 
-Current build: **A2** = A1 marble + multiplayer rounds (hub, countdown, checkpoints, results).
+Current build: **A3** = A1 marble + A2 multiplayer rounds + A3 abilities (Boost/Shield/Pulse) and
+micro-skills (Ramp Trick, Slipstream, Near Miss, Cooldown Charge).
 See `BUILD_STATUS.md` for exactly what is verified.
 
 > **Status:** code complete for A1, **not yet run in Roblox Studio** (Studio was not available
@@ -76,6 +77,8 @@ convenience rather than a requirement.
 | Reset to start | Hold **R** 1 s | Hold **Y** 1 s | Hold **RESET** 1 s |
 | Camera Chase / Wide | V | R3 | **CAM** |
 | Menu buttons | Enter / Space / click | A | Tap |
+| Ability 1 / 2 (race) | Q / E | LB / RB | round buttons |
+| Trick (in the air off the green ramp) | Space | A | TRICK |
 | Standings | Tab | D-pad up | — |
 | Spectate next / previous | E / Q | RB / LB | < > buttons |
 | Frame-time overlay | F2 | — | — |

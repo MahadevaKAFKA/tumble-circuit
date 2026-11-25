@@ -22,6 +22,8 @@ local RacePhysicsService = require(Services:WaitForChild("RacePhysicsService"))
 local CheckpointService = require(Services:WaitForChild("CheckpointService"))
 local ProgressService = require(Services:WaitForChild("ProgressService"))
 local RoundService = require(Services:WaitForChild("RoundService"))
+local AbilityService = require(Services:WaitForChild("AbilityService"))
+local MicroSkillService = require(Services:WaitForChild("MicroSkillService"))
 
 local existing = ReplicatedStorage:FindFirstChild(RoundProtocol.FolderName)
 if existing then
@@ -61,11 +63,16 @@ local round = RoundService.new({
 	remotes = remotes,
 })
 
+local abilities = AbilityService.new({ marbles = marbles, physics = physics, round = round, remotes = remotes })
+local micro = MicroSkillService.new({ track = track, marbles = marbles, physics = physics, round = round, abilities = abilities, remotes = remotes })
+
 physics:Start()
 round:Start()
+abilities:Start()
+micro:Start()
 marbles:Start()
 
 -- Studio integration tests can reach the live services through this table (never replicated).
-_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, remotes = remotes }
+_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes }
 
 print(string.format("[TumbleCircuit] server ready (%s, protocol v%d)", GameConfig.Version, RoundProtocol.Version))
