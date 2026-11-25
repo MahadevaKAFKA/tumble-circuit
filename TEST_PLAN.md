@@ -339,3 +339,18 @@ limit, single claim, sanitize), board naming, garage filters, emote text — 0 f
 - [ ] Best-time board updates after a PB; weekly wins only in 2+ human races; friends here.
 - [ ] Creator Dashboard analytics shows race_start / race_finish / onboarding funnel.
 
+## 14. C — free capsules, Shard Shop, free season
+
+**Automated:** `C capsule / season specs` — table sums, pity boundaries 13/14 and 58/59, priority,
+counters, item odds sums, display decimals, 100k base draws (observed frequencies reported),
+pity branches, 20k sequential opens, fixed-seed reproducibility, atomic open (exact debit,
+replayed request id, stale snapshot, insufficient Coins, back-to-back opens), duplicate Shards
+per tier, history cap, Shard Shop prices, season dates/levels/claims/rollover, profile v4 — 0 failed.
+
+**Play Solo / phone**
+- [ ] Odds on screen equal the table above for the current counters; open; counters update.
+- [ ] Double tap / reconnect during reveal: one charge, the result is in history after rejoin.
+- [ ] Saving unavailable (DataStore down): OPEN is paused, nothing spent.
+- [ ] Shard Shop owned items disabled; buying with too few Shards refused.
+- [ ] Season XP from races and quest claims; claims persist through rejoin.
+

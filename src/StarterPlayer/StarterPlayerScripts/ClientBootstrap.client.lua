@@ -77,6 +77,7 @@ local DevPanelController = require(Controllers:WaitForChild("DevPanelController"
 local SocialController = require(Controllers:WaitForChild("SocialController"))
 local ModesController = require(Controllers:WaitForChild("ModesController"))
 local HubMenusController = require(Controllers:WaitForChild("HubMenusController"))
+local LabController = require(Controllers:WaitForChild("LabController"))
 local Lighting = game:GetService("Lighting")
 
 local ATTR = Protocol.PlayerAttributes
@@ -387,8 +388,17 @@ local hubMenus = maid:Give(HubMenusController.new({
 	end,
 }))
 hubMenus:RegisterLayers(ui)
+-- C: Capsule Lab (free capsule / Shard Shop / free season)
+local lab = maid:Give(LabController.new({
+	remotes = remote,
+	toast = function(text, seconds)
+		hud:Toast(text, seconds)
+	end,
+}))
+lab:RegisterLayers(ui)
 maid:Give(hubMenus.EquippedChanged:Connect(function(equipped)
 	social:SetEmotes(equipped.emotes) -- B3: the three equipped emotes on the emote row
+	lab:SetOwned(hubMenus.cosmetics.ownedList) -- C: Shard Shop marks owned items
 end))
 ui:Register("Hud", function(visible)
 	hud:SetHudVisible(visible)
@@ -750,6 +760,7 @@ local function applySettings(s)
 	social:SetMuted(s.muteEmotes == true)
 	abilities:SetReducedMotion(s.reducedMotion == true)
 	results:SetReducedMotion(s.reducedMotion == true)
+	lab:SetReducedMotion(s.reducedMotion == true) -- C: instant capsule reveal
 	if cameraController:GetMode() ~= s.cameraMode then
 		hud:SetCameraMode(cameraController:SetMode(s.cameraMode))
 	end
@@ -781,6 +792,14 @@ maid:Give(matchUi.QuestsRequested:Connect(function()
 end))
 maid:Give(matchUi.BoardsRequested:Connect(function()
 	openModal("Boards")
+end))
+maid:Give(matchUi.LabRequested:Connect(function(tab)
+	lab.tab = tab
+	openModal("Lab")
+end))
+maid:Give(lab.CloseRequested:Connect(function()
+	ui:CloseModal()
+	refreshGates()
 end))
 maid:Give(hubMenus.CloseRequested:Connect(function()
 	ui:CloseModal()

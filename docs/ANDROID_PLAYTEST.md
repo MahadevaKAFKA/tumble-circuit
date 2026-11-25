@@ -23,6 +23,21 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
+## Phase C — Capsule Lab (MORE → CAPSULE LAB / SEASON)
+
+- **Free capsule**: 600 Coins you earned racing (never Robux). The panel shows the exact odds
+  for this open, every marble's chance, and how many opens until the guaranteed Epic+ (15) and
+  Legendary+ (60). A marble you already have turns into Shards.
+- **Shard Shop**: spend Shards on exactly the item you want.
+- **Season**: 30 free levels until 21 Dec; race and claim quests to level up, then CLAIM.
+
+### What to check (C)
+- [ ] Open a capsule: Coins drop by exactly 600, the reveal plays (SKIP works), the marble shows in
+      GARAGE; the counters go down by one (or reset on Epic+).
+- [ ] Tap OPEN twice quickly: only one capsule per tap is charged.
+- [ ] Get a duplicate: Shards go up by the listed amount. Shard Shop: buy something → owned.
+- [ ] SEASON: XP rises after a race; CLAIM a level once.
+
 ## Phase B3 — garage, quests, leaderboards
 
 The hub column is now: **ABILITIES / GARAGE**, **QUESTS / MORE** (leaderboards, settings),

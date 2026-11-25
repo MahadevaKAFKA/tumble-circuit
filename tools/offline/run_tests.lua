@@ -75,6 +75,10 @@ local modules = {
 	MarbleLook = H.module("ReplicatedStorage/Shared/MarbleLook"),
 	QuestConfig = H.module("ReplicatedStorage/Shared/QuestConfig"),
 	CosmeticService = H.module("ServerScriptService/Services/CosmeticService"),
+	CapsuleOdds = H.module("ReplicatedStorage/Shared/CapsuleOdds"),
+	SeasonConfig = H.module("ReplicatedStorage/Shared/SeasonConfig"),
+	CapsuleService = H.module("ServerScriptService/Services/CapsuleService"),
+	SeasonService = H.module("ServerScriptService/Services/SeasonService"),
 }
 -- A5 client modules: load-time references to client services are stubbed; only their pure
 -- functions (Step / Choose / PbLine) are exercised.
@@ -86,6 +90,8 @@ modules.SocialPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/So
 H.stubServices = { Players = {}, RunService = {}, DataStoreService = {}, UserService = {} }
 modules.HubMenusPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/HubMenusController")
 modules.LeaderboardService = H.module("ServerScriptService/Services/LeaderboardService")
+H.stubServices = { Players = {}, RunService = {}, HttpService = {} }
+modules.LabPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/LabController")
 H.stubServices = {}
 
 -- A5 UI text scan: every string literal in client code (comments stripped).
@@ -237,6 +243,7 @@ local suites = {
 	{ "B1 rules specs", root .. "/src/Tests/Unit/B1Rules.spec.lua" },
 	{ "B2 ability specs", root .. "/src/Tests/Unit/B2Abilities.spec.lua" },
 	{ "B3 progression specs", root .. "/src/Tests/Unit/B3Progression.spec.lua" },
+	{ "C capsule / season specs", root .. "/src/Tests/Unit/CCapsules.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

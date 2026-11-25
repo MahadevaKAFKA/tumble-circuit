@@ -40,6 +40,8 @@ local TelemetryService = require(Services:WaitForChild("TelemetryService"))
 local CosmeticService = require(Services:WaitForChild("CosmeticService"))
 local QuestService = require(Services:WaitForChild("QuestService"))
 local LeaderboardService = require(Services:WaitForChild("LeaderboardService"))
+local CapsuleService = require(Services:WaitForChild("CapsuleService"))
+local SeasonService = require(Services:WaitForChild("SeasonService"))
 local HubBuilder = require(game:GetService("ServerStorage"):WaitForChild("ProceduralBuilders"):WaitForChild("HubBuilder"))
 
 local existing = ReplicatedStorage:FindFirstChild(RoundProtocol.FolderName)
@@ -115,6 +117,9 @@ social.emoteResolver = function(player, slot)
 end
 local quests = QuestService.new({ data = playerData, round = round, remotes = remotes, economy = economy, abilities = abilities, micro = micro, gates = chaos, track = track, telemetry = telemetry })
 local leaderboards = LeaderboardService.new({ data = playerData, round = round, economy = economy, remotes = remotes, track = track, hazards = hazards })
+-- C: free capsules (earned Coins), Shard Shop, free season
+local capsules = CapsuleService.new({ data = playerData, remotes = remotes, cosmetics = cosmetics, telemetry = telemetry })
+local seasons = SeasonService.new({ data = playerData, remotes = remotes, economy = economy, quests = quests, cosmetics = cosmetics })
 playerData.ProfileLoaded:Connect(function(player, profile)
 	abilities:SetLoadout(player, profile.data.equippedAbilityIds) -- saved starter loadout
 end)
@@ -133,6 +138,8 @@ timeTrial:Start()
 cosmetics:Start()
 quests:Start()
 leaderboards:Start()
+capsules:Start()
+seasons:Start()
 -- B3 telemetry hooks (Roblox AnalyticsService via TelemetryService; failures never matter)
 do
 	local function human(entity)
@@ -183,6 +190,6 @@ bots:Start() -- bots only spawn at Preparing, so they can start after the folder
 perf:Start()
 
 -- Studio integration tests can reach the live services through this table (never replicated).
-_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev, social = social, party = party, timeTrial = timeTrial, cosmetics = cosmetics, quests = quests, leaderboards = leaderboards, telemetry = telemetry }
+_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev, social = social, party = party, timeTrial = timeTrial, cosmetics = cosmetics, quests = quests, leaderboards = leaderboards, telemetry = telemetry, capsules = capsules, seasons = seasons }
 
 print(string.format("[TumbleCircuit] server ready (%s, protocol v%d)", GameConfig.Version, RoundProtocol.Version))

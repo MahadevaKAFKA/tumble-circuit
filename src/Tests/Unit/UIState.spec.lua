@@ -72,11 +72,12 @@ function Spec.run(m)
 	local forbidden = false
 	for a in pairs(actions) do
 		local l = a:lower()
-		if l:find("shop") or l:find("buy") or l:find("robux") or l:find("capsule") or l:find("season") then
+		-- C: earned capsules, the Shard Shop and the free season exist; nothing is bought with Robux
+		if l:find("buy") or l:find("robux") or l:find("purchase") or l:find("premium") then
 			forbidden = true
 		end
 	end
-	check("no shop / buy / Robux / capsule / season actions exist", not forbidden)
+	check("no buy / Robux / purchase / premium actions exist (earned-only economy)", not forbidden)
 
 	local SC = m.SettingsPure
 	if SC then
@@ -96,11 +97,13 @@ function Spec.run(m)
 		local hits = {}
 		for _, text in ipairs(m.ClientUiStrings) do
 			local l = text:lower()
-			if l:find("robux") or l:find("capsule") or l:find("season pass") or l:find("buy ") or l:find("shop") or l:find("purchase") then
+			-- "Robux" may appear only in a sentence saying it is NOT used
+			local robuxPrompt = l:find("robux") and not (l:find("no robux") or l:find("never robux") or l:find("costs robux") or l:find("not robux") or l:find("bought with robux"))
+			if robuxPrompt or l:find("season pass") or l:find("premium") or l:find("buy ") or l:find("purchase") then
 				hits[#hits + 1] = text
 			end
 		end
-		check("client UI text has no Robux / shop / capsule / season / buy prompts", #hits == 0, table.concat(hits, " | "))
+		check("client UI text has no Robux / buy / purchase / premium prompts (earned-only)", #hits == 0, table.concat(hits, " | "))
 		check("no MarketplaceService anywhere in the game source", m.UsesMarketplace == false)
 	end
 	return results

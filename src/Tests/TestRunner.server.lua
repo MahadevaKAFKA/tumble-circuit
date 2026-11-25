@@ -67,6 +67,10 @@ local modules = {
 	QuestConfig = require(Shared:WaitForChild("QuestConfig")),
 	CosmeticService = require(Services:WaitForChild("CosmeticService")),
 	LeaderboardService = require(Services:WaitForChild("LeaderboardService")),
+	CapsuleOdds = require(Shared:WaitForChild("CapsuleOdds")),
+	SeasonConfig = require(Shared:WaitForChild("SeasonConfig")),
+	CapsuleService = require(Services:WaitForChild("CapsuleService")),
+	SeasonService = require(Services:WaitForChild("SeasonService")),
 	SocialConfig = require(Shared:WaitForChild("SocialConfig")),
 }
 do
@@ -127,6 +131,7 @@ report("B1 world specs", require(Unit:WaitForChild("Worlds.spec")).run(modules))
 report("B1 rules specs", require(Unit:WaitForChild("B1Rules.spec")).run(modules))
 report("B2 ability specs", require(Unit:WaitForChild("B2Abilities.spec")).run(modules))
 report("B3 progression specs", require(Unit:WaitForChild("B3Progression.spec")).run(modules))
+report("C capsule / season specs", require(Unit:WaitForChild("CCapsules.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

@@ -1,13 +1,42 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** B3 — garage, cosmetics, level rewards, quests, leaderboards, telemetry
-(Phase B on the owner's go-ahead, 2026-11-25; plan: docs/PHASE_BCD_PLAN.md). B1 = v16, B2 = v17.
-**State:** A1–A6 played and approved on the owner's phone. B1–B3 offline-verified (463 specs) and
-published privately — **none of Phase B has been played in Roblox yet**.
+**Active milestone:** C — free capsules (earned Coins), Shard Shop, free 28-day season (owner's
+go-ahead for B–D, 2026-11-25; plan: docs/PHASE_BCD_PLAN.md). B1 = v16, B2 = v17, B3 = v18.
+**State:** A1–A6 played and approved on the owner's phone. B1–C offline-verified (499 specs) and
+published privately — **none of Phase B or C has been played in Roblox yet**. No Robux anywhere.
 **Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — Phase C: free capsules, Shard Shop, free season (earned only)
+
+- **CapsuleOdds** (one pure module for the server roll AND the odds on screen): base 55 / 30 / 11 /
+  3.5 / 0.5; after 14 opens without Epic+ the next is Epic 85 / Legendary 13 / Mythic 2 (the 15th
+  is always Epic+); after 59 without Legendary+ the next is Legendary 95 / Mythic 5 (the 60th is
+  always Legendary+); Legendary pity wins; no Mythic guarantee. Uniform item inside the tier
+  (owned included → Shards). Offline: 100,000 base draws observed Common 55.186%, Rare 29.924%,
+  Epic 10.904%, Legendary 3.474%, Mythic 0.512% (tolerance check passes; the pity-mixed long run
+  is deliberately not claimed to equal the base table); pity branches 5k draws each; 20k
+  sequential opens never exceed 14 / 59 misses; boundaries 13/14 and 58/59 exact.
+- **Free capsule** = 600 earned Coins. One profile mutation: request id unused (a retry returns
+  the stored result, no second charge), the client's odds snapshot (version + both counters)
+  matches the server's or it is refused, Coins checked, debit, server Random per accepted open,
+  pity update, marble or duplicate Shards (5 / 20 / 65 / 200 / 600), last-20 history. Paused with
+  a clear message when saving is unavailable.
+- **Shard Shop**: pick any catalog item you don't own; 60 / 180 / 600 / 1,900 / 6,000 Shards
+  by rarity, debit + grant together. Shards are earned only.
+- **Free season**: Season 1 "Launch Lap" configured 23 Nov – 21 Dec 2026 (UTC; owner-editable in
+  SeasonConfig), 30 levels × 300 season XP from race XP and quest claims, free track (cosmetics
+  every 5 levels, Coins / Shards between), claims per season; rollover resets season XP/claims
+  only. No premium lane.
+- **CAPSULE LAB** (MORE menu): CAPSULE (full tier + every-item odds, "Epic+ within N /
+  Legendary+ within N", duplicate terms, Coins, last 20, 1.5 s reveal with SKIP, instant with
+  reduced motion, no reel), SHARD SHOP, SEASON. Profile **v4**; protocol v10.
+- The A5 "no capsule / season" UI guard now checks the earned-only rule: no buy / Robux /
+  purchase / premium actions or prompts.
+- Offline: CCapsules.spec (36). Policy note for D: these random rewards are free (earned Coins
+  only); paid random items stay OFF.
 
 ## 2026-11-25 — Phase B3: garage, cosmetics, quests, leaderboards, telemetry
 
@@ -425,6 +454,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | B3: `luau_check` (99 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **463 passed, 0 failed** (B3 progression 35 new); 113 instances, 99 scripts, all references resolve |
 | — | B2 phone playtest (abilities) | **pending owner** |
 | 2026-11-25 | GitHub Actions **Deploy** run 45685101889 (B3, Selene 0 errors, 463 specs, publish) | **success**: **version 18** published, visibility PRIVATE |
+| 2026-11-25 | C: `luau_check` (105 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **499 passed, 0 failed** (C capsules/season 36 new); 119 instances, 105 scripts, all references resolve |
 | — | B3 phone playtest (garage, quests, boards) | **pending owner** |
+| — | C phone playtest (capsule, shard shop, season) | **pending owner** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

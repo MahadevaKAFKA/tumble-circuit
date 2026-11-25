@@ -35,6 +35,7 @@ function QuestService.new(deps)
 	self.botRound = false -- the current race is bot practice (1 human + bots)
 	self.clock = os.time -- injectable for specs
 	self.maid = Utility.Maid.new()
+	self.Claimed = Utility.Signal.new() -- C: (player, scope) for season XP
 	return self
 end
 
@@ -91,6 +92,7 @@ function QuestService:Claim(player, scope, index)
 	end)
 	if ok and reward then
 		self.data:SaveSoon(player)
+		self.Claimed:Fire(player, scope)
 		self.remotes.ProgressionNotice:FireClient(player, { kind = "QuestClaimed", text = string.format("+%d COINS  +%d XP", reward.coins, reward.xp) })
 		if self.telemetry then
 			local profile = self.data:GetProfile(player)

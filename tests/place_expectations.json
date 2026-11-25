@@ -444,6 +444,13 @@
     "LeaderboardData",
     "ProgressionNotice",
     "TrailA",
-    "TrailB"
+    "TrailB",
+    "RequestSeasonClaim",
+    "CapsuleState",
+    "RequestCapsuleState",
+    "RequestOpenCapsule",
+    "CapsuleResult",
+    "RequestShardBuy",
+    "SeasonState"
   ]
 }

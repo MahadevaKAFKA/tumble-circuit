@@ -54,12 +54,15 @@
 	B3 (v9): CosmeticState, RequestEquipCosmetic(kind, id, slot), RequestFavorite(id, on),
 	QuestState, RequestQuestClaim(scope, index), RequestLeaderboard(kind, worldId, seedClass),
 	LeaderboardData, ProgressionNotice; EmoteShown adds emoteId (the slot's equipped emote).
+	C (v10): CapsuleState, RequestCapsuleState, RequestOpenCapsule(requestId, oddsVersion,
+	epicMisses, legendaryMisses) - the counters the player saw; a mismatch is refused -,
+	CapsuleResult, RequestShardBuy(id), SeasonState, RequestSeasonClaim(level).
 	Snapshot adds chaosModifier = {kind, startsAt, endsAt} while a voted modifier is pending/active.
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 9
+RoundProtocol.Version = 10
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -110,6 +113,14 @@ RoundProtocol.Remotes = {
 	RequestLeaderboard = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 8 }, { type = "string", maxLength = 40 }, { type = "number", min = 0, max = 2, integer = true } }, MinInterval = 1.0 },
 	LeaderboardData = { Direction = "ServerToClient" },
 	ProgressionNotice = { Direction = "ServerToClient" }, -- owner: LevelReward / QuestDone / QuestClaimed / Denied
+	-- C (earned only: no Robux anywhere in C)
+	CapsuleState = { Direction = "ServerToClient" },
+	RequestCapsuleState = { Direction = "ClientToServer", Args = {}, MinInterval = 0.5 },
+	RequestOpenCapsule = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 }, { type = "number", min = 0, max = 99, integer = true }, { type = "number", min = 0, max = 99, integer = true }, { type = "number", min = 0, max = 99, integer = true } }, MinInterval = 1.6 },
+	CapsuleResult = { Direction = "ServerToClient" },
+	RequestShardBuy = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 } }, MinInterval = 0.5 },
+	SeasonState = { Direction = "ServerToClient" },
+	RequestSeasonClaim = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 30, integer = true } }, MinInterval = 0.3 },
 }
 
 RoundProtocol.States = {

@@ -21,7 +21,7 @@ UIController.Screens = {
 		-- 3D board; the lobby column now carries the countdown / waiting line itself.
 		-- AbilitiesRace here = B2 try-it buttons (only shown after TRY in the ability menu)
 		layers = { "Hud", "Lobby", "Modes", "Touch", "Social", "AbilitiesRace" }, -- loadout summary lives on the LOADOUT button
-		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2", "Garage", "Quests", "More", "Boards" },
+		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2", "Garage", "Quests", "More", "Boards", "Lab" },
 	},
 	-- B1 solo Time Trial: timer card + QUIT; no abilities, no lobby column
 	TimeTrial = { layers = { "Hud", "TimeTrial", "Touch" }, buttons = { "QuitTrial", "Brake", "Reset", "Camera" } },
@@ -40,6 +40,8 @@ UIController.Modals = {
 	Garage = { layer = "Garage", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "GarageTab", "GarageFilter", "GarageItem", "Equip", "Favorite" } },
 	Quests = { layer = "Quests", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "QuestClaim" } },
 	Boards = { layer = "Boards", allowedOn = { Lobby = true, Results = true, Spectate = true }, buttons = { "Close", "BoardWorld", "BoardKind" } },
+	-- C: Capsule Lab (free capsule, Shard Shop, free season)
+	Lab = { layer = "Lab", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "LabTab", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim" } },
 }
 
 UIController.Actions = {
@@ -51,6 +53,7 @@ UIController.Actions = {
 	"TimeTrial", "Party", "Invite", "MapVote", "QuitTrial", -- B1
 	"UnlockAbility", -- B2
 	"Garage", "Quests", "More", "Boards", "GarageTab", "GarageFilter", "GarageItem", "Equip", "Favorite", "QuestClaim", "BoardWorld", "BoardKind", -- B3
+	"Lab", "LabTab", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim", -- C
 }
 
 local RACE_STATES = { Preparing = true, Countdown = true, Racing = true }

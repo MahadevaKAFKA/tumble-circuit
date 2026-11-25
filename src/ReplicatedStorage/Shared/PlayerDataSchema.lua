@@ -17,15 +17,20 @@
 	the twelve ids (the server checks ownership).
 	v3 (B3) adds cosmetics = { owned = {id..}, equipped = { marble, trail, burst, emotes = {3} },
 	favorites = {id..} }, levelRewardsClaimed = { level.. }, quests (QuestConfig shape).
+	v4 (C) adds shards (earned only), capsule = { epicMisses, legendaryMisses, history = { {id,
+	tier, dup, shards, at}.. last 20 }, requests = { requestId.. last 20 } } and season
+	(SeasonConfig shape).
 ]]
 
 local ProgressionConfig = require(script.Parent:WaitForChild("ProgressionConfig"))
 local Catalog = require(script.Parent:WaitForChild("Catalog"))
 local QuestConfig = require(script.Parent:WaitForChild("QuestConfig"))
+local SeasonConfig = require(script.Parent:WaitForChild("SeasonConfig"))
+local CapsuleOdds = require(script.Parent:WaitForChild("CapsuleOdds"))
 
 local PlayerDataSchema = {}
 
-PlayerDataSchema.Version = 3
+PlayerDataSchema.Version = 4
 PlayerDataSchema.LedgerSize = 25 -- last N rewarded race ids kept (bounded, never grows)
 
 PlayerDataSchema.Settings = {
@@ -176,6 +181,9 @@ function PlayerDataSchema.Defaults()
 		cosmetics = PlayerDataSchema.DefaultCosmetics(), -- v3
 		levelRewardsClaimed = {}, -- v3: levels whose reward was granted
 		quests = QuestConfig.Default(), -- v3
+		shards = 0, -- v4: earned only (duplicates, season)
+		capsule = { epicMisses = 0, legendaryMisses = 0, history = {}, requests = {} }, -- v4
+		season = SeasonConfig.Default(), -- v4
 		settings = PlayerDataSchema.DefaultSettings(),
 		rewardLedger = {},
 		botPractice = { day = 0, races = 0 },
@@ -280,6 +288,28 @@ function PlayerDataSchema.Migrate(raw)
 		end
 	end
 	d.quests = QuestConfig.Sanitize(raw.quests)
+	d.season = SeasonConfig.Sanitize(raw.season)
+	if type(raw.shards) == "number" and raw.shards == raw.shards then
+		d.shards = math.max(0, math.min(math.floor(raw.shards), 10000000))
+	end
+	if type(raw.capsule) == "table" then
+		local c = raw.capsule
+		local function misses(v, cap)
+			return type(v) == "number" and v == v and math.max(0, math.min(math.floor(v), cap)) or 0
+		end
+		d.capsule.epicMisses = misses(c.epicMisses, CapsuleOdds.EpicPityAfter)
+		d.capsule.legendaryMisses = misses(c.legendaryMisses, CapsuleOdds.LegendaryPityAfter)
+		for _, h in ipairs(type(c.history) == "table" and c.history or {}) do
+			if type(h) == "table" and type(h.id) == "string" and Catalog.Get(h.id) and #d.capsule.history < CapsuleOdds.HistorySize then
+				d.capsule.history[#d.capsule.history + 1] = { id = h.id, tier = Catalog.Get(h.id).Rarity, dup = h.dup == true, shards = type(h.shards) == "number" and math.max(0, math.floor(h.shards)) or 0, at = type(h.at) == "number" and h.at or 0, req = type(h.req) == "string" and #h.req <= 40 and h.req or nil }
+			end
+		end
+		for _, r in ipairs(type(c.requests) == "table" and c.requests or {}) do
+			if type(r) == "string" and #r <= 40 and #d.capsule.requests < CapsuleOdds.HistorySize then
+				d.capsule.requests[#d.capsule.requests + 1] = r
+			end
+		end
+	end
 	if type(raw.botPractice) == "table" then
 		d.botPractice.day = count(raw.botPractice.day)
 		d.botPractice.races = count(raw.botPractice.races)

@@ -1,6 +1,7 @@
 == Syntax (Lua 5.3 parser over Lua-5.1-subset Luau) ==
 ok    PLACEHOLDER_IDS.lua
 ok    src/ReplicatedStorage/Shared/AbilityConfig.lua
+ok    src/ReplicatedStorage/Shared/CapsuleOdds.lua
 ok    src/ReplicatedStorage/Shared/Catalog.lua
 ok    src/ReplicatedStorage/Shared/GameConfig.lua
 ok    src/ReplicatedStorage/Shared/HazardSim.lua
@@ -15,6 +16,7 @@ ok    src/ReplicatedStorage/Shared/QuestConfig.lua
 ok    src/ReplicatedStorage/Shared/RaceConfig.lua
 ok    src/ReplicatedStorage/Shared/RoundProtocol.lua
 ok    src/ReplicatedStorage/Shared/RouteTracker.lua
+ok    src/ReplicatedStorage/Shared/SeasonConfig.lua
 ok    src/ReplicatedStorage/Shared/SocialConfig.lua
 ok    src/ReplicatedStorage/Shared/TimeTrialRules.lua
 ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
@@ -24,6 +26,7 @@ ok    src/ServerScriptService/Services/AbilityRules.lua
 ok    src/ServerScriptService/Services/AbilityService.lua
 ok    src/ServerScriptService/Services/BotBrain.lua
 ok    src/ServerScriptService/Services/BotService.lua
+ok    src/ServerScriptService/Services/CapsuleService.lua
 ok    src/ServerScriptService/Services/ChaosGateService.lua
 ok    src/ServerScriptService/Services/CheckpointService.lua
 ok    src/ServerScriptService/Services/CosmeticService.lua
@@ -45,6 +48,7 @@ ok    src/ServerScriptService/Services/RacePhysicsService.lua
 ok    src/ServerScriptService/Services/RaceRules.lua
 ok    src/ServerScriptService/Services/RewardRules.lua
 ok    src/ServerScriptService/Services/RoundService.lua
+ok    src/ServerScriptService/Services/SeasonService.lua
 ok    src/ServerScriptService/Services/SkillRules.lua
 ok    src/ServerScriptService/Services/SocialService.lua
 ok    src/ServerScriptService/Services/TelemetryService.lua
@@ -63,6 +67,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HubMenusController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/LabController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ModesController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
@@ -85,6 +90,7 @@ ok    src/Tests/Unit/B1Rules.spec.lua
 ok    src/Tests/Unit/B2Abilities.spec.lua
 ok    src/Tests/Unit/B3Progression.spec.lua
 ok    src/Tests/Unit/BotNavigation.spec.lua
+ok    src/Tests/Unit/CCapsules.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
@@ -511,6 +517,45 @@ PASS  garage filters: owned / favorites / rarity
 PASS  reset timer text
 PASS  emote bubble uses the equipped catalog emote, falls back to the A6 slot
 
+-- C capsule / season specs --
+PASS  base 55/30/11/3.5/0.5 sums to 100%
+PASS  pity tables sum to 100% (85/13/2 and 95/5)
+PASS  Epic+ pity exactly on the 15th open (13 misses: base, 14: pity)
+PASS  Legendary+ pity exactly on the 60th open (58: base, 59: pity)
+PASS  Legendary pity wins when both apply
+PASS  counters: Rare +1/+1, Epic resets Epic+ only, Mythic resets both
+PASS  'within N' text values (1 = next open)
+PASS  item odds sum to 100% (counters 0/0)
+PASS  item odds sum to 100% (counters 14/0)
+PASS  item odds sum to 100% (counters 0/59)
+PASS  Mythic item odds = 0.5% / 2 = 0.25%, shown with enough decimals
+PASS  100k base draws match 55/30/11/3.5/0.5 within tolerance
+PASS  items inside a tier are uniform (each Common within 5% of expected)
+PASS  pity branches never give less than promised (5k draws each)
+PASS  20k sequential opens: never 15 in a row without Epic+, never 60 without Legendary+
+PASS  reproducible on a fixed seed
+PASS  open: debits exactly 600, grants a Common, records history + pity
+PASS  retry with the same request id: same result, no second charge
+PASS  stale odds snapshot refused (nothing spent)
+PASS  not enough Coins: refused, wallet unchanged (never negative)
+PASS  two opens back to back: two debits, two results; a third with 0 Coins refused
+PASS  duplicates give exactly 5/20/65/200/600 Shards per tier
+PASS  history keeps the last 20, newest first
+PASS  Shard Shop: exact 60/180/600/1900/6000, item granted, can't buy it twice
+PASS  Shard Shop: not enough Shards refused, nothing changes
+PASS  season 1 is 28 days, 30 levels
+PASS  current season only inside its dates
+PASS  season: 650 XP = level 2; claim once; level 3 locked
+PASS  rollover: season XP and claims reset (no season -> nothing claimable)
+PASS  season item you already own -> its duplicate Shards (nothing removed)
+PASS  all 30 free rewards are real (items exist)
+PASS  v3 -> v4: Coins kept, shards 0, capsule + season defaults
+PASS  v4 sanitize: shards >= 0, pity counters clamped, history tier from the catalog
+PASS  v4 sanitize: season XP capped, claims unique and in range
+PASS  Capsule Lab shows 5 tier lines and all 35 item lines from the same odds
+PASS  Capsule Lab follows the server's counters (pity branch shown)
+info  100k base draws observed: Common 55.186%, Rare 29.924%, Epic 10.904%, Legendary 3.474%, Mythic 0.512%
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
 PASS  defaults carry every field (current schema)
@@ -590,11 +635,11 @@ PASS  race start closes the loadout modal automatically
 PASS  opening a modal on the race screen is refused
 PASS  results screen shows only results + race HUD layers
 PASS  no dead buttons: every screen/modal button has an action
-PASS  no shop / buy / Robux / capsule / season actions exist
+PASS  no buy / Robux / purchase / premium actions exist (earned-only economy)
 PASS  settings: toggle flips, enum cycles, number steps and clamps
 PASS  loadout: choosing the other slot's ability swaps; always two distinct
 PASS  results: PB lines (new with delta / first on variation / slower / none)
-PASS  client UI text has no Robux / shop / capsule / season / buy prompts
+PASS  client UI text has no Robux / buy / purchase / premium prompts (earned-only)
 PASS  no MarketplaceService anywhere in the game source
 
 -- A6 social specs --
@@ -624,4 +669,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-463 passed, 0 failed (+ 0 syntax failures)
+499 passed, 0 failed (+ 0 syntax failures)
