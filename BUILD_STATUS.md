@@ -268,6 +268,5 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | GitHub Actions **Deploy** run 45601891384 (bot fix, commit 0827f2b) | **success**: version 12, PRIVATE |
 | 2026-11-25 | A5 merge: `luau_check` (74 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **307 passed, 0 failed**; 88 instances, 74 scripts, all references resolve |
 | 2026-11-25 | GitHub Actions **Deploy** run 45602414831 (A5, commit e1d1a28: Rojo, Selene, Lune, 307 specs, publish) | **success**: **version 13** published, visibility PRIVATE |
-| — | Bot re-test (BOTS line in the stats box) | **pending owner** |
-| — | A5 first phone playtest | **pending owner** |
+| 2026-11-25 | **A5 + bot fix phone playtest** (owner, v13) | **"all is going as intended"** (bots race). One few-second freeze near checkpoint 2 (Bumper Field), once. Code review: nothing heavy runs on a checkpoint crossing or bumper hit (no instance creation, no saves on the client). Waiting for the stats box hitch line if it recurs |
 | — | 2-client network verification | **pending** (needs a second account) |
