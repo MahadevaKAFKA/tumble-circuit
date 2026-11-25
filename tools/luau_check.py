@@ -886,6 +886,34 @@ def collect(paths: list[str]) -> list[str]:
     return sorted(files)
 
 
+# --------------------------------------------------------------------------
+# Server start-up: the server builds the world, so it must never wait on workspace for something
+# it has not made yet. An unbounded workspace:WaitForChild(name) in a service stalls the boot
+# script forever if the thing is created by a service started later (A3, 2026-11-25: the
+# MicroSkillService waited for TumbleMarbles, which MarbleCharacterService:Start makes last).
+# --------------------------------------------------------------------------
+
+def server_wait_check(files: list[str]) -> dict[str, list[str]]:
+    problems: dict[str, list[str]] = {}
+    for path in files:
+        norm = path.replace(os.sep, "/")
+        if not norm.endswith((".lua", ".luau")) or "/Tests/" in norm:
+            continue
+        if "ServerScriptService/" not in norm and "ServerStorage/" not in norm:
+            continue
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().split("\n")
+        for line, text in enumerate(lines, start=1):
+            text = re.sub(r"--.*", "", text)
+            for m in re.finditer(r"\bworkspace\s*:\s*WaitForChild\s*\(([^()]*)\)", text):
+                if "," in m.group(1):
+                    continue
+                problems.setdefault(path, []).append(
+                    f"line {line}: server code waits on workspace with no timeout "
+                    "(can deadlock start-up; create it or use FindFirstChild)")
+    return problems
+
+
 def check_file(path: str) -> Report:
     report = Report(path)
     with open(path, encoding="utf-8") as f:
@@ -934,6 +962,11 @@ def main(argv: list[str]) -> int:
             for issue in sorted(set(issues)):
                 print(f"ERROR {path}: {issue}")
                 total_errors += 1
+
+    for path, issues in server_wait_check(files).items():
+        for issue in issues:
+            print(f"ERROR {path}: {issue}")
+            total_errors += 1
 
     luau_count = sum(1 for f in files if not f.endswith(".json"))
     print(f"\nchecked {luau_count} Luau files + {len(files) - luau_count} JSON modules: "

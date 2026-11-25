@@ -147,7 +147,24 @@ for name in pairs(RoundProtocol.Remotes) do
 	end
 end
 if not remotesOk or not course or not marblesFolder then
-	hud:ShowMessage("Could not start: " .. tostring(worldError or "server remotes missing or protocol mismatch") .. "\nCheck the Output window for [TumbleCircuit] errors, then press Stop and Play again.", true)
+	-- Name the actual failure, so a phone screenshot is enough to diagnose it.
+	local reason = worldError
+	if not reason and not remotes then
+		reason = "server remotes folder missing"
+	elseif not reason and remotes:GetAttribute("ProtocolVersion") ~= RoundProtocol.Version then
+		reason = string.format("protocol mismatch (server v%s, client v%s)", tostring(remotes:GetAttribute("ProtocolVersion")), tostring(RoundProtocol.Version))
+	elseif not reason and not remotesOk then
+		local missing = {}
+		for name in pairs(RoundProtocol.Remotes) do
+			if not remote[name] then
+				missing[#missing + 1] = name
+			end
+		end
+		reason = "server remotes missing: " .. table.concat(missing, ", ")
+	elseif not reason then
+		reason = "the server did not finish starting (no marbles folder)"
+	end
+	hud:ShowMessage("Could not start: " .. tostring(reason) .. "\nOpen /console (Log, Server) for [TumbleCircuit] errors, then rejoin.", true)
 	return
 end
 course:WaitForChild("Hazards", 5)

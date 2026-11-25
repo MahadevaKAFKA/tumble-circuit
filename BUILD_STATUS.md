@@ -20,6 +20,7 @@ stats box + hitch log, GO = fresh free marble, SIT OUT / JOIN RACE button, closa
   RESET), CAM and LIST do not overlap.
 - One phone change: the hub ABILITIES panel moves from the bottom-left corner (where the stick is
   grabbed, also in the practice chute) to the upper left on touch.
+- **Start-up deadlock found on the first phone run** (see test ledger, 2026-11-25) and fixed.
 - `tools/luau_check.py`: config check now reads balanced tables (a one-line `X.Owned = { ... }`
   swallowed the sections after it and reported 6 false errors in AbilityConfig users);
   mutation-tested (bad section and bad key still reported).
@@ -167,5 +168,6 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | A3 merge + `luau_check` (44 files) + offline specs + offline place build + `verify_place.py` | 0 errors (3 unused-local warnings); **140 passed, 0 failed**; 58 instances, 44 scripts, all references resolve; smoothed heading defined on both routes (worst 0.75 / 0.92 °/stud) |
 | 2026-11-25 | Cloud build run 45595559373 | **failed at Selene**: 2 `if_same_then_else` errors in `AbilitySecurity.spec.lua` (three branches all set `constrained = false`); folded into one condition, same meaning; nothing published |
 | 2026-11-25 | GitHub Actions **Deploy** run 45595693660 (A3, commit f77686c: Rojo, Selene, Lune, 140 specs, publish) | **success**: Selene 0 errors; **version 9** published, visibility PRIVATE |
-| — | A3 first phone playtest (solo) | **pending owner** |
+| 2026-11-25 | **A3 first phone playtest** (owner, v9, Roblox Android app) | **server never finished starting**: phone stuck on "Building the Orbital Garage...", then "Could not start: server remotes missing or protocol mismatch". Cause (found by reading the boot order): `MicroSkillService:Start()` did `workspace:WaitForChild("TumbleMarbles")` with no timeout, but that folder was only created by `MarbleCharacterService:Start()`, which ServerBootstrap runs after it → the boot script yielded forever (A3 upload bug; offline specs don't run services). Fix: folder created in `MarbleCharacterService.new`; MicroSkillService uses `marbles.folder`. New `luau_check` rule: server code may not `workspace:WaitForChild(x)` without a timeout (catches the original A3 file). Client failure message now names the real cause (missing remotes list / protocol versions / server not finished). All 60 client method calls and every A3 service dependency checked to exist. |
+| — | A3 phone re-test after the start-up fix | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

@@ -56,7 +56,21 @@ function MarbleCharacterService.new(trackService)
 	self.MarbleRemoved = Utility.Signal.new() -- (player)
 	self.PlayerJoined = Utility.Signal.new() -- (player)
 	self.PlayerLeaving = Utility.Signal.new() -- (player)
+	-- The marbles folder exists from construction, so services started before this one (A3's
+	-- MicroSkillService filters its line-of-sight raycasts by it) never wait for Start().
+	-- Owner playtest 2026-11-25: waiting for it here deadlocked server start-up.
+	self.folder = MarbleCharacterService._ensureFolder()
 	return self
+end
+
+function MarbleCharacterService._ensureFolder()
+	local folder = workspace:FindFirstChild(Protocol.MarblesFolderName)
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = Protocol.MarblesFolderName
+		folder.Parent = workspace
+	end
+	return folder
 end
 
 -- resolver(player, reason) -> { CFrame = CFrame, Zone = string, Frozen = bool }
@@ -122,13 +136,7 @@ end
 function MarbleCharacterService:Start()
 	Players.CharacterAutoLoads = false
 	MarbleCharacterService.SetupCollisionGroups()
-	local folder = workspace:FindFirstChild(Protocol.MarblesFolderName)
-	if not folder then
-		folder = Instance.new("Folder")
-		folder.Name = Protocol.MarblesFolderName
-		folder.Parent = workspace
-	end
-	self.folder = folder
+	self.folder = MarbleCharacterService._ensureFolder()
 	self.maid:Give(Players.PlayerAdded:Connect(function(player)
 		self:_onPlayerAdded(player)
 	end))

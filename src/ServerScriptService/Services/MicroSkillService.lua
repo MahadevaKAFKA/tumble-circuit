@@ -74,7 +74,9 @@ function MicroSkillService:Start()
 			})
 		end
 	end
-	self.losParams.FilterDescendantsInstances = { workspace:WaitForChild(Protocol.MarblesFolderName) }
+	-- Never wait here: ServerBootstrap starts this service before MarbleCharacterService:Start(),
+	-- so an unbounded WaitForChild on the marbles folder stalled the whole server (2026-11-25).
+	self.losParams.FilterDescendantsInstances = { self.marbles.folder }
 
 	local remote = self.remotes:WaitForChild("RequestTrick")
 	self.maid:Give(remote.OnServerEvent:Connect(function(player, ...)
