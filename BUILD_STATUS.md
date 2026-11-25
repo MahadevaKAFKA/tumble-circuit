@@ -367,6 +367,7 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | GitHub Actions **Deploy** run 45606050159 (hub rework, commit 41a534c: Rojo, Selene, Lune, 341 specs, publish) | **success**: **version 15** published, visibility PRIVATE |
 | 2026-11-25 | B1: `luau_check` (88 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **398 passed, 0 failed** (worlds 31, B1 rules 27 new); 102 instances, 88 scripts, all references resolve; 1-D model clean runs Foundry 64 s / Sky 54 s / Volcano 49 s (models, not measurements) |
 | — | Hub rework phone playtest | **pending owner** |
+| 2026-11-25 | GitHub Actions **Deploy** run 45609934353 (B1, Rojo, Selene 0 errors, Lune, 398 specs, publish) | **success**: **version 16** published, visibility PRIVATE |
 | — | B1 phone playtest (3 worlds, Time Trial) | **pending owner** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |
