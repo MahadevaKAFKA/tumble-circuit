@@ -79,6 +79,7 @@ local modules = {
 	SeasonConfig = H.module("ReplicatedStorage/Shared/SeasonConfig"),
 	CapsuleService = H.module("ServerScriptService/Services/CapsuleService"),
 	SeasonService = H.module("ServerScriptService/Services/SeasonService"),
+	ShopConfig = H.module("ReplicatedStorage/Shared/ShopConfig"),
 }
 -- A5 client modules: load-time references to client services are stubbed; only their pure
 -- functions (Step / Choose / PbLine) are exercised.
@@ -92,6 +93,10 @@ modules.HubMenusPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/
 modules.LeaderboardService = H.module("ServerScriptService/Services/LeaderboardService")
 H.stubServices = { Players = {}, RunService = {}, HttpService = {} }
 modules.LabPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/LabController")
+H.stubServices = { Players = {}, RunService = {}, HttpService = {}, MarketplaceService = {}, PolicyService = {} }
+modules.ShopPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/ShopController")
+modules.ProductService = H.module("ServerScriptService/Services/ProductService")
+modules.AntiCheatService = H.module("ServerScriptService/Services/AntiCheatService")
 H.stubServices = {}
 
 -- A5 UI text scan: every string literal in client code (comments stripped).
@@ -130,10 +135,13 @@ do
 			f:close()
 		end
 		local code = stripComments(text)
-		if path:find("/src/", 1, true) and not path:find("/src/Tests/", 1, true) and code:find("MarketplaceService", 1, true) then
+		-- D: MarketplaceService is allowed only in the optional shop (ProductService server-side,
+		-- ShopController for prompts / localized prices); anywhere else fails the check
+		local shopFile = path:find("ProductService.lua", 1, true) or path:find("ShopController.lua", 1, true)
+		if path:find("/src/", 1, true) and not path:find("/src/Tests/", 1, true) and not shopFile and code:find("MarketplaceService", 1, true) then
 			marketplace = true
 		end
-		if path:find("StarterPlayerScripts", 1, true) then
+		if path:find("StarterPlayerScripts", 1, true) and not shopFile then
 			for literal in code:gmatch('"([^"]*)"') do
 				strings[#strings + 1] = literal
 			end
@@ -244,6 +252,7 @@ local suites = {
 	{ "B2 ability specs", root .. "/src/Tests/Unit/B2Abilities.spec.lua" },
 	{ "B3 progression specs", root .. "/src/Tests/Unit/B3Progression.spec.lua" },
 	{ "C capsule / season specs", root .. "/src/Tests/Unit/CCapsules.spec.lua" },
+	{ "D commerce / security specs", root .. "/src/Tests/Unit/DCommerce.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

@@ -73,6 +73,8 @@ function Spec.run(m)
 	for a in pairs(actions) do
 		local l = a:lower()
 		-- C: earned capsules, the Shard Shop and the free season exist; nothing is bought with Robux
+		-- D: the optional SHOP is the one place with Roblox purchases (its modal action "Shop" /
+		-- "ShopItem"); still no buy / Robux / purchase / premium action anywhere
 		if l:find("buy") or l:find("robux") or l:find("purchase") or l:find("premium") then
 			forbidden = true
 		end
@@ -103,8 +105,8 @@ function Spec.run(m)
 				hits[#hits + 1] = text
 			end
 		end
-		check("client UI text has no Robux / buy / purchase / premium prompts (earned-only)", #hits == 0, table.concat(hits, " | "))
-		check("no MarketplaceService anywhere in the game source", m.UsesMarketplace == false)
+		check("UI text outside the optional SHOP has no Robux / buy / purchase / premium prompts", #hits == 0, table.concat(hits, " | "))
+		check("MarketplaceService only in the optional shop (ProductService / ShopController)", m.UsesMarketplace == false)
 	end
 	return results
 end

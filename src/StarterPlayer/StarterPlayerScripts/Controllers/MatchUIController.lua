@@ -52,6 +52,7 @@ function MatchUI.new()
 	self.QuestsRequested = Utility.Signal.new() -- B3
 	self.BoardsRequested = Utility.Signal.new() -- B3
 	self.LabRequested = Utility.Signal.new() -- C: (tab) Capsule Lab / Season
+	self.ShopRequested = Utility.Signal.new() -- D: the optional shop
 
 	-- Lobby layer -------------------------------------------------------------------------
 	local lobby = UIKit.new("Frame", { Name = "Lobby", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) }, root)
@@ -87,12 +88,17 @@ function MatchUI.new()
 	self.garageButton = UIKit.button(lobby, { Name = "GarageButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 216), Size = UDim2.fromOffset(121, 44), Text = "GARAGE" }, palette.Cyan)
 	self.questsButton = UIKit.button(lobby, { Name = "QuestsButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -143, 0, 268), Size = UDim2.fromOffset(121, 44), Text = "QUESTS" }, palette.Yellow)
 	self.moreButton = UIKit.button(lobby, { Name = "MoreButton", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 268), Size = UDim2.fromOffset(121, 44), Text = "MORE" }, palette.White)
-	local more = UIKit.panel(lobby, { Name = "MoreMenu", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -278, 0, 268), Size = UDim2.fromOffset(250, 200), Visible = false })
+	local more = UIKit.panel(lobby, { Name = "MoreMenu", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -278, 0, 268), Size = UDim2.fromOffset(250, 248), Visible = false })
 	self.moreMenu = more
 	self.boardsButton = UIKit.button(more, { Name = "BoardsButton", Position = UDim2.fromOffset(6, 6), Size = UDim2.new(1, -12, 0, 44), Text = "LEADERBOARDS" }, palette.Violet)
 	self.labButton = UIKit.button(more, { Name = "LabButton", Position = UDim2.fromOffset(6, 54), Size = UDim2.new(1, -12, 0, 44), Text = "CAPSULE LAB" }, palette.Mint)
 	self.seasonButton = UIKit.button(more, { Name = "SeasonButton", Position = UDim2.fromOffset(6, 102), Size = UDim2.new(1, -12, 0, 44), Text = "SEASON" }, palette.Yellow)
-	self.settingsButton = UIKit.button(more, { Name = "SettingsButton", Position = UDim2.fromOffset(6, 150), Size = UDim2.new(1, -12, 0, 44), Text = "SETTINGS" }, palette.Cyan)
+	self.shopButton = UIKit.button(more, { Name = "ShopButton", Position = UDim2.fromOffset(6, 150), Size = UDim2.new(1, -12, 0, 44), Text = "SHOP (OPTIONAL)" }, palette.White)
+	self.settingsButton = UIKit.button(more, { Name = "SettingsButton", Position = UDim2.fromOffset(6, 198), Size = UDim2.new(1, -12, 0, 44), Text = "SETTINGS" }, palette.Cyan)
+	maid:Give(self.shopButton.Activated:Connect(function()
+		more.Visible = false
+		self.ShopRequested:Fire()
+	end))
 	maid:Give(self.labButton.Activated:Connect(function()
 		more.Visible = false
 		self.LabRequested:Fire("Capsule")

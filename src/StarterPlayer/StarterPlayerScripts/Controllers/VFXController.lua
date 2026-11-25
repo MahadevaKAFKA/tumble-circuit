@@ -172,6 +172,7 @@ VFXController.Bursts = {
 	burst_snowflakes = { colors = { palette.White, Color3.fromRGB(190, 240, 255) }, count = 18, up = 12, out = 5 },
 	burst_fireworks = { colors = { palette.Coral, palette.Mint, palette.Violet, palette.Yellow }, count = 26, up = 28, out = 9, ball = true },
 	burst_lightning = { colors = { palette.Yellow, palette.Violet }, count = 14, up = 32, out = 3, thin = true },
+	burst_s1_launch = { colors = { palette.Cyan, palette.Yellow }, count = 24, up = 26, out = 8, thin = true }, -- D: Season 1 premium lane
 	burst_supernova = { colors = { palette.Cyan, palette.Coral, palette.Yellow, palette.Violet, palette.Mint, palette.White }, count = 32, up = 24, out = 12, ball = true },
 }
 

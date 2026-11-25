@@ -354,3 +354,43 @@ per tier, history cap, Shard Shop prices, season dates/levels/claims/rollover, p
 - [ ] Shard Shop owned items disabled; buying with too few Shards refused.
 - [ ] Season XP from races and quest claims; claims persist through rejoin.
 
+## 15. D — optional shop (off), receipts, anti-cheat
+
+**Automated:** `D commerce / security specs` — nothing purchasable as shipped, paid capsules off,
+id validation, no prices in config, exclusives out of capsules and the Shard Shop, receipt
+idempotency on PurchaseId, NotProcessedYet for missing player / unknown product / failed save /
+loading profile, season-keyed premium lane, profile v5, shop button states, anti-cheat decay,
+flood rule and single report — 0 failed.
+
+**Owner-only (real Robux; untested until the owner does it)**
+- [ ] With one product id set: Roblox's price shows; buying grants once; rejoin keeps it; the
+      offer then says OWNED; a refused/cancelled prompt grants nothing.
+- [ ] Founder Game Pass: buying grants the pack after Roblox confirms ownership; rejoin keeps it.
+- [ ] Season premium: claims at 10/20/30 only during Season 1.
+- [ ] An unconfigured offer says "Not on sale yet"; airplane-mode the price lookup → "Price
+      unavailable".
+
+**Performance (needs Roblox runtime)**
+- [ ] 16 racers (bots fill), phone: FPS / p95 frame on the stats overlay; server frame time (the
+      SERVER line); 15-minute soak (`GameConfig.Debug.SoakMinutes`). Record numbers in
+      BUILD_STATUS before raising the server size.
+
+## Non-programmer checklist (5 minutes, phone)
+1. Open the game → PLAY → roll on the hub platform: goes where you push.
+2. JOIN RACE → wait for the grid → GO → finish. Coins and XP shown.
+3. GARAGE: equip a different look → it changes. QUESTS: something progressed.
+4. MORE → CAPSULE LAB: odds visible; (if 600 Coins) open one.
+5. TIME TRIAL: run it once; second run shows the ghost.
+6. Anything weird → send a bug report like the one below.
+
+## Bug report template
+```
+What happened:
+What I expected:
+Where (world / hub / menu):
+Build version (top of the stats overlay or the Deploy run):
+Phone / PC / controller:
+Steps to make it happen again:
+Screenshot or screen recording: yes / no
+```
+

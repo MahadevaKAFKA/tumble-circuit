@@ -57,12 +57,14 @@
 	C (v10): CapsuleState, RequestCapsuleState, RequestOpenCapsule(requestId, oddsVersion,
 	epicMisses, legendaryMisses) - the counters the player saw; a mismatch is refused -,
 	CapsuleResult, RequestShardBuy(id), SeasonState, RequestSeasonClaim(level).
+	D (v11): ShopState, RequestShopState, RequestPremiumClaim(level). Purchases themselves are
+	Roblox prompts; grants happen only in ProcessReceipt / verified Game Pass ownership.
 	Snapshot adds chaosModifier = {kind, startsAt, endsAt} while a voted modifier is pending/active.
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 10
+RoundProtocol.Version = 11
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -121,6 +123,10 @@ RoundProtocol.Remotes = {
 	RequestShardBuy = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 } }, MinInterval = 0.5 },
 	SeasonState = { Direction = "ServerToClient" },
 	RequestSeasonClaim = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 30, integer = true } }, MinInterval = 0.3 },
+	-- D (optional shop; every product id nil until the owner configures it)
+	ShopState = { Direction = "ServerToClient" },
+	RequestShopState = { Direction = "ClientToServer", Args = {}, MinInterval = 0.5 },
+	RequestPremiumClaim = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 30, integer = true } }, MinInterval = 0.3 },
 }
 
 RoundProtocol.States = {

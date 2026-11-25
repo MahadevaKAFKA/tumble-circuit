@@ -300,6 +300,7 @@ function Lab:_renderShards()
 	local i = 0
 	for _, kind in ipairs({ "Marble", "Trail", "Burst", "Emote" }) do
 		for _, item in ipairs(Catalog.ByKind[kind]) do
+			if not item.Exclusive then -- D: Founder / season-premium items are not in the Shard Shop
 			i = i + 1
 			local owned = self.owned[item.Id]
 			local price = CapsuleOdds.ShardPrice[item.Rarity]
@@ -318,6 +319,7 @@ function Lab:_renderShards()
 				end
 			end))
 			self.shardTiles[#self.shardTiles + 1] = tile
+			end
 		end
 	end
 	self.shardGrid.CanvasSize = UDim2.fromOffset(0, math.ceil(i / 6) * 74 + 8)

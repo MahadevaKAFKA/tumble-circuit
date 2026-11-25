@@ -19,12 +19,30 @@ function Spec.run(m)
 	end
 	local C, Q, Schema = m.Catalog, m.QuestConfig, m.PlayerDataSchema
 	------------------------------------------------------------------ catalog
+	-- the master section 8 catalog; D adds a few clearly-marked exclusives (Founder pack,
+	-- Season 1 premium lane) on top, counted separately
+	local function base(kind)
+		local out = {}
+		for _, item in ipairs(C.ByKind[kind]) do
+			if not item.Exclusive then
+				out[#out + 1] = item
+			end
+		end
+		return out
+	end
 	local byRarity = {}
-	for _, item in ipairs(C.ByKind.Marble) do
+	for _, item in ipairs(base("Marble")) do
 		byRarity[item.Rarity] = (byRarity[item.Rarity] or 0) + 1
 	end
-	check("35 marbles: 12 Common / 10 Rare / 7 Epic / 4 Legendary / 2 Mythic", #C.ByKind.Marble == 35 and byRarity.Common == 12 and byRarity.Rare == 10 and byRarity.Epic == 7 and byRarity.Legendary == 4 and byRarity.Mythic == 2)
-	check("12 trails, 8 finish bursts, 8 emotes", #C.ByKind.Trail == 12 and #C.ByKind.Burst == 8 and #C.ByKind.Emote == 8)
+	check("35 marbles: 12 Common / 10 Rare / 7 Epic / 4 Legendary / 2 Mythic", #base("Marble") == 35 and byRarity.Common == 12 and byRarity.Rare == 10 and byRarity.Epic == 7 and byRarity.Legendary == 4 and byRarity.Mythic == 2)
+	check("12 trails, 8 finish bursts, 8 emotes", #base("Trail") == 12 and #base("Burst") == 8 and #base("Emote") == 8)
+	local exclusives = 0
+	for _, item in pairs(C.Items) do
+		if item.Exclusive then
+			exclusives = exclusives + 1
+		end
+	end
+	check("D exclusives: 3 Founder + 3 Season 1 premium, nothing else", exclusives == 6)
 	local idsOk = true
 	for id, item in pairs(C.Items) do
 		if not string.match(id, "^[a-z0-9_]+$") or item.Id ~= id or #id > 40 then
@@ -161,7 +179,7 @@ function Spec.run(m)
 	local HM = m.HubMenusPure
 	if HM then
 		local state = { owned = { cobalt = true, lime_pop = true }, favorites = { lime_pop = true } }
-		check("garage filters: owned / favorites / rarity", #HM.FilterItems("Marble", "Owned", state) == 2 and #HM.FilterItems("Marble", "Favorites", state) == 1 and #HM.FilterItems("Marble", "Mythic", state) == 2 and #HM.FilterItems("Trail", "All", state) == 12)
+		check("garage filters: owned / favorites / rarity", #HM.FilterItems("Marble", "Owned", state) == 2 and #HM.FilterItems("Marble", "Favorites", state) == 1 and #HM.FilterItems("Marble", "Mythic", state) == 2 and #HM.FilterItems("Trail", "All", state) == 14)
 		check("reset timer text", HM.Duration(90061) == "1d 1h" and HM.Duration(3720) == "1h 2m")
 	end
 	local SP = m.SocialPure

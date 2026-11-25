@@ -275,6 +275,22 @@ function PlayerDataService:SaveSoon(player)
 	end)
 end
 
+-- D: save now and wait for the result (receipts only acknowledge after a successful save).
+-- Mock / Studio profiles report success without a DataStore.
+function PlayerDataService:SaveNow(player)
+	local profile = self.profiles[player]
+	if not profile or profile.status == "Loading" then
+		return false, "Loading"
+	end
+	if not self.store then
+		return profile.status == "Mock", profile.status
+	end
+	if not ProfileStore.CanSave(profile) then
+		return false, profile.status
+	end
+	return self.store:Save(profile, false)
+end
+
 function PlayerDataService:SetSetting(player, settingKey, value)
 	if not PlayerDataSchema.Settings[settingKey] then
 		return false

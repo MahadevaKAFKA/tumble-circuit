@@ -1,13 +1,56 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** C — free capsules (earned Coins), Shard Shop, free 28-day season (owner's
-go-ahead for B–D, 2026-11-25; plan: docs/PHASE_BCD_PLAN.md). B1 = v16, B2 = v17, B3 = v18.
-**State:** A1–A6 played and approved on the owner's phone. B1–C offline-verified (499 specs) and
-published privately — **none of Phase B or C has been played in Roblox yet**. No Robux anywhere.
+**Active milestone:** D done — launch candidate, private. Owner playtests of B1–D and the owner
+actions below are what's left (plan: docs/PHASE_BCD_PLAN.md). B1 = v16, B2 = v17, B3 = v18, C = v19.
+**State:** A1–A6 played and approved on the owner's phone. B1–D offline-verified (526 specs) and
+published privately — **none of Phase B, C or D has been played in Roblox yet**. Nothing is
+purchasable (every product id nil, paid capsules off).
 **Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — Phase D: optional shop (off), receipts, anti-cheat, launch docs
+
+- **Off as shipped:** `PLACEHOLDER_IDS.lua` gains `Products` / `GamePasses` (all nil) and
+  `ENABLE_PAID_CAPSULES = false`. There is no paid random code path.
+- **Optional SHOP** (MORE → SHOP, lobby only): 7 direct cosmetics, Founder's Style Pack (Game
+  Pass: trail, 2 emotes, Founder tag), Season 1 premium lane (season-keyed `SeasonPremium:S1`,
+  3 looks at season levels 10/20/30, only during Season 1). Prices only from Roblox product info
+  (client-side); "Not on sale yet" / "Price unavailable" otherwise; PromptProductPurchaseFinished
+  never grants. Exclusives never appear in capsules or the Shard Shop.
+- **ProductService:** the one `ProcessReceipt`; grant + PurchaseId journal (last 200) in one
+  mutation; PurchaseGranted only after `SaveNow` succeeds; NotProcessedYet for a missing player,
+  loading/unsaveable profile, unknown product or failed save. Game Pass ownership re-verified with
+  `UserOwnsGamePassAsync`. PolicyService read per session, fail-closed.
+- **AntiCheatService:** listens to every client→server remote (malformed args, floods > 3× the
+  allowed rate in 5 s), movement rejections, checkpoint rejections, capsule stale-odds refusals,
+  receipt anomalies; decaying scores (60 s half-life), one warning + `TC_Suspicion` attribute per
+  threshold, never a ban.
+- Profile **v5** (purchases); protocol v11. Docs: OWNER_SETUP_CHECKLIST, MONETIZATION_COMPLIANCE,
+  GAME_DESIGN, BALANCING_CONFIG, docs/LAUNCH_KIT (listing, 3 thumbnail briefs, 10 storyboards,
+  live-ops calendar), TEST_PLAN §15 + non-programmer checklist + bug template.
+- Offline: DCommerce.spec (26). The UI guards now say: Robux text and MarketplaceService only in
+  the optional shop files.
+
+### Launch-risk report (honest)
+| Risk | Status | What closes it |
+| --- | --- | --- |
+| B1–D never run in a Roblox runtime | **open** | owner phone playtests (ANDROID_PLAYTEST) |
+| New worlds' real finish times / fairness | **open** (models say 49–64 s clean runs; pack wants 90–150 s) | play each world, report times; lengthen if short |
+| 2-player features (map vote, party, frost/magnet/decoy, weekly wins) | **untested** | two-account session |
+| Live DataStores: ghosts, leaderboards, receipts | **untested** (Studio mock only offline) | live private-server checks |
+| Performance with 16 racers, 3 worlds built (~5,600 parts), 15-min soak | **unmeasured** | stats overlay on the phone; record before raising server size |
+| Free capsules vs current Roblox policy / local law | **owner review** | OWNER_SETUP_CHECKLIST B |
+| Content maturity questionnaire | **owner** | Creator Dashboard |
+| Any real purchase | **not enabled**; untested | OWNER_SETUP_CHECKLIST C |
+
+### Owner action list
+1. Play v20 on the phone through ANDROID_PLAYTEST (B1 → D) and report issues.
+2. One two-account session (map vote, party, rival abilities, leaderboards).
+3. Decide whether you want the optional shop at all; if yes, create products and send ids.
+4. Before going public: questionnaire, policy/legal look at free capsules, thumbnails from real
+   footage, server size from measured numbers, then switch to Public yourself.
 
 ## 2026-11-25 — Phase C: free capsules, Shard Shop, free season (earned only)
 
@@ -457,6 +500,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | C: `luau_check` (105 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **499 passed, 0 failed** (C capsules/season 36 new); 119 instances, 105 scripts, all references resolve |
 | — | B3 phone playtest (garage, quests, boards) | **pending owner** |
 | 2026-11-25 | GitHub Actions **Deploy** run 45686308265 (C, 499 specs, publish) | **success**: **version 19** published, visibility PRIVATE |
+| 2026-11-25 | D: `luau_check` (110 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **526 passed, 0 failed** (D commerce/security 26 new); 124 instances, 110 scripts, all references resolve |
 | — | C phone playtest (capsule, shard shop, season) | **pending owner** |
+| — | D: real purchases, live DataStore boards/ghosts/receipts, 16-racer perf | **untested — owner / live only** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

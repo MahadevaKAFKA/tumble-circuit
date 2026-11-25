@@ -63,3 +63,7 @@ request id, history 20, duplicates → Shards, Shard Shop, 28-day / 30-level fre
 Product IDs nil, prices only from GetProductInfoAsync, ProcessReceipt with a PurchaseId journal,
 `ENABLE_PAID_CAPSULES = false`, PolicyService fail-closed, AntiCheatService aggregation, launch
 docs. Nothing purchasable until the owner creates products and sets IDs.
+
+## Done (2026-11-25)
+B1 v16, B2 v17, B3 v18, C v19, D (this build). Details and the launch-risk report: BUILD_STATUS.
+

@@ -626,6 +626,9 @@ function RoundService:_onProgress(player, info)
 			table.insert(self.pendingFinishes, { racer = racer, time = event.time, seconds = event.seconds, ordinal = racer.ordinal })
 		elseif event.kind == "Rejected" then
 			self:_warnOnce(player, "cp" .. event.reason, string.format("%s crossing (%s) by %s", self.roundId, event.reason, player.Name))
+			if self.anticheat and not isBot(player) then
+				self.anticheat:Flag(player, "Checkpoint", event.reason) -- D3 aggregation
+			end
 		end
 	end
 end

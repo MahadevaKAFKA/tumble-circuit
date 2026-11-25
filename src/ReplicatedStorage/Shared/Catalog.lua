@@ -135,6 +135,16 @@ for _, e in ipairs(E) do
 	add("Emote", "emote_" .. e[1], e[2], e[3], { Icon = e[4] })
 end
 
+-- D: Founder's Style Pack exclusives (a permanent Game Pass). Never in capsules, the Shard
+-- Shop, level rewards or the season; visual only like everything else.
+add("Trail", "trail_founder_gold", "Founder Gold", "Legendary", { Colors = { rgb(255, 230, 150), rgb(255, 170, 40) }, Exclusive = "Founder" })
+add("Emote", "emote_founder_wave", "Founder wave!", "Legendary", { Icon = "*", Exclusive = "Founder" })
+add("Emote", "emote_founder_salute", "Salute!", "Legendary", { Icon = "^", Exclusive = "Founder" })
+-- D: Season 1 premium lane (season-keyed purchase; only claimable during Season 1)
+add("Marble", "s1_launch_comet", "Launch Comet", "Epic", { Look = { color = rgb(20, 30, 70), material = "SmoothPlastic", pattern = "Orbit", accent = rgb(255, 212, 90), accent2 = rgb(39, 215, 245), glow = true }, Exclusive = "SeasonPremium:S1" })
+add("Trail", "trail_s1_launch", "Launch Streak", "Epic", { Colors = { rgb(39, 215, 245), rgb(255, 212, 90) }, Exclusive = "SeasonPremium:S1" })
+add("Burst", "burst_s1_launch", "Launch Burst", "Epic", { Exclusive = "SeasonPremium:S1" })
+
 Catalog.Defaults = {
 	marble = "cobalt",
 	trail = "trail_dust",
@@ -160,6 +170,12 @@ Catalog.LevelRewards = {
 
 -- How a not-yet-owned item is earned (shown in the garage; never a buy button)
 function Catalog.HowToEarn(id)
+	local item = Catalog.Items[id]
+	if item and item.Exclusive == "Founder" then
+		return "Founder's Style Pack (optional, in SHOP when on sale)"
+	elseif item and item.Exclusive then
+		return "Season 1 premium lane (optional, in SHOP when on sale)"
+	end
 	for level, rewardId in pairs(Catalog.LevelRewards) do
 		if rewardId == id then
 			return string.format("Level %d reward", level)
@@ -181,7 +197,7 @@ end
 function Catalog.MarblesOfRarity(rarity)
 	local out = {}
 	for _, item in ipairs(Catalog.ByKind.Marble) do
-		if item.Rarity == rarity then
+		if item.Rarity == rarity and not item.Exclusive then
 			out[#out + 1] = item.Id
 		end
 	end

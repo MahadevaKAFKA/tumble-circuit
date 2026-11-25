@@ -17,6 +17,7 @@ ok    src/ReplicatedStorage/Shared/RaceConfig.lua
 ok    src/ReplicatedStorage/Shared/RoundProtocol.lua
 ok    src/ReplicatedStorage/Shared/RouteTracker.lua
 ok    src/ReplicatedStorage/Shared/SeasonConfig.lua
+ok    src/ReplicatedStorage/Shared/ShopConfig.lua
 ok    src/ReplicatedStorage/Shared/SocialConfig.lua
 ok    src/ReplicatedStorage/Shared/TimeTrialRules.lua
 ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
@@ -24,6 +25,7 @@ ok    src/ReplicatedStorage/Shared/Utility.lua
 ok    src/ServerScriptService/ServerBootstrap.server.lua
 ok    src/ServerScriptService/Services/AbilityRules.lua
 ok    src/ServerScriptService/Services/AbilityService.lua
+ok    src/ServerScriptService/Services/AntiCheatService.lua
 ok    src/ServerScriptService/Services/BotBrain.lua
 ok    src/ServerScriptService/Services/BotService.lua
 ok    src/ServerScriptService/Services/CapsuleService.lua
@@ -41,6 +43,7 @@ ok    src/ServerScriptService/Services/PartyRules.lua
 ok    src/ServerScriptService/Services/PartyService.lua
 ok    src/ServerScriptService/Services/PerfService.lua
 ok    src/ServerScriptService/Services/PlayerDataService.lua
+ok    src/ServerScriptService/Services/ProductService.lua
 ok    src/ServerScriptService/Services/ProfileStore.lua
 ok    src/ServerScriptService/Services/ProgressService.lua
 ok    src/ServerScriptService/Services/QuestService.lua
@@ -74,6 +77,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ResultsController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SettingsController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ShopController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SocialController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SoundController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/StarterLoadoutController.lua
@@ -92,6 +96,7 @@ ok    src/Tests/Unit/B3Progression.spec.lua
 ok    src/Tests/Unit/BotNavigation.spec.lua
 ok    src/Tests/Unit/CCapsules.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
+ok    src/Tests/Unit/DCommerce.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
 ok    src/Tests/Unit/HubFreeRoam.spec.lua
@@ -483,6 +488,7 @@ PASS  Bounce Burst: one bounded upward bounce on the next hit, only once
 -- B3 progression specs --
 PASS  35 marbles: 12 Common / 10 Rare / 7 Epic / 4 Legendary / 2 Mythic
 PASS  12 trails, 8 finish bursts, 8 emotes
+PASS  D exclusives: 3 Founder + 3 Season 1 premium, nothing else
 PASS  ids are stable lowercase slugs (not display names), <= 40 chars
 PASS  starters and defaults exist (Cobalt, Dust, Confetti, 3 emotes)
 PASS  level rewards every 5 levels (5..50), all real items
@@ -555,6 +561,36 @@ PASS  v4 sanitize: season XP capped, claims unique and in range
 PASS  Capsule Lab shows 5 tier lines and all 35 item lines from the same odds
 PASS  Capsule Lab follows the server's counters (pity branch shown)
 info  100k base draws observed: Common 55.186%, Rare 29.924%, Epic 10.904%, Legendary 3.474%, Mythic 0.512%
+WARN	[Shop] receipt for unknown product 999 - not granted
+WARN	[AntiCheat] x (1): Malformed x5.0 (test) - review, no action taken
+
+-- D commerce / security specs --
+PASS  as shipped: no product or Game Pass id is set (nothing purchasable)
+PASS  paid random capsules OFF (ENABLE_PAID_CAPSULES = false)
+PASS  ids must be positive whole numbers
+PASS  no prices written in the shop config (Roblox's localized price is shown)
+PASS  every offer grants real catalog items; season premium is season-keyed
+PASS  Founder / premium exclusives are never in capsule pools
+PASS  exclusives are not in the Shard Shop
+PASS  receipt grant once; the same PurchaseId again = duplicate, nothing granted twice
+PASS  journal keeps the newest 200 purchase ids
+PASS  receipt for a player not in the server -> NotProcessedYet (Roblox retries on rejoin)
+PASS  receipt for an unknown / unconfigured product -> NotProcessedYet, nothing granted
+PASS  save failed -> NotProcessedYet (not acknowledged)
+PASS  retry after a good save -> PurchaseGranted; repeated callbacks never grant twice
+PASS  profile still loading -> NotProcessedYet
+PASS  premium lane needs this season's entitlement
+PASS  premium reward claimed once at level 10
+PASS  after the season ends the S1 entitlement claims nothing (never carries over)
+PASS  premium rewards still need the season level
+PASS  v4 -> v5: purchases journal added, coins kept
+PASS  v5 sanitize: journal strings only, entitlements true only
+PASS  shop button: no id -> NOT ON SALE YET (disabled)
+PASS  shop button: price lookup failed -> PRICE UNAVAILABLE (disabled, never a guess)
+PASS  shop button: Roblox's price shown; owned -> OWNED
+PASS  anti-cheat: scores halve every 60 s (lag blips fade)
+PASS  anti-cheat: flood = over 3x a remote's allowed rate in 5 s
+PASS  anti-cheat: one report when a category crosses its threshold, no ban
 
 -- A5 persistence specs --
 PASS  defaults are deterministic
@@ -639,8 +675,8 @@ PASS  no buy / Robux / purchase / premium actions exist (earned-only economy)
 PASS  settings: toggle flips, enum cycles, number steps and clamps
 PASS  loadout: choosing the other slot's ability swaps; always two distinct
 PASS  results: PB lines (new with delta / first on variation / slower / none)
-PASS  client UI text has no Robux / buy / purchase / premium prompts (earned-only)
-PASS  no MarketplaceService anywhere in the game source
+PASS  UI text outside the optional SHOP has no Robux / buy / purchase / premium prompts
+PASS  MarketplaceService only in the optional shop (ProductService / ShopController)
 
 -- A6 social specs --
 PASS  finished racers and non-racers may vote; active racers and bots may not
@@ -669,4 +705,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-499 passed, 0 failed (+ 0 syntax failures)
+526 passed, 0 failed (+ 0 syntax failures)

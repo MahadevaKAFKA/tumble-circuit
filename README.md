@@ -1,4 +1,4 @@
-# Tumble Circuit: Chaos Drop — Phase A6 (Phase A closing build)
+# Tumble Circuit: Chaos Drop — Phases A–D (launch candidate, private)
 
 A marble-racing Roblox game, built as a Rojo/Luau project.
 
@@ -21,6 +21,18 @@ A marble-racing Roblox game, built as a Rojo/Luau project.
   idempotent race rewards, dev panel in Studio only. Played on the owner's phone: go.
 - **A6** — spectator Chaos Vote, quick emotes, Perfect Dodge, finish confetti, hub podium and
   decor, accessibility cues. Closes Phase A (see PHASE_A_ACCEPTANCE_REPORT.md).
+- **B1** — Sky Carnival and Volcano Vault worlds, map vote, Time Trial with PB ghost, Party Race.
+- **B2** — nine more abilities, earned by level or Coins; try them in the hub.
+- **B3** — garage (35 marbles, trails, bursts, emotes), level rewards, quests, leaderboards,
+  telemetry.
+- **C** — free capsules (earned Coins, published odds and pity), Shard Shop, free 28-day season.
+- **D** — optional cosmetic shop (**everything off**: no product ids), receipt journal,
+  anti-cheat aggregation, launch docs: [OWNER_SETUP_CHECKLIST.md](OWNER_SETUP_CHECKLIST.md),
+  [MONETIZATION_COMPLIANCE.md](MONETIZATION_COMPLIANCE.md), [GAME_DESIGN.md](GAME_DESIGN.md),
+  [BALANCING_CONFIG.md](BALANCING_CONFIG.md), [docs/LAUNCH_KIT.md](docs/LAUNCH_KIT.md).
+
+Phases B–D were built in one go on the owner's go-ahead and are offline-verified and published
+privately; **they have not been played in Roblox yet** (see BUILD_STATUS).
 
 Two ways to work with it:
 

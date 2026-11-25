@@ -78,6 +78,7 @@ local SocialController = require(Controllers:WaitForChild("SocialController"))
 local ModesController = require(Controllers:WaitForChild("ModesController"))
 local HubMenusController = require(Controllers:WaitForChild("HubMenusController"))
 local LabController = require(Controllers:WaitForChild("LabController"))
+local ShopController = require(Controllers:WaitForChild("ShopController"))
 local Lighting = game:GetService("Lighting")
 
 local ATTR = Protocol.PlayerAttributes
@@ -396,6 +397,14 @@ local lab = maid:Give(LabController.new({
 	end,
 }))
 lab:RegisterLayers(ui)
+-- D: the optional shop (every product id nil = "Not on sale yet")
+local shop = maid:Give(ShopController.new({
+	remotes = remote,
+	toast = function(text, seconds)
+		hud:Toast(text, seconds)
+	end,
+}))
+shop:RegisterLayers(ui)
 maid:Give(hubMenus.EquippedChanged:Connect(function(equipped)
 	social:SetEmotes(equipped.emotes) -- B3: the three equipped emotes on the emote row
 	lab:SetOwned(hubMenus.cosmetics.ownedList) -- C: Shard Shop marks owned items
@@ -798,6 +807,13 @@ maid:Give(matchUi.LabRequested:Connect(function(tab)
 	openModal("Lab")
 end))
 maid:Give(lab.CloseRequested:Connect(function()
+	ui:CloseModal()
+	refreshGates()
+end))
+maid:Give(matchUi.ShopRequested:Connect(function()
+	openModal("Shop")
+end))
+maid:Give(shop.CloseRequested:Connect(function()
 	ui:CloseModal()
 	refreshGates()
 end))

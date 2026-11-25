@@ -721,7 +721,27 @@ def module_fields(path: str) -> tuple[str | None, set[str]]:
         src = f.read()
     m = RETURN_RE.search(src)
     if not m:
-        return None, set()
+        # `return { Key = ..., ... }` (e.g. PLACEHOLDER_IDS.lua): the depth-1 keys of that table
+        code = strip_comments_and_strings(src)
+        r = re.search(r"(?m)^return\s*\{", code)
+        if not r:
+            return None, set()
+        keys, depth, line_start = set(), 0, True
+        i = r.end() - 1
+        while i < len(code):
+            c = code[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            elif depth == 1:
+                km = re.match(r"\s*(\w+)\s*=[^=]", code[i:])
+                if km and (code[i - 1] in "{,\n"):
+                    keys.add(km.group(1))
+            i += 1
+        return None, keys
     table = m.group(1)
     fields = set(re.findall(rf"(?m)^\s*(?:function\s+)?{re.escape(table)}[.:](\w+)", src))
     fields |= set(re.findall(rf"{re.escape(table)}\.(\w+)\s*=[^=]", src))

@@ -91,6 +91,9 @@ function CapsuleService.ShardBuyOn(data, id)
 	if not item then
 		return nil, "Unknown item"
 	end
+	if item.Exclusive then
+		return nil, "That one isn't in the Shard Shop"
+	end
 	for _, ownedId in ipairs(data.cosmetics.owned) do
 		if ownedId == id then
 			return nil, "You already own it"
@@ -158,6 +161,9 @@ function CapsuleService:Open(player, requestId, version, epic, legendary)
 			local profile = self.data:GetProfile(player)
 			self.telemetry:Economy(player, "Sink", "Coins", CapsuleOdds.Cost, profile and profile.data.coins or 0, "Capsule:Free")
 		end
+	end
+	if not result and self.anticheat and reason and string.find(reason, "odds") then
+		self.anticheat:Flag(player, "Capsule", reason) -- D3: repeated stale-snapshot opens
 	end
 	self.remotes.CapsuleResult:FireClient(player, { requestId = requestId, ok = result ~= nil, reason = reason, id = result and result.id, tier = result and result.tier, dup = result and result.dup, shards = result and result.shards, replay = result and result.replay })
 	self:SendState(player)

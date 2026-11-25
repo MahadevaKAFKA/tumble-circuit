@@ -20,6 +20,9 @@
 	v4 (C) adds shards (earned only), capsule = { epicMisses, legendaryMisses, history = { {id,
 	tier, dup, shards, at}.. last 20 }, requests = { requestId.. last 20 } } and season
 	(SeasonConfig shape).
+	v5 (D) adds purchases = { journal = { purchaseId.. last 200 }, entitlements = { key = true },
+	premiumClaimed = { "S1:10".. } } — the durable receipt journal (Roblox keeps no per-user
+	history for developer products).
 ]]
 
 local ProgressionConfig = require(script.Parent:WaitForChild("ProgressionConfig"))
@@ -30,7 +33,7 @@ local CapsuleOdds = require(script.Parent:WaitForChild("CapsuleOdds"))
 
 local PlayerDataSchema = {}
 
-PlayerDataSchema.Version = 4
+PlayerDataSchema.Version = 5
 PlayerDataSchema.LedgerSize = 25 -- last N rewarded race ids kept (bounded, never grows)
 
 PlayerDataSchema.Settings = {
@@ -184,6 +187,7 @@ function PlayerDataSchema.Defaults()
 		shards = 0, -- v4: earned only (duplicates, season)
 		capsule = { epicMisses = 0, legendaryMisses = 0, history = {}, requests = {} }, -- v4
 		season = SeasonConfig.Default(), -- v4
+		purchases = { journal = {}, entitlements = {}, premiumClaimed = {} }, -- v5
 		settings = PlayerDataSchema.DefaultSettings(),
 		rewardLedger = {},
 		botPractice = { day = 0, races = 0 },
@@ -289,6 +293,24 @@ function PlayerDataSchema.Migrate(raw)
 	end
 	d.quests = QuestConfig.Sanitize(raw.quests)
 	d.season = SeasonConfig.Sanitize(raw.season)
+	if type(raw.purchases) == "table" then
+		local p = raw.purchases
+		for _, id in ipairs(type(p.journal) == "table" and p.journal or {}) do
+			if type(id) == "string" and #id <= 80 and #d.purchases.journal < 200 then
+				d.purchases.journal[#d.purchases.journal + 1] = id
+			end
+		end
+		for key, v in pairs(type(p.entitlements) == "table" and p.entitlements or {}) do
+			if type(key) == "string" and #key <= 40 and v == true then
+				d.purchases.entitlements[key] = true
+			end
+		end
+		for _, key in ipairs(type(p.premiumClaimed) == "table" and p.premiumClaimed or {}) do
+			if type(key) == "string" and #key <= 20 then
+				d.purchases.premiumClaimed[#d.purchases.premiumClaimed + 1] = key
+			end
+		end
+	end
 	if type(raw.shards) == "number" and raw.shards == raw.shards then
 		d.shards = math.max(0, math.min(math.floor(raw.shards), 10000000))
 	end
