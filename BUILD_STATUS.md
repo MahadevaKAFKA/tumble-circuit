@@ -324,6 +324,7 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | GitHub Actions **Deploy** run 45603849169 (A6, commit 7973f09: Rojo, Selene, Lune, 332 specs, publish) | **success**: **version 14** published, visibility PRIVATE |
 | 2026-11-25 | **A6 first look on the phone** (owner, v14, two hub screenshots) | hub buttons overlapping (race status over the board, emote row over CAM/LIST, huge podium tags, own name mid-screen); marble on the platform "just going left or right", won't go to the middle → hub rework above |
 | 2026-11-25 | Hub rework: `luau_check` (80 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **341 passed, 0 failed** (hub free roam 9 new); 94 instances, 80 scripts, all references resolve |
+| 2026-11-25 | GitHub Actions **Deploy** run 45606050159 (hub rework, commit 41a534c: Rojo, Selene, Lune, 341 specs, publish) | **success**: **version 15** published, visibility PRIVATE |
 | — | Hub rework phone playtest | **pending owner** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |
