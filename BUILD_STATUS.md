@@ -1,6 +1,6 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** A2 — fair multiplayer rounds (owner said "Go A2", 2026-11-21)
+**Active milestone:** A2 approved on the owner's phone (2026-11-25); A3 waiting for its spec/source
 **State:** A1 played on the owner's phone (2026-11-23): **go** on every A1 question. A2 source merged
 with the phone fixes, offline-verified (92 specs), built by Rojo in GitHub Actions and published
 privately — **A2 has not been played in Roblox yet** (first runtime test = owner's next phone session).
@@ -127,5 +127,5 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-23 | Smoothed heading on the A2 practice chute (offline) | defined everywhere; worst 0.92°/stud |
 | 2026-11-23 | GitHub Actions **Deploy** run 45173389534 (A2 commit 84d195d: Rojo build, Selene, Lune, 92 specs, publish) | **success**: Selene 0 errors / 19 style warnings (shadowing, `_G` in tests, UDim2 style); Lune: 48 instances, 34 scripts, all references resolve; **version 7** published, visibility PRIVATE |
 | 2026-11-23 | **A2 first phone playtest** (owner, v7, Roblox Android app): (1) after GO the marble could not move until a manual reset; (2) results screen: tapping the button did nothing visible until the round moved everyone to the hub; (3) in the hub the player was "sitting out", told to "press JOIN" (no such button) and no race started. | Diagnosis by code reading: (1) GO unanchored the grid ball in place; a reset (fresh, never-anchored ball on the same slot) worked → GO now takes the reset path (`MarbleCharacterService:Release` respawns, reason `Go`; checkpoint records begin first). Root cause of the stuck anchored ball not confirmed in a runtime. (2)+(3) the queue chip showed the current state ("IN NEXT RACE"), so tapping it sat the player out; results PLAY AGAIN gave no feedback → queue button now names its action (SIT OUT / JOIN RACE), updates instantly, toasts; results buttons close the panel; hint says JOIN RACE. 92 specs pass, 0 lint errors |
-| — | A2 phone re-test of these fixes | **pending owner** |
+| 2026-11-25 | A2 phone re-test of v8 (owner, Roblox Android app) | **owner: "everything is going smoothly"** — marble moves at GO, join/sit-out and results work; A2 approved, go to A3 |
 | — | 2-client network verification | **pending** (needs a second account) |
