@@ -502,6 +502,7 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | GitHub Actions **Deploy** run 45686308265 (C, 499 specs, publish) | **success**: **version 19** published, visibility PRIVATE |
 | 2026-11-25 | D: `luau_check` (110 files) + offline specs + offline place build + `verify_place.py` | 0 errors; **526 passed, 0 failed** (D commerce/security 26 new); 124 instances, 110 scripts, all references resolve |
 | — | C phone playtest (capsule, shard shop, season) | **pending owner** |
+| 2026-11-25 | GitHub Actions **Deploy** run 45687976977 (D, Selene 0 errors, 526 specs, publish) | **success**: **version 20** published, visibility PRIVATE |
 | — | D: real purchases, live DataStore boards/ghosts/receipts, 16-racer perf | **untested — owner / live only** |
 | — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |
