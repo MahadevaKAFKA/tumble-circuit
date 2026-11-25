@@ -47,11 +47,10 @@ function Spec.run(m)
 		if spec.Direction == "ClientToServer" then
 			for _, arg in ipairs(spec.Args) do
 				local rule = type(arg) == "table" and arg or { type = arg }
-				if rule.type == "number" and not rule.oneOf then
-					constrained = false
-				elseif rule.type == "string" and not (rule.maxLength or rule.oneOf) then
-					constrained = false
-				elseif rule.type ~= "number" and rule.type ~= "string" and rule.type ~= "boolean" then
+				local unboundedNumber = rule.type == "number" and not rule.oneOf
+				local unboundedString = rule.type == "string" and not (rule.maxLength or rule.oneOf)
+				local otherType = rule.type ~= "number" and rule.type ~= "string" and rule.type ~= "boolean"
+				if unboundedNumber or unboundedString or otherType then
 					constrained = false
 				end
 			end
