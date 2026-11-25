@@ -17,15 +17,15 @@ UIController.__index = UIController
 UIController.Screens = {
 	Title = { layers = { "Title" }, buttons = { "Play" } },
 	Lobby = {
-		layers = { "Hud", "RaceHud", "Lobby", "Touch" }, -- loadout summary lives on the LOADOUT button
-		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset" },
+		layers = { "Hud", "RaceHud", "Lobby", "Touch", "Social" }, -- loadout summary lives on the LOADOUT button
+		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote" },
 	},
 	Race = {
-		layers = { "Hud", "RaceHud", "AbilitiesRace", "Touch" },
+		layers = { "Hud", "RaceHud", "AbilitiesRace", "Touch", "Social" }, -- Social: chaos banner only
 		buttons = { "Ability1", "Ability2", "Trick", "Brake", "Reset", "Camera" },
 	},
-	Spectate = { layers = { "RaceHud", "Spectate" }, buttons = { "SpectatePrev", "SpectateNext", "SpectateExit", "Settings" } },
-	Results = { layers = { "RaceHud", "Results" }, buttons = { "PlayAgain", "SitOut", "Loadout", "Settings" } },
+	Spectate = { layers = { "RaceHud", "Spectate", "Social" }, buttons = { "SpectatePrev", "SpectateNext", "SpectateExit", "Settings", "Emote", "Vote" } },
+	Results = { layers = { "RaceHud", "Results", "Social" }, buttons = { "PlayAgain", "SitOut", "Loadout", "Settings" } },
 }
 
 UIController.Modals = {
@@ -38,6 +38,7 @@ UIController.Actions = {
 	"Ability1", "Ability2", "Trick", "Brake",
 	"SpectatePrev", "SpectateNext", "SpectateExit",
 	"PlayAgain", "SitOut", "Close", "SettingToggle", "EquipSlot",
+	"Emote", "Vote", -- A6
 }
 
 local RACE_STATES = { Preparing = true, Countdown = true, Racing = true }

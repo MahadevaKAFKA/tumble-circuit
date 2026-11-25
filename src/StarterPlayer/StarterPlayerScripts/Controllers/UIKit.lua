@@ -50,6 +50,17 @@ function UIKit.button(parent, props, accent)
 	UIKit.corner(b, 0.25)
 	UIKit.new("UIStroke", { Color = accent, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
 	UIKit.new("UIPadding", { PaddingTop = UDim.new(0.18, 0), PaddingBottom = UDim.new(0.18, 0) }, b)
+	-- A6 press feedback: 0.97 scale while held (instant, no tween: nothing to clean up)
+	local press = UIKit.new("UIScale", { Name = "Press", Scale = 1 }, b)
+	b.MouseButton1Down:Connect(function()
+		press.Scale = 0.97
+	end)
+	local function release()
+		press.Scale = 1
+	end
+	b.MouseButton1Up:Connect(release)
+	b.MouseLeave:Connect(release)
+	b.SelectionLost:Connect(release)
 	return b
 end
 

@@ -1,15 +1,23 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** A5 — UI flow, profile, Coins/XP, saving (owner: "After you fix the bots, you
-can start on A5", 2026-11-25)
-**State:** A1–A3 approved on the owner's phone; A4 played (bots stuck at GO → fixed, v12). A5 source
-(written 2026-11-22) merged with the phone build, offline-verified (307 specs), built by Rojo in
-GitHub Actions and published privately — **A5 has not been played in Roblox yet**. On the live
-private server A5 saves real profiles (DataStore `TumbleProfiles_v1`, owner only while private).
+**Active milestone:** A6 — Phase A closing build (spectator Chaos Vote, quick emotes, hub podium
+and decor, accessibility cues). Phase B not started (needs the owner's Phase A approval).
+**State:** A1–A5 played on the owner's phone (Roblox Android app) and approved; bots fixed. A6
+source (written 2026-11-22) merged with the phone build, offline-verified (332 specs), built by
+Rojo in GitHub Actions and published privately — **A6 has not been played in Roblox yet**.
 **Last updated:** 2026-11-25
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-25 — A6 merged onto the phone build
+
+Three-way merge (base = A5 upload). One conflict (`GameConfig.Debug`: kept the phone stats box on
+and the hitch threshold, added A6's `SoakMinutes`). A6's BotService change (bumper kick × the
+Chaos Vote multiplier) merged cleanly into our fixed bot loop. Checked: A6's new server code has no
+start-up waits; every new remote is created from RoundProtocol; the vote panel (top centre, during
+races), emote bar (right column) and our READY button (lobby, intermission) do not overlap; the
+hub podium marbles are decor, not in the marbles folder.
 
 ## 2026-11-25 — A5 merged onto the phone build
 
@@ -182,6 +190,16 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | Settings | reducedMotion, cameraMode, music, sfx, sensitivity (steer ×0.5–1.5), graphicsMode (Auto = Low on touch: no bloom, fewer effects). Client sends one key per 0.25 s with the latest value; server sanitizes; saved with the next autosave. |
 | Dev panel | `DevCommand`/`DevResult` remotes are created only in Studio or when `GameConfig.Dev.AuthorizedUserIds` is non-empty; every command re-checks; Coin grant / reset only on MOCK profiles. |
 
+## A6 decisions
+| Topic | Decision |
+|---|---|
+| Chaos Vote | SocialService + pure VoteRules. Eligible = humans who are not active racers (finished, sitting out, late joiners). A poll opens every 20 s of Racing when ≥ 1 eligible and ≥ 1 active racer and ≥ 20 s left; 5 s window; one vote per UserId per poll; stale/closed/bad votes refused; tie alternates by poll id; no votes → nothing. Winner announced 3 s ahead, lasts 8 s, cancelled when Racing ends. Options: Turbo Fans (fan push ×1.5, 42 < steering 70) and Bouncy Bumpers (kick ×1.25 = KickCap 30). Applied from shared timestamps by HazardService (bots) and each client (own marble); in the snapshot for late joiners. |
+| Emotes | QuickEmote(1..3) presets GG / Nice Save! / Oops!, 5 s server cooldown + 0.5 s remote limit, broadcast as EmoteShown; bubbles ≤ 120 studs, 2.5 s; `muteEmotes` setting (schema v1 extension, default off). No free text anywhere. |
+| Reactions | Perfect Dodge: server-judged pass of a sweeper/hammer with clearance ≤ 2.5 studs and no contact (SkillRules.DodgeStep + HazardSim.Clearance), commendation only (no Coins, no charge). Finish confetti (client, skipped on Reduced Motion / Low). |
+| Podium & hub | Top three of each race as anchored display marbles with name tags + light on the hub podium until the next results. Hub decor: podium arch, showcase pedestal, 4 holo pylons (native parts, non-colliding). |
+| Accessibility | Bumpers show "!" / "KICK" / "BOUNCY!" text; telegraphing tiles change material; fan arrows only while pushing; gamepad gets a selected button on Results / Settings / Loadout and none during races; buttons dip to 0.97 when pressed; results pop 0.25 s. |
+| Cleanup | Per-player limiter entries forgotten on leave (round, social, settings); bots, poll, modifier and podium are round-scoped; VFX/emote bubbles self-expire. |
+
 ## Ledger
 ### Done (verified by tests that ran here)
 - [x] A1: config ranges, smoothing, course generator/validator, floor geometry exactness (mutation-tested), steering-frame stability, route tracking, spawn clearance, hazard cycle, no invented ids
@@ -203,7 +221,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 - [x] A5: ProfileStore — lock wait + takeover, older session can't overwrite, stale lock, bounded retries → Unsaved (never "saved"), recovery, load failure never writes defaults, newer schema never written, release on leave, same-server rejoin, mock label
 - [x] A5: level curve (400/+80, cap 50, overflow/NaN safe), Coins for 1/2/3/4/8 + DNF + idle, interpolation, XP, breakdown sums, bot-practice 3/day then 60% + day reset, PB rules (first / faster / slower / other variation / implausible), level-up once, duplicate raceId pays nothing, ledger bounded, leave-at-results → rejoin pays once, raceIds unique per server
 - [x] A5: UI state for every round situation, modal rules + auto-close, no dead buttons, no shop/Robux/capsule/season actions or UI strings, no MarketplaceService, settings stepping, loadout swap, PB lines
-- [x] 76 files parse; place verified offline (74 scripts, every lookup resolves); Rojo builds it in CI
+- [x] A6: vote eligibility, open timing (20 s spacing, enough time left, spectators + racers present, no overlap with an active modifier), one vote per poll, stale/closed/bad votes, ties, no votes, voter leaving; modifiers counter-steerable / within kick cap and only inside their window; Clearance agrees with the contact model; Perfect Dodge once per pass and never on contact; emote presets + bounded remotes; banner text
+- [x] 81 files parse; place verified offline (79 scripts, every lookup resolves); Rojo builds it in CI
 
 ### Implemented, untested (needs Studio — TEST_PLAN sections 3 and 5)
 - [ ] Everything engine-side from A1 (feel, camera, devices, UI)
@@ -218,6 +237,8 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 - [ ] Free look on the phone (finger drag beside the stick) and READY vote with a full race (needs 16 players or a CapacityOverride test build)
 
 - [ ] A5 on the phone / in Studio: every TEST_PLAN §8 item — real DataStore only in a throwaway test universe (owner); 640x360 / console layout check
+
+- [ ] A6 on the phone / in Studio: every TEST_PLAN §9 item — vote/emotes on 2 clients, podium, cues, gamepad focus, 15-minute soak, device emulator sizes
 
 ### Blocked
 - [ ] **2-client network verification** — no Studio here. Steps + expected log order: TEST_PLAN §5.
@@ -269,4 +290,6 @@ marks, no abilities, no jump — falls and RESET return to the start pad by desi
 | 2026-11-25 | A5 merge: `luau_check` (74 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **307 passed, 0 failed**; 88 instances, 74 scripts, all references resolve |
 | 2026-11-25 | GitHub Actions **Deploy** run 45602414831 (A5, commit e1d1a28: Rojo, Selene, Lune, 307 specs, publish) | **success**: **version 13** published, visibility PRIVATE |
 | 2026-11-25 | **A5 + bot fix phone playtest** (owner, v13) | **"all is going as intended"** (bots race). One few-second freeze near checkpoint 2 (Bumper Field), once. Code review: nothing heavy runs on a checkpoint crossing or bumper hit (no instance creation, no saves on the client). Waiting for the stats box hitch line if it recurs |
+| 2026-11-25 | A6 merge: `luau_check` (79 files) + offline specs + offline place build + `verify_place.py` | 0 errors (4 unused-local warnings); **332 passed, 0 failed**; 93 instances, 79 scripts, all references resolve |
+| — | A6 first phone playtest | **pending owner** |
 | — | 2-client network verification | **pending** (needs a second account) |

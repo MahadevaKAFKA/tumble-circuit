@@ -57,10 +57,12 @@ local modules = {
 	PlayerDataSchema = require(Shared:WaitForChild("PlayerDataSchema")),
 	ProfileStore = require(Services:WaitForChild("ProfileStore")),
 	RewardRules = require(Services:WaitForChild("RewardRules")),
+	VoteRules = require(Services:WaitForChild("VoteRules")),
+	SocialConfig = require(Shared:WaitForChild("SocialConfig")),
 }
 do
 	local ControllersFolder = StarterPlayer:WaitForChild("StarterPlayerScripts"):WaitForChild("Controllers")
-	for key, name in pairs({ UIController = "UIController", SettingsPure = "SettingsController", LoadoutPure = "StarterLoadoutController", ResultsPure = "ResultsController" }) do
+	for key, name in pairs({ UIController = "UIController", SettingsPure = "SettingsController", LoadoutPure = "StarterLoadoutController", ResultsPure = "ResultsController", SocialPure = "SocialController" }) do
 		local ok, mod = pcall(function()
 			return require(ControllersFolder:WaitForChild(name))
 		end)
@@ -111,6 +113,7 @@ report("A5 reward idempotence specs", require(Unit:WaitForChild("RewardIdempoten
 if modules.UIController then
 	report("A5 UI state specs", require(Unit:WaitForChild("UIState.spec")).run(modules))
 end
+report("A6 social specs", require(Unit:WaitForChild("Social.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }
@@ -237,8 +240,11 @@ report("Studio integration (engine)", integration)
 
 local roundSpec = require(Integration:WaitForChild("MultiplayerRound.spec"))
 report("Studio integration (round)", roundSpec.run(modules))
-print("[TumbleTests] observing the round for 120 s (timeline prints afterwards)...")
-roundSpec.observe(modules, 120, function(timeline)
+-- A6 soak: GameConfig.Debug.SoakMinutes = 15 observes that long (one timeline line per transition
+-- with bots, bot marbles, hazard seed and instance count) - compare Intermission lines for leaks.
+local observeSeconds = math.max(120, (GameConfig.Debug.SoakMinutes or 0) * 60)
+print("[TumbleTests] observing the round for " .. observeSeconds .. " s (timeline prints afterwards)...")
+roundSpec.observe(modules, observeSeconds, function(timeline)
 	print("[TumbleTests] timeline (" .. #timeline .. " transitions):")
 	for _, line in ipairs(timeline) do
 		print("[TumbleTests]   " .. line)

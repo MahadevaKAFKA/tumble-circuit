@@ -34,11 +34,17 @@
 	                      created on a live server unless GameConfig.Dev.AuthorizedUserIds is set.
 	RequestEquip (A3) is the starter-ability equip request; the server refuses it mid-race.
 	There is NO remote that grants Coins/XP, sets a time, a best time or a placement.
+	A6:
+	CastSpectatorVote     client->server   (pollId, option 1|2)  only non-racing humans; once per poll
+	VoteState             server->client   Open / Voted / Result (+modifier timestamps) / NoVotes / Closed
+	QuickEmote            client->server   (id 1|2|3)          preset bubbles only, 5 s server cooldown
+	EmoteShown            server->client   {userId, id}
+	Snapshot adds chaosModifier = {kind, startsAt, endsAt} while a voted modifier is pending/active.
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 5
+RoundProtocol.Version = 6
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -68,6 +74,11 @@ RoundProtocol.Remotes = {
 	RewardNotice = { Direction = "ServerToClient" },
 	DevCommand = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 24 }, { type = "number", min = -1, max = 100000, integer = true } }, MinInterval = 0.3, StudioOnly = true },
 	DevResult = { Direction = "ServerToClient", StudioOnly = true },
+	-- A6
+	CastSpectatorVote = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 2 ^ 31, integer = true }, { type = "number", oneOf = { 1, 2 } } }, MinInterval = 0.3 },
+	VoteState = { Direction = "ServerToClient" },
+	QuickEmote = { Direction = "ClientToServer", Args = { { type = "number", oneOf = { 1, 2, 3 } } }, MinInterval = 0.5 },
+	EmoteShown = { Direction = "ServerToClient" },
 }
 
 RoundProtocol.States = {

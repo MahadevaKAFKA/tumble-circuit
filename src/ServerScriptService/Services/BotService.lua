@@ -400,7 +400,7 @@ function BotService:_stepBot(bot, entry, dt, now, hazardTime, cfgBumper)
 						if along > -1 and along < bumper.height + 1 and d > 1e-3 and d <= bumper.contact then
 							entry.kickCooldown["b" .. i] = now + cfgBumper.CooldownSeconds
 							self:_hit(bot, entry, function()
-								entry.motor:ApplyKick(radial / d, cfgBumper.KickSpeed)
+								entry.motor:ApplyKick(radial / d, cfgBumper.KickSpeed * self.hazards:BumperKickMultiplier())
 							end)
 						end
 					end

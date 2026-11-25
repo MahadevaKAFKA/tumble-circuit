@@ -74,6 +74,7 @@ local SettingsController = require(Controllers:WaitForChild("SettingsController"
 local StarterLoadoutController = require(Controllers:WaitForChild("StarterLoadoutController"))
 local ResultsController = require(Controllers:WaitForChild("ResultsController"))
 local DevPanelController = require(Controllers:WaitForChild("DevPanelController"))
+local SocialController = require(Controllers:WaitForChild("SocialController"))
 local Lighting = game:GetService("Lighting")
 
 local ATTR = Protocol.PlayerAttributes
@@ -249,6 +250,10 @@ local settings = maid:Give(SettingsController.new({ remotes = remote }))
 local loadout = maid:Give(StarterLoadoutController.new({ remotes = remote }))
 local results = maid:Give(ResultsController.new())
 maid:Give(DevPanelController.new(remotes))
+local social = maid:Give(SocialController.new({ remotes = remote, marblesFolder = marblesFolder, localUserId = player.UserId }))
+maid:Give(social.ModifierChanged:Connect(function(modifier)
+	hazards:SetModifier(modifier) -- A6 voted modifier: same timestamps as the server
+end))
 maid:Give(remote.SkillEvent.OnClientEvent:Connect(function(data)
 	if type(data) == "table" and (data.kind == "SlipstreamOn" or data.kind == "SlipstreamOff") then
 		vfx:SetSlipstream(player.UserId, data.kind == "SlipstreamOn")
@@ -370,6 +375,9 @@ end)
 ui:Register("Touch", function(visible)
 	touch:SetVisible(visible and input.device == InputController.Devices.Touch)
 end)
+ui:Register("Social", function(visible)
+	social:SetVisible(visible)
+end)
 ui:Register("AbilitiesRace", function(visible)
 	local me = myEntry()
 	local live = visible and roundState() == S.Racing and me ~= nil and not me.finished and currentZone == ZONES.Race
@@ -387,6 +395,27 @@ local function refreshGates()
 	})
 	input:SetSteeringEnabled(canSteer())
 	input:SetRecoverEnabled(canRecover())
+	-- A6 social: voters = anyone who is not an active racer; emote bar in lobby / spectate
+	local screen = ui:GetScreen()
+	local activeRacer = me ~= nil and not me.finished and roundState() == S.Racing
+	social:SetContext(not activeRacer, (screen == "Lobby" or screen == "Spectate") and not ui:GetModal(), uiState == "Live" and not ui:GetModal())
+	-- A6 console: give the gamepad a focused button on menus, never during the race
+	if input.device == InputController.Devices.Gamepad then
+		local modal = ui:GetModal()
+		local target = nil
+		if modal == "Settings" then
+			target = settings:GetFirstButton()
+		elseif modal == "Loadout" then
+			target = loadout:GetFirstButton()
+		elseif screen == "Results" then
+			target = results:GetPrimaryButton()
+		end
+		if GuiService.SelectedObject ~= target and (target or GuiService.SelectedObject) then
+			pcall(function()
+				GuiService.SelectedObject = target
+			end)
+		end
+	end
 end
 
 local resetLimiter = Utility.RateLimiter.new(GameConfig.Spawn.ClientResetThrottleSeconds)
@@ -547,6 +576,10 @@ maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 	end
 	snapshot = snap
 	hazards:SetRound(snap.hazardSeed, snap.hazardEpoch)
+	local mod = snap.chaosModifier
+	if (mod and mod.startsAt) ~= (social.modifier and social.modifier.startsAt) then
+		social:SetModifier(mod) -- late joiners get the active vote modifier from the snapshot
+	end
 	raceHud:ApplySnapshot(snap, player.UserId)
 	matchUi:ApplySnapshot(snap, player.UserId)
 	results:ApplySnapshot(snap, player.UserId)
@@ -585,6 +618,9 @@ maid:Give(remote.FinishNotice.OnClientEvent:Connect(function(data)
 	if data.userId == player.UserId then
 		raceHud:Flash(string.format("FINISHED  #%d", data.place), GameConfig.Palette.Mint, 2.5)
 		sound:Play("Finish")
+		if currentBall and currentBall.Parent then
+			vfx:Confetti(currentBall.Position + Vector3.new(0, 2, 0)) -- every finisher gets one
+		end
 	else
 		hud:Toast(string.format("%s%s finished #%d", data.isBot and "[BOT] " or "", tostring(data.name), data.place), 2)
 	end
@@ -637,6 +673,7 @@ local function applyGraphics(mode)
 	vfx:SetQuality(low and "Low" or "High")
 end
 local function applySettings(s)
+	social:SetMuted(s.muteEmotes == true)
 	abilities:SetReducedMotion(s.reducedMotion == true)
 	results:SetReducedMotion(s.reducedMotion == true)
 	if cameraController:GetMode() ~= s.cameraMode then
@@ -975,6 +1012,7 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	end
 	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown, progress = progressFraction, rivals = rivalFractions })
 	results:Update(now)
+	social:Update(now)
 	matchUi:Update({ now = now, racing = amRacing(), raceRunning = raceRunning(), spectating = spectate.active })
 	boardTimer = boardTimer + dt
 	if boardTimer >= 0.25 then

@@ -5,8 +5,8 @@
 
 local GameConfig = {}
 
-GameConfig.Version = "A5.0"
-GameConfig.BuildLabel = "A5 prototype - profile, rewards, settings"
+GameConfig.Version = "A6.0"
+GameConfig.BuildLabel = "Phase A closed-playtest build (A6)"
 
 GameConfig.Debug = {
 	RunTestsInStudio = true, -- TestRunner prints PASS/FAIL to Output when playing in Studio
@@ -15,6 +15,7 @@ GameConfig.Debug = {
 	-- phone with no F2 key; turn it off before anyone else plays. F2 toggles it in game.
 	PerfOverlayDefault = true,
 	HitchThresholdSeconds = 0.25, -- frames longer than this are logged with where the marble was
+	SoakMinutes = 0, -- A6: set to 15 for the repeated-round soak test (TestRunner timeline)
 }
 
 -- A5 persistence. Live servers ALWAYS use DataStoreService. Studio uses an in-memory mock unless

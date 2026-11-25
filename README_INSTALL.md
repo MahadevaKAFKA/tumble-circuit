@@ -1,12 +1,13 @@
 # Tumble Circuit: Chaos Drop — install & play
 
-Current build: **A5** = A1 marble + A2 multiplayer rounds + A3 abilities and micro-skills +
-A4 the full **Neon Foundry** (16 modules, ROUTE_MAP.md), seeded hazards, **bots** filling the race
-to 8, Chaos Gates + A5 one-owner UI flow, saved profile (level, XP, Coins, records, settings,
-loadout), exact Coins/XP results and a Studio-only dev panel (F8).
+Current build: **A6 = Phase A code complete** — marble physics, multiplayer rounds, three abilities
+and micro-skills, the full **Neon Foundry** (16 modules, ROUTE_MAP.md) with seeded hazards, **bots**
+filling races to 8, Chaos Gates, a saved profile with exact Coins/XP results, spectator **Chaos
+Vote**, quick emotes, hub podium, accessibility settings and a Studio-only dev panel (F8).
+Phase A is **not playtested**: `PHASE_A_ACCEPTANCE_REPORT.md` says exactly what is verified.
 See `BUILD_STATUS.md` for exactly what is verified.
 
-> **Status:** code complete through A5, **not yet run in Roblox Studio** (Studio was not available
+> **Status:** code complete through A6, **not yet run in Roblox Studio** (Studio was not available
 > where it was built). Pure-logic tests pass offline; everything that needs the engine is listed
 > as untested in `BUILD_STATUS.md`. Your Play Solo session is the first real run.
 
@@ -76,63 +77,63 @@ convenience rather than a requirement.
 | Steer | A / D (or ←/→) | Left stick | Drag on the left side (one floating stick) |
 | Roll faster / hold back | W / S | Left stick up / down | Stick up / down |
 | Brake | Shift | LT | **BRAKE** (hold) |
-| Reset to start | Hold **R** 1 s | Hold **Y** 1 s | Hold **RESET** 1 s |
-| Camera Chase / Wide | V | R3 | **CAM** |
-| Menu buttons | Enter / Space / click | A | Tap |
+| Recover (back to last checkpoint in a race) | Hold **R** 1 s | Hold **Y** 1 s | Hold **RESET** 1 s |
+| Camera Chase / Wide (remembered) | V | R3 | **CAM** |
+| Menu buttons | Enter / Space / click | A (menus get a selected button) | Tap |
 | Ability 1 / 2 (race) | Q / E | LB / RB | round buttons |
 | Trick (in the air off the green ramp) | Space | A | TRICK |
 | Standings | Tab | D-pad up | — |
 | Spectate next / previous | E / Q | RB / LB | < > buttons |
-| Frame-time overlay | F2 | — | — |
+| Quick emotes GG / Nice Save! / Oops! | 1 / 2 / 3 | D-pad left / right / down | lobby buttons |
+| Spectator Chaos Vote (when you're not racing) | click | A | tap |
+| Frame-time + server perf overlay | F2 | — | — |
+| Dev panel (Studio / authorized test accounts only) | F8 | — | — |
 
-The Roblox menu's **Reset Character** also resets the marble.
+The Roblox menu's **Reset Character** also triggers recovery.
 
-## 4. What is where (A1 file tree)
+## 4. What is where
 
 ```
 TumbleCircuit/
-  default.project.json        Rojo map
-  TumbleCircuit.rbxlx         ready-to-open place (generated)
-  PLACEHOLDER_IDS.lua         all asset ids nil (no invented ids) -> game is silent
-  README_INSTALL.md  BUILD_STATUS.md  TEST_PLAN.md
+  default.project.json        Rojo map               TumbleCircuit.rbxlx   ready-to-open place
+  PLACEHOLDER_IDS.lua         all asset ids nil (no invented ids) -> the game is silent
+  README_INSTALL.md  BUILD_STATUS.md  TEST_PLAN.md  ROUTE_MAP.md  PHASE_A_ACCEPTANCE_REPORT.md
   src/ReplicatedStorage/Shared/
-    GameConfig.lua            camera, input timings, UI, palette, spawn/reset rules
-    PhysicsConfig.lua         every marble-feel tunable (ball, steering, brake, envelopes)
-    Protocol.lua              the one remote + replicated attribute names
-    TrackDefinitions.lua      the training course as data + deterministic generator + validator
-    RouteTracker.lua          progress along the route (steering frame, camera, start/finish)
-    Utility.lua               Maid cleanup, signals, smoothing, deadzone, time format
+    GameConfig, PhysicsConfig, RaceConfig, AbilityConfig, ProgressionConfig, SocialConfig   tunables
+    Protocol, RoundProtocol            names + the complete, validated remote contract
+    TrackDefinitions, RouteTracker     Neon Foundry / Training / hub as data, generator, validator
+    HazardTiming, HazardSim            deterministic hazards (seed class + server time), vote modifiers
+    MarbleMotorController              the ONE marble motor (players on their client, bots on server)
+    PlayerDataSchema                   profile schema v1 + migrations + settings ranges
+    Utility                            Maid, Signal, RateLimiter, smoothing
   src/ServerScriptService/
-    ServerBootstrap.server.lua  remotes + service start order
-    Services/TrainingTrackService.lua   build course, lighting, spawn/kill height
-    Services/MarbleCharacterService.lua marble lifecycle (spawn, reset, fall, rejoin)
-    Services/RacePhysicsService.lua     server observation: progress, falls, speed anomaly log
-    Services/PracticeRunService.lua     server-timed Ready/Running/Finished runs
-  src/ServerStorage/ProceduralBuilders/TrainingTrackBuilder.lua  primitive geometry
+    ServerBootstrap.server.lua         remotes from RoundProtocol + service start order
+    Services/  TrainingTrackService (builds courses), MarbleCharacterService, RacePhysicsService,
+               CheckpointService, ProgressService, RaceRules, RoundService, AbilityService,
+               SkillRules, MicroSkillService, HazardService, TrackValidator, BotService, BotBrain,
+               ChaosGateService, PerfService, ProfileStore, PlayerDataService, RewardRules,
+               EconomyService, DevService, VoteRules, SocialService
+  src/ServerStorage/ProceduralBuilders/  TrainingTrackBuilder, HubBuilder, BotFactory
   src/StarterPlayer/StarterPlayerScripts/
-    ClientBootstrap.client.lua  wiring + UI flow + per-frame loop
-    Controllers/InputController.lua  TouchControls.lua  MarbleMotorController.lua
-    Controllers/CameraController.lua  HazardController.lua  PrototypeHUDController.lua  SoundController.lua
-  src/Tests/TestRunner.server.lua   Studio tests (Play -> Output)
-  src/Tests/A1PureSpecs.lua         shared pure assertions (Studio + offline)
-  tools/build_rbxlx.py              place builder
-  tools/offline/                    offline test harness (texlua + Roblox datatype shim)
+    ClientBootstrap.client.lua         wiring + per-frame loop
+    Controllers/  UIController (who is on screen), InputController, TouchControls, CameraController,
+                  HazardController, PrototypeHUD, RaceHUD, MatchUI (lobby/spectate), Results,
+                  Settings, StarterLoadout, AbilityController, VFX, Social (vote/emotes), DevPanel,
+                  Sound, UIKit
+  src/Tests/  TestRunner.server.lua (Studio, Play -> Output), Unit/*.spec, Integration/*.spec
+  tools/      build_rbxlx.py (place builder), offline/ (texlua harness, run_tests, route_map)
 ```
 
-## 5. Key A1 decisions (short version — details in BUILD_STATUS.md)
+## 5. Key decisions (short version — details in BUILD_STATUS.md)
 
-- **Authority (ADR-02):** conventional **client network ownership** of the marble. The server
-  creates it, chooses every spawn position, times runs and logs speed anomalies. Roblox's Server
-  Authority mode is fully released (2026) but needs Streaming, deferred signals and Input Action
-  System + `BindToSimulation` plumbing that could not be tested here; reconsider at A2's
-  two-client test.
-- **Avatar (ADR-05):** no Character, no Humanoid. One `Ball` part (radius 2) per player is the
-  only body; two neon stripes are welded, massless and non-colliding so you can see it roll.
-  Every respawn creates a fresh ball at the start spawn (no CFrame writes to a client-owned part).
-- **Input:** UserInputService polling (keyboard/gamepad) + one explicit touch stick. The default
-  Roblox touch controls are disabled so there is never a second stick.
-- **Steering axis:** the route's gravity-projected tangent, never the camera, so left/right
-  cannot flip when looking down the banked drop.
+- **Authority:** client network ownership of each player's marble; the server spawns, freezes,
+  releases, judges checkpoints / finish / placement from observed positions and audits movement.
+  Bots are server-owned and run the same motor module. Everything that matters (rewards, gates,
+  votes, cooldowns) is decided on the server; no remote can grant or set anything.
+- **Avatar:** no Character, no Humanoid — one radius-2 Ball per racer, fresh at every spawn.
+- **Hazards:** pure functions of (seed class, server time − GO); no per-frame hazard traffic.
+- **Saving:** DataStore with session locking on live servers; an in-memory mock in Studio unless
+  you set `GameConfig.Persistence.StudioMode = "Live"` in a throwaway test universe.
 - **Sound:** silent. Fill ids in `PLACEHOLDER_IDS.lua` once you have licensed audio.
 
 ## 6. Tuning
@@ -141,8 +142,11 @@ Edit and press Play again:
 - Feel: `src/ReplicatedStorage/Shared/PhysicsConfig.lua` (accel 35, lateral cap 22, terminal 80,
   air control 40 %, brake ×0.65, deadzone 0.12, plus drag/rolling resistance).
 - Camera/UI: `GameConfig.lua`.
-- Course length, slopes, banking, bumper position: `TrackDefinitions.lua` (the validator prints a
-  warning in Output if a change makes the course unsafe).
+- Course length, slopes, banking, hazards, gates: `TrackDefinitions.lua` (`NeonFoundry`; the
+  validator prints a warning in Output if a change makes the course unsafe; regenerate
+  ROUTE_MAP.md with `texlua tools/offline/route_map.lua . > ROUTE_MAP.md`).
+- Bots: `RaceConfig.Bots` (FillTo, kill switch). Rewards / levels: `ProgressionConfig.lua`.
+  Vote / emotes: `SocialConfig.lua`. Soak test: `GameConfig.Debug.SoakMinutes = 15`.
 
 ## 7. Offline tests (no Studio needed)
 

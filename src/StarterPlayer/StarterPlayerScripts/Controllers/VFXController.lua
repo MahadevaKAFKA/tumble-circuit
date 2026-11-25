@@ -124,6 +124,23 @@ function VFXController:ChaosSurge(userId, tier)
 	self:_add({ startedAt = t, endsAt = t + (tier == "Bottom" and 2 or tier == "Middle" and 1.5 or 1), follow = userId, part = shell, cleanup = { shell } })
 end
 
+-- A6 finish celebration: a short, cheap confetti burst (18 anchored bits moved by Step).
+-- Skipped with Reduced Motion or the Low graphics preset.
+function VFXController:Confetti(position)
+	if self.reducedMotion or self.low or typeof(position) ~= "Vector3" then
+		return
+	end
+	local t = workspace:GetServerTimeNow()
+	local colors = { palette.Cyan, palette.Coral, palette.Yellow, palette.Violet, palette.Mint }
+	for i = 1, 18 do
+		local bit = effectPart({ Size = Vector3.new(0.5, 0.12, 0.35), Color = colors[(i - 1) % #colors + 1] })
+		local angle = i / 18 * math.pi * 2
+		local velocity = Vector3.new(math.cos(angle) * (6 + (i % 4)), 18 + (i % 5) * 2, math.sin(angle) * (6 + (i % 3)))
+		bit.CFrame = CFrame.new(position)
+		self:_add({ startedAt = t, endsAt = t + 1.6, part = bit, cleanup = { bit }, confetti = { origin = position, velocity = velocity, spin = i } })
+	end
+end
+
 function VFXController:SetSlipstream(localUserId, active)
 	if active and not self.slipstream and not self.low then
 		local streaks = {}
@@ -151,7 +168,13 @@ function VFXController:Step()
 			table.remove(self.effects, i)
 		else
 			local progress = e.startedAt and math.clamp((t - e.startedAt) / (e.endsAt - e.startedAt), 0, 1) or 0
-			if e.grow and e.part then
+			if e.confetti and e.part then
+				local c = e.confetti
+				local age = t - e.startedAt
+				local p = c.origin + c.velocity * age + Vector3.new(0, -24 * age * age, 0)
+				e.part.CFrame = CFrame.new(p) * CFrame.Angles(age * c.spin, age * 3, 0)
+				e.part.Transparency = math.clamp((progress - 0.6) / 0.4, 0, 1)
+			elseif e.grow and e.part then
 				local d = 2 + (e.grow - 2) * progress
 				e.part.Size = Vector3.new(0.3, d, d)
 				e.part.Transparency = 0.3 + 0.7 * progress

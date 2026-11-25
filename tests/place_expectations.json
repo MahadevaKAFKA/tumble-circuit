@@ -335,6 +335,26 @@
     {
       "path": "StarterPlayer/StarterPlayerScripts/Controllers/UIController",
       "class": "ModuleScript"
+    },
+    {
+      "path": "ReplicatedStorage/Shared/SocialConfig",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/SocialService",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Services/VoteRules",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "ServerScriptService/Tests/Unit/Social.spec",
+      "class": "ModuleScript"
+    },
+    {
+      "path": "StarterPlayer/StarterPlayerScripts/Controllers/SocialController",
+      "class": "ModuleScript"
     }
   ],
   "properties": [
@@ -400,6 +420,11 @@
     "ProfileState",
     "RewardNotice",
     "DevCommand",
-    "DevResult"
+    "DevResult",
+    "CastSpectatorVote",
+    "VoteState",
+    "QuickEmote",
+    "EmoteShown",
+    "TC_Emote"
   ]
 }

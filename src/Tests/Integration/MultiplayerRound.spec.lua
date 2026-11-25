@@ -91,6 +91,14 @@ function Spec.run(ctx)
 		check(player.Name .. ": profile loaded (status " .. tostring(profile and profile.status) .. ")", profile ~= nil and profile.status ~= "Loading" or false)
 	end
 	check("DevCommand exists only because this is Studio", remotes:FindFirstChild("DevCommand") ~= nil)
+	-- A6 social
+	check("A6 social service published; vote/emote remotes exist", server.social ~= nil and remotes:FindFirstChild("CastSpectatorVote") ~= nil and remotes:FindFirstChild("QuickEmote") ~= nil)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if round.state == RP.States.Racing and round:IsActiveRacer(player) then
+			check(player.Name .. ": an active racer's vote is refused", server.social:Vote(player, server.social:GetPollId(), 1) == false)
+		end
+	end
+	check("no vote modifier outside Racing", round.state == RP.States.Racing or server.hazards:GetModifier() == nil)
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		local ball = server.marbles:GetBall(player)

@@ -69,6 +69,11 @@ function Loadout.new(deps)
 	return self
 end
 
+function Loadout:GetFirstButton()
+	local card = self.cards[PlayerDataSchema.StarterAbilities[1]]
+	return card and card.buttons[1]
+end
+
 function Loadout:SetVisible(visible)
 	self.gui.Enabled = visible
 end

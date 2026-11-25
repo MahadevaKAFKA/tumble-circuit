@@ -23,7 +23,30 @@ If it won't load: Chrome incognito, no extensions, reload — or use the app bel
 2. In Chrome open `https://www.roblox.com/games/<PLACE_ID>` (the deploy summary prints
    this exact link) and tap **Play** — it opens the app and joins. Bookmark it.
 
-## Current build: A5 — UI flow, profile, Coins/XP, saving
+## Current build: A6 — the Phase A closing build
+
+Everything from A5 still applies. A6 adds:
+- **Spectator Chaos Vote:** once you've finished (or sit out), a vote panel appears during the
+  race every ~20 s: **Turbo Fans** or **Bouncy Bumpers**. The winner changes the course for 8 s
+  for whoever is still racing (bots included).
+- **Quick emotes:** GG / Nice Save! / Oops! buttons in the lobby column; a bubble pops over your
+  marble. You can mute them in SETTINGS.
+- **Perfect Dodge** message when you skim past the sweeper or hammer without touching it, and
+  finish confetti (off with Reduced Motion).
+- **Hub podium:** the top three of the last race stand on the podium as marbles with name tags,
+  plus a podium arch, a showcase pedestal and light pylons.
+- Clearer hazard cues: bumpers show "!" / "KICK", falling tiles change look before they drop.
+
+### What to check (A6, solo with bots)
+- [ ] Finish first, then watch: the vote panel appears; tap an option; the banner says which
+      won and bots react (faster fans or bouncier bumpers) for 8 s.
+- [ ] Emote buttons work in the lobby; the bubble shows over your marble.
+- [ ] After results, the podium in the hub shows the top three.
+- [ ] Skim the sweeper or hammer → "Perfect Dodge".
+- [ ] Nothing from A1–A5 broke (bots leave at GO, READY/"Waiting for players", look around,
+      Coins saved after rejoin).
+
+## A5 — UI flow, profile, Coins/XP, saving
 
 Everything from A4 still applies. A5 adds:
 - **Lobby column** (right side): your LEVEL and XP bar, Coins, races and wins, and whether your

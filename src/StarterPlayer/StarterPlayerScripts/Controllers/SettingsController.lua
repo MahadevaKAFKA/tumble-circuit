@@ -26,6 +26,7 @@ local LABELS = {
 	sfx = "SOUND EFFECTS",
 	sensitivity = "STEERING SENSITIVITY",
 	graphicsMode = "GRAPHICS",
+	muteEmotes = "MUTE QUICK EMOTES",
 }
 
 local function describe(key, value)
@@ -76,17 +77,17 @@ function SettingsController.new(deps)
 	end))
 	self.rows = {}
 	for i, key in ipairs(PlayerDataSchema.SettingOrder) do
-		local y = 72 + (i - 1) * 66
-		UIKit.label(panel, { Position = UDim2.fromOffset(24, y + 8), Size = UDim2.fromOffset(300, 40), Text = LABELS[key], TextXAlignment = Enum.TextXAlignment.Left })
+		local y = 70 + (i - 1) * 58
+		UIKit.label(panel, { Position = UDim2.fromOffset(24, y + 6), Size = UDim2.fromOffset(300, 38), Text = LABELS[key], TextXAlignment = Enum.TextXAlignment.Left })
 		local spec = PlayerDataSchema.Settings[key]
-		local value = UIKit.label(panel, { Position = UDim2.fromOffset(410, y + 8), Size = UDim2.fromOffset(120, 40), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow })
+		local value = UIKit.label(panel, { Position = UDim2.fromOffset(410, y + 6), Size = UDim2.fromOffset(120, 38), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow })
 		local function press(direction)
 			local nextValue = SettingsController.Step(key, self.settings[key], direction)
 			self:_set(key, nextValue, true)
 		end
 		if spec.kind == "number" then
-			local minus = UIKit.button(panel, { Position = UDim2.fromOffset(340, y), Size = UDim2.fromOffset(60, 56), Text = "-" }, palette.Cyan)
-			local plus = UIKit.button(panel, { Position = UDim2.fromOffset(540, y), Size = UDim2.fromOffset(60, 56), Text = "+" }, palette.Cyan)
+			local minus = UIKit.button(panel, { Position = UDim2.fromOffset(340, y), Size = UDim2.fromOffset(60, 50), Text = "-" }, palette.Cyan)
+			local plus = UIKit.button(panel, { Position = UDim2.fromOffset(540, y), Size = UDim2.fromOffset(60, 50), Text = "+" }, palette.Cyan)
 			maid:Give(minus.Activated:Connect(function()
 				press(-1)
 			end))
@@ -94,7 +95,8 @@ function SettingsController.new(deps)
 				press(1)
 			end))
 		else
-			local toggle = UIKit.button(panel, { Position = UDim2.fromOffset(340, y), Size = UDim2.fromOffset(260, 56), Text = "" }, palette.Cyan)
+			local toggle = UIKit.button(panel, { Position = UDim2.fromOffset(340, y), Size = UDim2.fromOffset(260, 50), Text = "" }, palette.Cyan)
+			self.firstButton = self.firstButton or toggle
 			value.Parent = toggle
 			value.Position = UDim2.fromScale(0, 0)
 			value.Size = UDim2.fromScale(1, 1)
@@ -104,9 +106,13 @@ function SettingsController.new(deps)
 		end
 		self.rows[key] = value
 	end
-	self.note = UIKit.label(panel, { Position = UDim2.fromOffset(24, 470), Size = UDim2.new(1, -48, 0, 30), Font = Enum.Font.Gotham, TextColor3 = palette.White, TextTransparency = 0.25, Text = "This build has no music or sound files yet - your levels are saved for when it does." })
+	self.note = UIKit.label(panel, { Position = UDim2.fromOffset(24, 480), Size = UDim2.new(1, -48, 0, 28), Font = Enum.Font.Gotham, TextColor3 = palette.White, TextTransparency = 0.25, Text = "This build has no music or sound files yet - your levels are saved for when it does." })
 	self:_render()
 	return self
+end
+
+function SettingsController:GetFirstButton()
+	return self.firstButton
 end
 
 function SettingsController:SetVisible(visible)

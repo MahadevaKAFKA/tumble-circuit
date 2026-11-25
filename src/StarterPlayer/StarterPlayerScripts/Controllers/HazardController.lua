@@ -68,7 +68,26 @@ function HazardController.new(courseRoot, motor, sound, layout)
 			if base and base:GetAttribute("HazardType") == "PulseBumper" then
 				local height = base:GetAttribute("Height") or base.Size.X
 				local axis = base.CFrame.RightVector -- cylinder axis = local X = floor normal
+				-- A6 colour-blind cue: the bumper's state is also written above it ("!" / "KICK")
+				local cue = Instance.new("BillboardGui")
+				cue.Name = "TC_Cue"
+				cue.Size = UDim2.fromOffset(90, 34)
+				cue.StudsOffsetWorldSpace = Vector3.new(0, height + 2.5, 0)
+				cue.MaxDistance = 80
+				cue.LightInfluence = 0
+				cue.Enabled = false
+				local cueText = Instance.new("TextLabel")
+				cueText.Size = UDim2.fromScale(1, 1)
+				cueText.BackgroundTransparency = 1
+				cueText.TextScaled = true
+				cueText.Font = Enum.Font.GothamBlack
+				cueText.TextStrokeTransparency = 0.2
+				cueText.Parent = cue
+				cue.Adornee = base
+				cue.Parent = base
 				table.insert(self.bumpers, {
+					cue = cue,
+					cueText = cueText,
 					id = base:GetAttribute("HazardId") or folder.Name,
 					base = base,
 					ring = folder:FindFirstChild("Ring"),
@@ -129,6 +148,14 @@ function HazardController:SetRound(seed, epoch)
 	end
 end
 
+-- A6 Chaos Vote modifier from VoteState / the snapshot (same timestamps as the server).
+function HazardController:SetModifier(modifier)
+	self.modifier = type(modifier) == "table" and modifier or nil
+	for _, hz in ipairs(self.resolved) do
+		hz.lastVisualKey = nil
+	end
+end
+
 function HazardController:Time()
 	return workspace:GetServerTimeNow() - self.epoch
 end
@@ -136,12 +163,13 @@ end
 -- Continuous push for the local marble (used by MarbleMotorController:SetEnvironmentAccel).
 function HazardController:EnvironmentAccel(position)
 	local t = self:Time()
+	local fanBoost = HazardSim.FanMultiplier(self.modifier, workspace:GetServerTimeNow())
 	local total = nil
 	for _, hz in ipairs(self.resolved) do
 		if hz.Params and (hz.Kind == "Fan" or hz.Kind == "Conveyor") then
 			local push = HazardSim.EnvironmentAccel(hz, t, position)
 			if push then
-				total = (total or Vector3.new(0, 0, 0)) + push
+				total = (total or Vector3.new(0, 0, 0)) + push * (hz.Kind == "Fan" and fanBoost or 1)
 			end
 		end
 	end
@@ -165,14 +193,16 @@ function HazardController:_animate(t)
 				end
 			elseif hz.Kind == "Fan" or hz.Kind == "Conveyor" then
 				local state = hz.Kind == "Fan" and HazardSim.FanState(p, t) or "On"
-				if state ~= hz.lastVisualKey then
-					hz.lastVisualKey = state
+				local turbo = hz.Kind == "Fan" and HazardSim.FanMultiplier(self.modifier, workspace:GetServerTimeNow()) > 1
+				local key = state .. (turbo and "T" or "")
+				if key ~= hz.lastVisualKey then
+					hz.lastVisualKey = key
 					local arrowAlpha = state == "On" and 0.1 or state == "Warning" and 0.5 or 0.92
 					for _, arrow in ipairs(hz.parts.Arrow or {}) do
 						arrow.Transparency = arrow:GetAttribute("Shown") and arrowAlpha or 1
 					end
 					for _, disc in ipairs(hz.parts.FanDisc or {}) do
-						disc.Color = state == "On" and palette.Cyan or state == "Warning" and palette.Yellow or palette.NavyRail
+						disc.Color = turbo and palette.Coral or state == "On" and palette.Cyan or state == "Warning" and palette.Yellow or palette.NavyRail
 					end
 				end
 				if state == "On" and not self.reducedMotion then
@@ -193,10 +223,11 @@ function HazardController:Step(ball)
 	local ballRadius = PhysicsConfig.Ball.Radius
 	local now = os.clock()
 	local shielded = self.isShielded and self.isShielded()
+	local bouncy = HazardSim.BumperKickMultiplier(self.modifier, workspace:GetServerTimeNow()) > 1
 
 	for _, bumper in ipairs(self.bumpers) do
 		local state, blend = HazardController.PhaseAt(t + (bumper.phaseOffset or 0), cfg)
-		local key = state .. math.floor(blend * 20) -- colour only changes in 5% steps
+		local key = state .. math.floor(blend * 20) .. (bouncy and "B" or "") -- colour changes in 5% steps
 		if bumper.lastKey ~= key then
 			bumper.lastKey = key
 			local color = palette.Cyan
@@ -212,6 +243,9 @@ function HazardController:Step(ball)
 			if bumper.floorRing then
 				bumper.floorRing.Color = color
 			end
+			bumper.cue.Enabled = state ~= "Idle"
+			bumper.cueText.Text = state == "Active" and (bouncy and "BOUNCY!" or "KICK") or "!"
+			bumper.cueText.TextColor3 = state == "Active" and palette.Coral or palette.Yellow
 		end
 		if ball and ball.Parent and state == "Active" and now >= bumper.cooldownUntil then
 			local rel = ball.Position - bumper.floorPoint
@@ -220,7 +254,7 @@ function HazardController:Step(ball)
 				local radial = rel - bumper.axis * along
 				local d = radial.Magnitude
 				if d > 1e-3 and d <= bumper.radius + ballRadius + cfg.ContactPadding and not shielded then
-					if self.motor:ApplyKick(radial / d, cfg.KickSpeed) then
+					if self.motor:ApplyKick(radial / d, cfg.KickSpeed * HazardSim.BumperKickMultiplier(self.modifier, workspace:GetServerTimeNow())) then
 						bumper.cooldownUntil = now + cfg.CooldownSeconds
 						self.sound:Play("BumperKick")
 					end

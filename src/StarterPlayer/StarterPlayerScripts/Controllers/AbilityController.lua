@@ -29,6 +29,7 @@ local FEEDBACK = {
 	TrickSuccess = "TRICK! +15% speed",
 	TrickArmed = "Trick!",
 	NearMiss = "NEAR MISS!",
+	PerfectDodge = "PERFECT DODGE!",
 	SlipstreamOn = "SLIPSTREAM +12%",
 	Charge = "Cooldowns -1.5 s",
 }
@@ -130,7 +131,7 @@ function AbilityController.new(deps)
 		if data.kind == "Denied" or data.kind == "TrickFail" then
 			self.toast(tostring(data.detail or "Not now"), 1.4)
 		elseif text then
-			self.flash(text, data.kind == "NearMiss" and palette.Yellow or palette.Mint, 1)
+			self.flash(text, (data.kind == "NearMiss" or data.kind == "PerfectDodge") and palette.Yellow or palette.Mint, 1)
 		end
 	end)
 	on("AbilityOutcome", function(data)

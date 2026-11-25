@@ -12,6 +12,7 @@ ok    src/ReplicatedStorage/Shared/Protocol.lua
 ok    src/ReplicatedStorage/Shared/RaceConfig.lua
 ok    src/ReplicatedStorage/Shared/RoundProtocol.lua
 ok    src/ReplicatedStorage/Shared/RouteTracker.lua
+ok    src/ReplicatedStorage/Shared/SocialConfig.lua
 ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
 ok    src/ReplicatedStorage/Shared/Utility.lua
 ok    src/ServerScriptService/ServerBootstrap.server.lua
@@ -34,8 +35,10 @@ ok    src/ServerScriptService/Services/RaceRules.lua
 ok    src/ServerScriptService/Services/RewardRules.lua
 ok    src/ServerScriptService/Services/RoundService.lua
 ok    src/ServerScriptService/Services/SkillRules.lua
+ok    src/ServerScriptService/Services/SocialService.lua
 ok    src/ServerScriptService/Services/TrackValidator.lua
 ok    src/ServerScriptService/Services/TrainingTrackService.lua
+ok    src/ServerScriptService/Services/VoteRules.lua
 ok    src/ServerStorage/ProceduralBuilders/BotFactory.lua
 ok    src/ServerStorage/ProceduralBuilders/HubBuilder.lua
 ok    src/ServerStorage/ProceduralBuilders/TrainingTrackBuilder.lua
@@ -51,6 +54,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ResultsController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SettingsController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SocialController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SoundController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/StarterLoadoutController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/TouchControls.lua
@@ -71,6 +75,7 @@ ok    src/Tests/Unit/Persistence.spec.lua
 ok    src/Tests/Unit/ReadyVote.spec.lua
 ok    src/Tests/Unit/RewardIdempotence.spec.lua
 ok    src/Tests/Unit/RoundState.spec.lua
+ok    src/Tests/Unit/Social.spec.lua
 ok    src/Tests/Unit/TrackValidation.spec.lua
 ok    src/Tests/Unit/UIState.spec.lua
 ok    tools/offline/harness.lua
@@ -425,4 +430,31 @@ PASS  results: PB lines (new with delta / first on variation / slower / none)
 PASS  client UI text has no Robux / shop / capsule / season / buy prompts
 PASS  no MarketplaceService anywhere in the game source
 
-307 passed, 0 failed (+ 0 syntax failures)
+-- A6 social specs --
+PASS  finished racers and non-racers may vote; active racers and bots may not
+PASS  a poll opens after 20 s of racing with a spectator present
+PASS  no poll before 20 s, without spectators, without active racers, or outside Racing
+PASS  no poll when the race is about to end or one is already open
+PASS  polls are spaced 20 s apart and never overlap an active modifier
+PASS  a valid vote counts
+PASS  one vote per person per poll (spam / changing vote refused)
+PASS  stale poll id, closed poll, bad option all refused
+PASS  most votes wins
+PASS  ties resolve deterministically (odd poll -> option 1, even -> option 2)
+PASS  no votes -> nothing happens
+PASS  a voter who disconnected keeps a consistent tally
+PASS  Turbo Fans stays counter-steerable (boosted push < steering accel cap)
+PASS  Bouncy Bumpers stays within the hazard kick cap
+PASS  modifier only acts inside its announced window
+PASS  unknown or missing modifiers do nothing
+PASS  vote options = Turbo Fans / Bouncy Bumpers, both with plain descriptions
+PASS  vote window 5 s, every 20 s, announced 3 s ahead, lasts 8 s
+PASS  Clearance <= 0 exactly where the contact model hits (sweeper)
+PASS  close pass without contact -> one Perfect Dodge on leaving
+PASS  contact during the pass -> Hit, never a Perfect Dodge
+PASS  a wide pass is not a Perfect Dodge
+PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
+PASS  emote / vote remotes carry only bounded numbers (no free text)
+PASS  chaos banner: lead-time countdown, active countdown, then nothing
+
+332 passed, 0 failed (+ 0 syntax failures)

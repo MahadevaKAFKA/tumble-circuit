@@ -1,4 +1,4 @@
-# TEST_PLAN — A1
+# TEST_PLAN — Phase A (A1–A6)
 
 Three layers: automated offline (runs anywhere), automated in Studio (runs on Play), and a manual
 playtest checklist only a human in Studio can do. Record results in `BUILD_STATUS.md`
@@ -228,3 +228,42 @@ the real CameraController against a fake camera — look right/left, held vs rel
 **Layout**
 - [ ] Studio Device Emulator at 640x360 (phone landscape) and 1920x1080: lobby column, results (980x560 reference) and modals fit; touch buttons ≥ 44 px; nothing under the Roblox top bar or chat. Console (gamepad) navigation of modals is NOT implemented beyond A/Space for PLAY AGAIN - noted.
 - [ ] 3 races + a rejoin: `Perf_Instances` (F2) flat between Intermissions.
+
+## 9. A6 — social chaos, polish, reliability
+
+**Automated:** `A6 social specs` (offline + Studio, 0 failed). Studio integration adds: social service published, an active racer's vote refused, no vote modifier outside Racing. Soak: set `GameConfig.Debug.SoakMinutes = 15`, Play, wait; the timeline prints one line per transition with bots / bot marbles / hazard seed / instance count.
+
+**Two clients (Test tab: Start, 2 players)**
+- [ ] Spectator Chaos Vote: A finishes (or B sits out) while the other races. After ~20 s of racing the non-racer sees "SPECTATOR CHAOS VOTE - 5 s" with TURBO FANS / BOUNCY BUMPERS; the racer does not. Vote → "VOTE CAST". Everyone then sees "SPECTATORS CHOSE ... - in 3 s", then an 8 s countdown banner. Turbo Fans: fan discs coral, gusts noticeably stronger but still steerable. Bouncy Bumpers: bumper cue says BOUNCY!, kicks a bit stronger. Nothing changes for finished marbles or results.
+- [ ] Voting twice / spamming / voting while racing does nothing (server refuses; no errors).
+- [ ] Nobody votes → nothing happens. Leave during a vote → no error.
+- [ ] Quick emotes: 1 / 2 / 3 (or lobby buttons) shows a bubble above your marble on both screens; a second press within 5 s does nothing (buttons show the seconds). Settings → MUTE QUICK EMOTES hides other people's bubbles.
+- [ ] PERFECT DODGE! appears when you pass the sweeper arm or hammer head very close without touching; never when you're hit.
+- [ ] After a race, the hub podium shows the top three as display marbles with name tags ([BOT] labelled), until the next results.
+
+**Polish / accessibility (Play Solo)**
+- [ ] Hub: podium arch, marble showcase pedestal, four holo pylons, board, practice chute.
+- [ ] Your finish: confetti burst (none with Reduced Motion or GRAPHICS LOW); results card pops in ~0.25 s; buttons dip slightly when pressed.
+- [ ] Colour-independent cues: bumpers show "!" while warning and "KICK" while active; falling tiles change texture (diamond plate) as well as colour before dropping; fan arrows appear only while pushing.
+- [ ] Gamepad: results select PLAY AGAIN automatically, Settings / Loadout select their first button; D-pad moves between buttons; nothing is selected during the race.
+- [ ] Device Emulator 640x360, 1280x720, 1920x1080: no essential control hidden or overlapped.
+
+**Integration matrix** (A = automated offline, S = Studio integration check, M = manual above / §5–§8)
+
+| Scenario | How it's covered |
+|---|---|
+| Solo (1 human + 7 bots) | M §7, S timeline |
+| 2 humans agree on results | M §5 / §9 (both clients' results identical) |
+| 8 bots + human | M §7 bot progression, PerfService numbers |
+| Joining mid-round | M §5 late joiner (hub + spectate + autoqueue) |
+| Repeated races / soak | S timeline (SoakMinutes = 15), Perf_Instances flat |
+| Fall / respawn | A (checkpoint respawn specs), M §7 |
+| Disconnect while voting | A (tally after a voter leaves), M §9 |
+| Double finish | A (same-sample ordering, RewardIdempotence duplicate) |
+| Race timeout | A (state graph), M (let the 180 s timer expire: DNF consolation) |
+| Saving on shutdown | M §8 live store only (BindToClose) — untested here |
+| UI race → results → lobby | A (UIState.spec), M §8 |
+| Disallowed ability use | A (AbilitySecurity), M §6 |
+| Forged / malformed remotes | A (payload schemas: every client argument bounded) |
+| Vote / emote spam | A (one vote per poll, rate limits), M §9 |
+| Client-owned physics exploits | Server audit (teleport window, checkpoint plausibility) — A; a modified client can still ignore hazard kicks (known limitation) |

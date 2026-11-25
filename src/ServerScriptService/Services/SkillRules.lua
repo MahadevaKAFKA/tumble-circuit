@@ -228,4 +228,33 @@ function SkillRules.NearMissStep(state, distance, contactDistance, dangerous, cf
 	return nil
 end
 
+-- A6 Perfect Dodge: an approach to a moving hazard (centre distance <= cfg.ApproachRadius) whose
+-- closest clearance stayed within cfg.Band without any contact. One verdict per approach.
+-- Returns "PerfectDodge" | "Hit" | nil. clearance = nil means "not level with the hazard".
+function SkillRules.DodgeStep(state, centreDistance, clearance, cfg)
+	if centreDistance <= cfg.ApproachRadius then
+		if not state.inApproach then
+			state.inApproach, state.minGap, state.hit = true, math.huge, false
+		end
+		if clearance then
+			if clearance <= 0 then
+				if not state.hit then
+					state.hit = true
+					return "Hit"
+				end
+				return nil
+			end
+			state.minGap = math.min(state.minGap, clearance)
+		end
+		return nil
+	end
+	if state.inApproach then
+		state.inApproach = false
+		if not state.hit and state.minGap <= cfg.Band then
+			return "PerfectDodge"
+		end
+	end
+	return nil
+end
+
 return SkillRules

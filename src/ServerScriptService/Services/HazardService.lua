@@ -66,6 +66,20 @@ function HazardService:SetRound(seed, epoch)
 	end
 end
 
+-- A6 Chaos Vote modifier ({kind, startsAt, endsAt} server time, or nil). Pure data: every
+-- machine applies it from the same timestamps (fans in EnvironmentAccelFor, bumpers in kicks).
+function HazardService:SetModifier(modifier)
+	self.modifier = modifier
+end
+
+function HazardService:GetModifier()
+	return self.modifier
+end
+
+function HazardService:BumperKickMultiplier()
+	return HazardSim.BumperKickMultiplier(self.modifier, workspace:GetServerTimeNow())
+end
+
 function HazardService:GetSeed()
 	return self.seed
 end
@@ -99,6 +113,8 @@ function HazardService:_updateTiles()
 				part.CanQuery = true
 				part.Transparency = 0
 				part.Color = state == "Telegraph" and palette.Yellow or tile.baseColor
+				-- A6 colour-blind cue: a telegraphing tile also changes texture
+				part.Material = state == "Telegraph" and Enum.Material.DiamondPlate or Enum.Material.SmoothPlastic
 			end
 		end
 	end
@@ -120,12 +136,13 @@ end
 
 function HazardService:EnvironmentAccelFor(position)
 	local t = self:Time()
+	local fanBoost = HazardSim.FanMultiplier(self.modifier, workspace:GetServerTimeNow())
 	local total = nil
 	for _, hz in ipairs(self.resolved) do
 		if hz.Params and (hz.Kind == "Fan" or hz.Kind == "Conveyor") then
 			local push = HazardSim.EnvironmentAccel(hz, t, position)
 			if push then
-				total = (total or Vector3.new(0, 0, 0)) + push
+				total = (total or Vector3.new(0, 0, 0)) + push * (hz.Kind == "Fan" and fanBoost or 1)
 			end
 		end
 	end

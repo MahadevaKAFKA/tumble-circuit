@@ -1,4 +1,4 @@
-# Tumble Circuit: Chaos Drop — Phase A5
+# Tumble Circuit: Chaos Drop — Phase A6 (Phase A closing build)
 
 A marble-racing Roblox game, built as a Rojo/Luau project.
 
@@ -18,7 +18,9 @@ A marble-racing Roblox game, built as a Rojo/Luau project.
   race without waiting for the timer. Bots fixed after the owner's phone run (stuck at GO).
 - **A5** — UI flow (title, lobby column, race, spectate, results), profile with Coins/XP/level,
   personal bests, settings and loadout saved to the player's account (session-locked DataStore),
-  idempotent race rewards, dev panel in Studio only.
+  idempotent race rewards, dev panel in Studio only. Played on the owner's phone: go.
+- **A6** — spectator Chaos Vote, quick emotes, Perfect Dodge, finish confetti, hub podium and
+  decor, accessibility cues. Closes Phase A (see PHASE_A_ACCEPTANCE_REPORT.md).
 
 Two ways to work with it:
 
@@ -33,7 +35,7 @@ Manual playtest checklist: [TEST_PLAN.md](TEST_PLAN.md).
 ## The cloud pipeline
 
 - **Build** (`.github/workflows/build.yml`) — runs on every push. Checks every script
-  (syntax, globals, module/config references), runs the project's own offline specs (307 for A1–A5),
+  (syntax, globals, module/config references), runs the project's own offline specs (332 for A1–A6),
   lints with Selene, builds the place with **Rojo**, verifies the built place with **Lune**,
   and attaches `TumbleCircuit.rbxl` / `.rbxlx` as a downloadable artifact. Publishes nothing.
 - **Deploy to Roblox (private playtest)** (`.github/workflows/deploy.yml`) — started by hand

@@ -65,6 +65,8 @@ local modules = {
 	ProfileStore = H.module("ServerScriptService/Services/ProfileStore"),
 	RewardRules = H.module("ServerScriptService/Services/RewardRules"),
 	UIController = H.module("StarterPlayer/StarterPlayerScripts/Controllers/UIController"),
+	VoteRules = H.module("ServerScriptService/Services/VoteRules"),
+	SocialConfig = H.module("ReplicatedStorage/Shared/SocialConfig"),
 }
 -- A5 client modules: load-time references to client services are stubbed; only their pure
 -- functions (Step / Choose / PbLine) are exercised.
@@ -72,6 +74,7 @@ H.stubServices = { Players = {}, TweenService = {}, UserInputService = {} }
 modules.SettingsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/SettingsController")
 modules.LoadoutPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/StarterLoadoutController")
 modules.ResultsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/ResultsController")
+modules.SocialPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/SocialController")
 H.stubServices = {}
 
 -- A5 UI text scan: every string literal in client code (comments stripped).
@@ -183,6 +186,7 @@ local suites = {
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },
+	{ "A6 social specs", root .. "/src/Tests/Unit/Social.spec.lua" },
 }
 local passed, failed = 0, 0
 for _, suite in ipairs(suites) do

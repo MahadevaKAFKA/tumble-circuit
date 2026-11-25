@@ -617,6 +617,9 @@ function RoundService:_onPlayerLeaving(player)
 	self.queued[player] = nil
 	self.ready[player] = nil
 	self.ordinals[player] = nil
+	for _, limiter in pairs(self.limiters) do
+		limiter:Forget(player) -- A6 cleanup: no per-player state survives a leave
+	end
 	local racer = self.racerByPlayer[player]
 	if racer then
 		self.racerByPlayer[player] = nil
@@ -703,6 +706,7 @@ function RoundService:GetSnapshot()
 		readyCount = vote.ready,
 		ready = ready,
 		hazardSeed = self.hazards and self.hazards:GetSeed() or 0,
+		chaosModifier = self.chaosModifier,
 		hazardEpoch = self.hazards and self.hazards:GetEpoch() or 0,
 	}
 end
@@ -751,6 +755,12 @@ function RoundService:GetActiveRacers()
 		end
 	end
 	return out
+end
+
+-- A6: the voted Chaos modifier rides in the snapshot so late joiners apply it too.
+function RoundService:SetChaosModifier(modifier)
+	self.chaosModifier = modifier
+	self:Broadcast()
 end
 
 function RoundService:MarkActive(player)

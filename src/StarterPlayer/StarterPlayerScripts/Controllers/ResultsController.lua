@@ -227,8 +227,8 @@ function Results:_animateIn()
 		self.cardScale.Scale = 1
 		return
 	end
-	self.cardScale.Scale = 0.6
-	TweenService:Create(self.cardScale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	self.cardScale.Scale = 0.85
+	TweenService:Create(self.cardScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 end
 
 function Results:_countUp(from, to)
@@ -247,6 +247,10 @@ function Results:_countUp(from, to)
 			UIKit.setText(self.totals, string.format("+%d COINS   +%d XP   (%d total)", self.notice.coins, self.notice.xp, to))
 		end
 	end)
+end
+
+function Results:GetPrimaryButton()
+	return self.playAgain
 end
 
 function Results:SetReducedMotion(value)

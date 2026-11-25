@@ -186,6 +186,56 @@ function HazardSim.EnvironmentAccel(h, t, position)
 	return h.Frame.Right * ((p.Direction or 1) * strength)
 end
 
+-- A6 spectator Chaos Vote modifiers (bounded, short, announced in advance).
+-- modifier = { kind, startsAt, endsAt } in server time, or nil.
+HazardSim.Modifiers = {
+	TurboFans = { FanAccelMultiplier = 1.5 }, -- 28 -> 42 studs/s^2 sideways: still < steering (70)
+	BouncyBumpers = { BumperKickMultiplier = 1.25 }, -- 24 -> 30 studs/s = KickCap
+}
+
+function HazardSim.ActiveModifier(modifier, serverTime)
+	if type(modifier) ~= "table" or not HazardSim.Modifiers[modifier.kind] then
+		return nil
+	end
+	if serverTime >= (modifier.startsAt or math.huge) and serverTime < (modifier.endsAt or -math.huge) then
+		return modifier.kind
+	end
+	return nil
+end
+
+function HazardSim.FanMultiplier(modifier, serverTime)
+	return HazardSim.ActiveModifier(modifier, serverTime) == "TurboFans" and HazardSim.Modifiers.TurboFans.FanAccelMultiplier or 1
+end
+
+function HazardSim.BumperKickMultiplier(modifier, serverTime)
+	return HazardSim.ActiveModifier(modifier, serverTime) == "BouncyBumpers" and HazardSim.Modifiers.BouncyBumpers.BumperKickMultiplier or 1
+end
+
+-- A6 Perfect Dodge: studs between the marble surface and a moving hazard (<= 0 = touching),
+-- or nil when the marble is not level with it.
+function HazardSim.Clearance(h, t, position, r)
+	local p = h.Params
+	local x, y, z = HazardSim.Local(h, position)
+	if h.Kind == "Sweeper" then
+		if y > p.ArmHeight + 2 or y < -1 then
+			return nil
+		end
+		local angle = HazardSim.SweeperAngle(p, t)
+		local ax, az = math.cos(angle), math.sin(angle)
+		local along = clamp(x * ax + z * az, 0, p.ArmLength)
+		local dx, dz = x - ax * along, z - az * along
+		return math.sqrt(dx * dx + dz * dz) - r - p.ArmThickness / 2
+	elseif h.Kind == "Hammer" then
+		if y > p.HeadSize + 1 then
+			return nil
+		end
+		local lateral = HazardSim.HammerLateral(p, t)
+		local half = p.HeadSize / 2
+		return math.max(math.abs(x - lateral) - half, math.abs(z) - half) - r
+	end
+	return nil
+end
+
 -- Is the hazard currently dangerous near `position` (for near-miss judging)?
 function HazardSim.Dangerous(h, t)
 	if h.Kind == "Fan" then

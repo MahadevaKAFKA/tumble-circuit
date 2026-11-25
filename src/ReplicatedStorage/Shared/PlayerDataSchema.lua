@@ -8,7 +8,7 @@
 	  schemaVersion = 1, coins, xp, level, raceCount, winCount, podiumCount,
 	  bestTimes = { ["worldId|layoutVersion|hazardSeedClass|mode"] = seconds },
 	  equippedAbilityIds = { "Boost", "Shield" },
-	  settings = { reducedMotion, cameraMode, music, sfx, sensitivity, graphicsMode },
+	  settings = { reducedMotion, cameraMode, music, sfx, sensitivity, graphicsMode, muteEmotes (A6) },
 	  rewardLedger = { raceId, ... }   bounded (newest last), duplicate-award protection
 	  botPractice = { day = UTC day number, races = count }
 	}
@@ -28,8 +28,9 @@ PlayerDataSchema.Settings = {
 	sfx = { kind = "number", default = 0.8, min = 0, max = 1, step = 0.1 },
 	sensitivity = { kind = "number", default = 1.0, min = 0.5, max = 1.5, step = 0.1 },
 	graphicsMode = { kind = "enum", default = "Auto", values = { "Auto", "Low", "High" } },
+	muteEmotes = { kind = "boolean", default = false }, -- A6: hide other players' quick emotes
 }
-PlayerDataSchema.SettingOrder = { "reducedMotion", "cameraMode", "music", "sfx", "sensitivity", "graphicsMode" }
+PlayerDataSchema.SettingOrder = { "reducedMotion", "cameraMode", "music", "sfx", "sensitivity", "graphicsMode", "muteEmotes" }
 
 PlayerDataSchema.StarterAbilities = { "Boost", "Shield", "Pulse" }
 PlayerDataSchema.DefaultLoadout = { "Boost", "Shield" }

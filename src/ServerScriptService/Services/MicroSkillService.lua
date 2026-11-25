@@ -162,6 +162,23 @@ function MicroSkillService:_onSample(player, info)
 		end
 	end
 
+	-- A6 Perfect Dodge (commendation only: no Coins, no charge) for sweeper / hammer passes.
+	state.dodge = state.dodge or {}
+	for _, hz in ipairs(self.movers) do
+		if hz.Params then
+			local centre = hz.Frame.Position
+			if hz.Kind == "Hammer" then
+				centre = centre + hz.Frame.Right * HazardSim.HammerLateral(hz.Params, hazardTime)
+			end
+			local d = (info.position - centre).Magnitude
+			state.dodge[hz.Id] = state.dodge[hz.Id] or {}
+			local verdict = SkillRules.DodgeStep(state.dodge[hz.Id], d, HazardSim.Clearance(hz, hazardTime, info.position, PhysicsConfig.Ball.Radius), CFG.PerfectDodge)
+			if verdict == "PerfectDodge" then
+				self:_event(player, "PerfectDodge")
+			end
+		end
+	end
+
 	-- Moving hazards: a shield is spent by the first observed sweeper/hammer contact.
 	if self.abilities:IsShielded(player) then
 		for _, hz in ipairs(self.movers) do

@@ -67,6 +67,10 @@ AbilityConfig.MicroSkills = {
 		ApproachRadius = 16, -- an approach starts inside this distance to the hazard axis
 		Band = 3.5, -- closest pass within this many studs beyond contact = near miss
 	},
+	PerfectDodge = { -- A6 commendation for passing a sweeper / hammer close without contact
+		ApproachRadius = 16,
+		Band = 2.5,
+	},
 	CooldownCharge = {
 		Seconds = 1.5,
 		GlobalLockoutSeconds = 3,

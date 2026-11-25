@@ -22,6 +22,21 @@ local function headingVectors(deg)
 end
 
 -- Spawn CFrames on a ring around the centre, all facing the chute.
+-- Podium steps (1st centre, 2nd left, 3rd right) shared by the builder and the A6 podium displays.
+HubBuilder.PodiumSteps = { { offset = 0, height = 3 }, { offset = -5, height = 2 }, { offset = 5, height = 1.2 } }
+
+-- A6: top-centre of each podium cap (where the display marbles sit), indexed by place.
+function HubBuilder.PodiumSpots(hub)
+	local look, right = headingVectors(hub.ChuteHeadingDeg)
+	local up = Vector3.new(0, 1, 0)
+	local base = hub.Center - look * (hub.Radius - 9)
+	local out = {}
+	for place, step in ipairs(HubBuilder.PodiumSteps) do
+		out[place] = base + right * step.offset + up * (step.height + 0.25)
+	end
+	return out
+end
+
 function HubBuilder.SpawnCFrames(hub, ballRadius, lift)
 	local look, right = headingVectors(hub.ChuteHeadingDeg)
 	local out = {}
@@ -139,7 +154,11 @@ function HubBuilder.ComputeSpecs(hub, chuteWidth)
 
 	-- Minimal podium on the far side (1st centre, 2nd left, 3rd right). Decorative in A2.
 	local podiumBase = hub.Center - look * (hub.Radius - 9)
-	local steps = { { offset = 0, height = 3, color = palette.Yellow }, { offset = -5, height = 2, color = palette.White }, { offset = 5, height = 1.2, color = palette.Coral } }
+	local podiumColors = { palette.Yellow, palette.White, palette.Coral }
+	local steps = {}
+	for i, step in ipairs(HubBuilder.PodiumSteps) do
+		steps[i] = { offset = step.offset, height = step.height, color = podiumColors[i] }
+	end
 	for i, step in ipairs(steps) do
 		local position = podiumBase + right * step.offset + up * (step.height / 2)
 		add({
@@ -162,6 +181,26 @@ function HubBuilder.ComputeSpecs(hub, chuteWidth)
 			Material = "Neon",
 			Collide = false,
 		})
+	end
+
+	-- A6 polish: podium backdrop arch, a marble showcase pedestal and hologram pylons on the rim
+	-- (all decorative, non-colliding, native parts only).
+	local archCenter = podiumBase - look * 3 + up * 7
+	for _, side in ipairs({ -1, 1 }) do
+		add({ Class = "Part", Name = "PodiumArchPost", Folder = "Decor", Size = Vector3.new(0.8, 9, 0.8), CFrame = CFrame.new(archCenter + right * (side * 8.5) - up * 2.5), Color = palette.Violet, Material = "Neon", Collide = false })
+	end
+	add({ Class = "Part", Name = "PodiumArchBeam", Folder = "Decor", Size = Vector3.new(17.8, 0.8, 0.8), CFrame = CFrame.lookAt(archCenter + up * 2, archCenter + up * 2 + right), Color = palette.Yellow, Material = "Neon", Collide = false })
+	local pedestalPos = hub.Center + right * (hub.Radius - 10) - look * 6
+	add({ Class = "Part", Shape = "Cylinder", Name = "MarblePedestal", Folder = "Decor", Size = Vector3.new(2.4, 6, 6), CFrame = CFrame.fromMatrix(pedestalPos + up * 1.2, up, right), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false })
+	add({ Class = "Part", Shape = "Cylinder", Name = "PedestalRing", Folder = "Decor", Size = Vector3.new(0.2, 6.6, 6.6), CFrame = CFrame.fromMatrix(pedestalPos + up * 2.45, up, right), Color = palette.Cyan, Material = "Neon", Collide = false })
+	add({ Class = "Part", Shape = "Ball", Name = "ShowcaseMarble", Folder = "Decor", Size = Vector3.new(4, 4, 4), CFrame = CFrame.new(pedestalPos + up * 4.6), Color = palette.Cyan, Material = "SmoothPlastic", Reflectance = 0.3, Collide = false })
+	add({ Class = "Part", Shape = "Cylinder", Name = "ShowcaseHalo", Folder = "Decor", Size = Vector3.new(0.15, 5.6, 5.6), CFrame = CFrame.fromMatrix(pedestalPos + up * 4.6, up, right), Color = palette.Yellow, Material = "Neon", Transparency = 0.4, Collide = false })
+	for k = 0, 3 do
+		local angle = math.pi / 4 + k * math.pi / 2
+		local radial = look * math.cos(angle) + right * math.sin(angle)
+		local base = hub.Center + radial * (hub.Radius + 3)
+		add({ Class = "Part", Shape = "Cylinder", Name = "HoloPylon", Folder = "Decor", Size = Vector3.new(10, 1, 1), CFrame = CFrame.fromMatrix(base + up * 5, up, right), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false })
+		add({ Class = "Part", Shape = "Cylinder", Name = "HoloRing", Folder = "Decor", Size = Vector3.new(0.2, 4, 4), CFrame = CFrame.fromMatrix(base + up * 10.4, up, right), Color = k % 2 == 0 and palette.Mint or palette.Violet, Material = "Neon", Transparency = 0.3, Collide = false })
 	end
 
 	-- Spawn spot markers

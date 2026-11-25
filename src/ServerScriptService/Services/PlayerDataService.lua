@@ -184,6 +184,7 @@ end
 function PlayerDataService:_onLeave(player)
 	local profile = self.profiles[player]
 	self.profiles[player] = nil
+	self.limiter:Forget(player)
 	if not profile or not self.store or not ProfileStore.CanSave(profile) then
 		return
 	end
