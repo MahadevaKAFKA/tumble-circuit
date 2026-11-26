@@ -63,7 +63,11 @@ for remoteName, spec in pairs(RoundProtocol.Remotes) do
 end
 remotes.Parent = ReplicatedStorage
 
-local track = TrainingTrackService.new()
+-- prompt 02/07: registry feature gates. Server-wide gates (race maps in rotation) are on only
+-- in Studio; gated HUBS are per player (FeatureGates.ForPlayer) so the owner can try them on a
+-- live private server without changing anyone else's race.
+local FeatureGates = require(Services:WaitForChild("FeatureGates"))
+local track = TrainingTrackService.new({ features = FeatureGates.ForServer() })
 track:ApplyEnvironment()
 local built, buildError = pcall(function()
 	track:Build()

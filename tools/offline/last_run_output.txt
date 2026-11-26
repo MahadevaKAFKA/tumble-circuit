@@ -6,6 +6,7 @@ ok    src/ReplicatedStorage/Shared/Catalog.lua
 ok    src/ReplicatedStorage/Shared/GameConfig.lua
 ok    src/ReplicatedStorage/Shared/HazardSim.lua
 ok    src/ReplicatedStorage/Shared/HazardTiming.lua
+ok    src/ReplicatedStorage/Shared/MapRegistry.lua
 ok    src/ReplicatedStorage/Shared/MarbleLook.lua
 ok    src/ReplicatedStorage/Shared/MarbleMotorController.lua
 ok    src/ReplicatedStorage/Shared/PhysicsConfig.lua
@@ -22,6 +23,7 @@ ok    src/ReplicatedStorage/Shared/SocialConfig.lua
 ok    src/ReplicatedStorage/Shared/TimeTrialRules.lua
 ok    src/ReplicatedStorage/Shared/TrackDefinitions.lua
 ok    src/ReplicatedStorage/Shared/Utility.lua
+ok    src/ReplicatedStorage/Shared/VisualProfiles.lua
 ok    src/ServerScriptService/ServerBootstrap.server.lua
 ok    src/ServerScriptService/Services/AbilityRules.lua
 ok    src/ServerScriptService/Services/AbilityService.lua
@@ -34,8 +36,10 @@ ok    src/ServerScriptService/Services/CheckpointService.lua
 ok    src/ServerScriptService/Services/CosmeticService.lua
 ok    src/ServerScriptService/Services/DevService.lua
 ok    src/ServerScriptService/Services/EconomyService.lua
+ok    src/ServerScriptService/Services/FeatureGates.lua
 ok    src/ServerScriptService/Services/HazardService.lua
 ok    src/ServerScriptService/Services/LeaderboardService.lua
+ok    src/ServerScriptService/Services/MapLoader.lua
 ok    src/ServerScriptService/Services/MapVoteRules.lua
 ok    src/ServerScriptService/Services/MarbleCharacterService.lua
 ok    src/ServerScriptService/Services/MicroSkillService.lua
@@ -100,6 +104,7 @@ ok    src/Tests/Unit/DCommerce.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
 ok    src/Tests/Unit/HubFreeRoam.spec.lua
+ok    src/Tests/Unit/MapRegistry.spec.lua
 ok    src/Tests/Unit/MicroSkill.spec.lua
 ok    src/Tests/Unit/Persistence.spec.lua
 ok    src/Tests/Unit/ReadyVote.spec.lua
@@ -592,6 +597,44 @@ PASS  anti-cheat: scores halve every 60 s (lag blips fade)
 PASS  anti-cheat: flood = over 3x a remote's allowed rate in 5 s
 PASS  anti-cheat: one report when a category crosses its threshold, no ban
 
+-- Prompt 02 map registry specs --
+PASS  registry validates clean (ids, builders, hubs, default)
+PASS  map ids are the B1 ids, in the B1 rotation order (records stay compatible)
+PASS  registry order = TrackDefinitions.Worlds order (map rotation unchanged)
+PASS  default map is Neon Foundry, default hub is Orbital Garage
+PASS  Orbital Garage keeps the A2 geometry and practice chute (same tables)
+PASS  every map has name / difficulty / skill / one-line blurb (matches the track name)
+PASS  client cards carry no builder names or geometry
+PASS  unknown map id -> Neon Foundry (fellBack)
+PASS  missing hub id -> Orbital Garage (fellBack)
+PASS  a live map resolves to itself
+PASS  duplicate map id is reported
+PASS  unknown track, missing builder, unknown hub, no name, unknown gate are all reported
+PASS  a gated map is unavailable without its gate (falls back) and available with it
+PASS  registry restored after the negative cases
+PASS  every map loads clean: checkpoints reachable in order, finite spawn / grid / respawns
+PASS  an out-of-order checkpoint is reported as unreachable
+PASS  a NaN spawn transform is reported
+PASS  a respawn below the kill height is reported
+PASS  Orbital Garage loads clean: 16 spawns on the deck, practice entry and return
+PASS  a spawn off the deck is reported
+PASS  a hub without a practice chute is reported
+PASS  failing non-default maps are dropped, the rest keep running
+PASS  the default map stays even with validation notes
+PASS  the default map failing to build is fatal (nothing safer to fall back to)
+PASS  NeonFoundry profile = the exact pre-registry environment
+PASS  every profile sets every field it owns (switching leaves nothing behind)
+PASS  Apply writes all lighting fields + bloom + grade
+PASS  unknown profile -> NeonFoundry
+PASS  every registry map and hub names an existing profile
+PASS  Studio: every gate on
+PASS  live: a stranger gets no gates
+PASS  live: the creator account (user-owned) gets the gates
+PASS  live: group-owned experience -> creator id is a group, never a user match
+PASS  live: listed test accounts get the gates
+PASS  live: OwnerSeesGated off -> creator gets none
+PASS  gates encode for the client attribute
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
 PASS  defaults carry every field (current schema)
@@ -705,4 +748,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-526 passed, 0 failed (+ 0 syntax failures)
+562 passed, 0 failed (+ 0 syntax failures)

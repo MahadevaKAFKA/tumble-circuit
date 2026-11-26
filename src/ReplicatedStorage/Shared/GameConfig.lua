@@ -29,6 +29,16 @@ GameConfig.Persistence = {
 	ShutdownBudgetSeconds = 25,
 }
 
+-- Promo pack prompts 02/07: development feature gates for registry content (MapRegistry
+-- Status = "Gated"). Studio: always on. Live servers: gated HUBS are offered only to these
+-- accounts (per player; everyone else never sees them) and gated race MAPS never join rotation.
+-- OwnerSeesGated = the experience's creator account (user-owned experiences). Turn this off,
+-- or graduate the content to "Live" after its lifecycle tests, before any public release.
+GameConfig.Features = {
+	OwnerSeesGated = true,
+	GatedUserIds = {},
+}
+
 -- A5 dev panel: Studio always; on a live server only for these user ids (empty = never).
 GameConfig.Dev = {
 	AuthorizedUserIds = {},

@@ -38,6 +38,8 @@ Protocol.WorkspaceAttributes = {
 	CourseReady = "TC_CourseReady",
 	CourseError = "TC_CourseError",
 	ActiveWorld = "TC_ActiveWorld", -- B1: id of the world the Race zone uses right now
+	MapsEnabled = "TC_MapsEnabled", -- prompt 02: registry maps that built and validated (csv)
+	HubsEnabled = "TC_HubsEnabled", -- prompt 02: registry hubs that built and validated (csv)
 }
 
 Protocol.SpawnReasons = {

@@ -222,7 +222,7 @@ function HubBuilder.ComputeSpecs(hub, chuteWidth)
 	return specs
 end
 
-local function boardGui(part)
+local function boardGui(part, title)
 	local palette = GameConfig.Palette
 	local surface = Instance.new("SurfaceGui")
 	surface.Name = "Board"
@@ -242,13 +242,13 @@ local function boardGui(part)
 		label.Text = text
 		label.Parent = surface
 	end
-	line("BoardTitle", 0.06, 0.2, palette.Cyan, Enum.Font.GothamBlack, "ORBITAL GARAGE")
+	line("BoardTitle", 0.06, 0.2, palette.Cyan, Enum.Font.GothamBlack, title or "ORBITAL GARAGE")
 	line("BoardMain", 0.3, 0.38, palette.White, Enum.Font.GothamBlack, "WAITING FOR RACERS")
 	line("BoardSub", 0.72, 0.18, palette.Mint, Enum.Font.GothamBold, "Roll down the practice chute while you wait")
 	surface.Parent = part
 end
 
-function HubBuilder.Build(hub, parent, name, chuteWidth, makePart)
+function HubBuilder.Build(hub, parent, name, chuteWidth, makePart, title)
 	local root = Instance.new("Folder")
 	root.Name = name
 	local folders = {}
@@ -266,7 +266,7 @@ function HubBuilder.Build(hub, parent, name, chuteWidth, makePart)
 		end
 		local part = makePart(spec, folders[spec.Folder])
 		if isBoard then
-			boardGui(part)
+			boardGui(part, title)
 		end
 	end
 	root.Parent = parent

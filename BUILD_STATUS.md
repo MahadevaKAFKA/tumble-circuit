@@ -1,14 +1,63 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** D done — launch candidate, private. Owner playtests of B1–D and the owner
-actions below are what's left (plan: docs/PHASE_BCD_PLAN.md). B1 = v16, B2 = v17, B3 = v18, C = v19.
-**State:** A1–A6 played and approved on the owner's phone. B1–D offline-verified (526 specs) and
-published privately — **none of Phase B, C or D has been played in Roblox yet**. Nothing is
-purchasable (every product id nil, paid capsules off).
-**Last updated:** 2026-11-25
+**Active milestone:** Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
+02 map + hub registry done. Plan and baseline: docs/AUDIT_BASELINE.md.
+**State:** A1–A6 played and approved on the owner's phone. The owner reported on 2026-11-26
+that v16–v20 (B1–D) "work as intended". The real race times and two-player features have not
+been measured yet. Nothing is purchasable: every product id is nil and paid capsules are off.
+The promo pack adds no monetization. Every deploy stays private.
+**Last updated:** 2026-11-26
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Prompt 02: map + hub registry (v22, private)
+
+- **`MapRegistry` (Shared).**
+  - Three maps (Neon Foundry, Sky Carnival, Volcano Vault) and one hub (Orbital Garage).
+  - Each map has: id, track, hub, builder name, visual profile, status, and client card meta
+    (name, difficulty, skill, one-line blurb, preview, swatch).
+  - Ids and rotation order are the B1 ones, so best times, ghosts and boards stay compatible.
+  - `ValidateStatic` catches duplicate ids, unknown tracks or hubs, missing builders, gates
+    and default.
+- **`MapLoader` (server).**
+  - Checks each course: checkpoints reachable in order, finite spawn/grid/respawn transforms
+    above the kill height.
+  - Checks each hub: spawns on the deck, practice entry reachable, return point present.
+  - `Decide`: a failing non-default map is dropped from rotation and named in
+    `TC_CourseError`. The Foundry is always kept.
+- **`TrainingTrackService` builds through the registry.** It builds in a `pcall` per map and
+  hub and publishes `TC_MapsEnabled` / `TC_HubsEnabled`. Hub layout, kill height and spawn ring
+  are keyed by hub id, and calls without a hub id get Orbital Garage exactly as before.
+- **`VisualProfiles`.** The server applies the "NeonFoundry" profile: the same night values as
+  before, now as data. Profiles for Sky, Volcano and hubs are ready for prompt 04.
+- **`FeatureGates` + `GameConfig.Features`.**
+  - Gated race maps join rotation only in Studio.
+  - Gated hubs (prompt 04) are offered per player, only to the experience's creator account on
+    live.
+- **Camera regression fixed** (from B1, v16). The chase camera again ignores each map's rails,
+  decor, hazards, gates and features. This is the only intended behaviour change.
+- **Results.**
+  - Offline: 562 passing, including 36 new in MapRegistry.spec.
+  - Static: luau_check and place assembly (129 instances, 115 scripts).
+  - Runtime: pending. On the phone, check that the Foundry race plays as before and that the
+    camera no longer pulls in when a rail or hazard is between it and the marble.
+
+## 2026-11-26 — Prompt 01: baseline audit (v21, private)
+
+- Full write-up: docs/AUDIT_BASELINE.md. It covers:
+  - the flow trace, with the file that owns each step;
+  - hardcoded single-hub references;
+  - the registry seam;
+  - offline part counts (5,995 built parts in total);
+  - the plan for 02.
+- **Only code change.** The phone overlay now shows the client instance count (`inst`),
+  `respawn` (seconds to control the next marble) and the server instance count, so a screenshot
+  carries the whole baseline.
+- The promo art is stored under docs/promo/concept. It is AI concept art, not screenshots.
+  Uploading it is the owner's action.
+- **Runtime baseline is pending** (owner, phone): hub idle, Foundry grid → mid race, and one
+  deliberate fall. Read FPS, p95, mem, inst and respawn from the overlay.
 
 ## 2026-11-25 — Phase D: optional shop (off), receipts, anti-cheat, launch docs
 

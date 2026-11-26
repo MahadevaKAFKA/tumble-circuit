@@ -1,10 +1,14 @@
 --[[
-	TrainingTrackService — builds and owns every course (A2, A4, B1):
-	  zone "Race": the ACTIVE world, one of TrackDefinitions.Worlds (Neon Foundry, Sky Carnival,
-	               Volcano Vault). All worlds are built once at boot under workspace.TrainingCourse
-	               /<worldId> (pooled, never rebuilt); SetActiveWorld switches which one the Race
-	               zone means and fires WorldChanged. Each is validated by TrackValidator.
-	  zone "Hub" : the Orbital Garage platform + Practice Chute
+	TrainingTrackService — builds and owns every course (A2, A4, B1), now through MapRegistry
+	(promo pack prompt 02):
+	  zone "Race": the ACTIVE map, one of the registry's enabled maps (Neon Foundry, Sky Carnival,
+	               Volcano Vault). All are built once at boot under workspace.TrainingCourse
+	               /<mapId> (pooled, never rebuilt); SetActiveWorld switches which one the Race
+	               zone means and fires WorldChanged. Each is validated (TrackValidator +
+	               MapLoader); a failing non-default map is dropped from rotation, Neon Foundry is
+	               the known-safe fallback.
+	  zone "Hub" : a registry hub (deck + its Practice Chute). Orbital Garage is the default and
+	               the only one a caller gets without naming a hub id.
 	Reused every round (only the start gates toggle).
 	Exposes layouts, spawn CFrames, kill heights and the gate to the other services.
 ]]
@@ -15,118 +19,223 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
+local MapRegistry = require(Shared:WaitForChild("MapRegistry"))
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
 local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
+local VisualProfiles = require(Shared:WaitForChild("VisualProfiles"))
 local Builders = ServerStorage:WaitForChild("ProceduralBuilders")
 local Builder = require(Builders:WaitForChild("TrainingTrackBuilder"))
 local HubBuilder = require(Builders:WaitForChild("HubBuilder"))
+local MapLoader = require(script.Parent:WaitForChild("MapLoader"))
 local TrackValidator = require(script.Parent:WaitForChild("TrackValidator"))
 local Utility = require(Shared:WaitForChild("Utility"))
+
+-- Registry builder names -> builder functions (server only; MapRegistry only names them).
+local TRACK_BUILDERS = {
+	SplineCourse = function(layout, parent, name)
+		return Builder.Build(layout, parent, name)
+	end,
+}
+local HUB_BUILDERS = {
+	RingDeck = function(entry, parent, chuteWidth)
+		return HubBuilder.Build(entry.Geometry, parent, entry.ModelName, chuteWidth, Builder.MakePart, entry.Meta and entry.Meta.BoardTitle)
+	end,
+}
 
 local TrainingTrackService = {}
 TrainingTrackService.__index = TrainingTrackService
 
 local ZONES = Protocol.Zones
 
-function TrainingTrackService.new()
+function TrainingTrackService.new(options)
 	local self = setmetatable({}, TrainingTrackService)
 	self.layouts = {}
 	self.killY = {}
 	self.validationErrors = {}
 	self.worlds = {} -- [worldId] = { def, layout, root, killY, startGate }
+	self.worldOrder = {} -- enabled map ids in registry order (rotation order)
+	self.hubs = {} -- [hubId] = { entry, layout, root, spawns, cursor, killY }
+	self.hubOrder = {}
+	self.droppedMaps = {} -- [mapId] = reason
+	self.serverFeatures = (options and options.features) or {} -- gates enabled server-wide
 	self.activeWorldId = nil
 	self.WorldChanged = Utility.Signal.new() -- (worldId, layout)
 	return self
 end
 
 function TrainingTrackService:ApplyEnvironment()
-	local palette = GameConfig.Palette
 	if PhysicsConfig.GravityMultiplier ~= 1 then
 		workspace.Gravity = 196.2 * PhysicsConfig.GravityMultiplier
 	end
-	Lighting.ClockTime = 0
-	Lighting.Brightness = 2
-	Lighting.Ambient = Color3.fromRGB(46, 56, 96)
-	Lighting.OutdoorAmbient = Color3.fromRGB(70, 82, 130)
-	Lighting.EnvironmentDiffuseScale = 0.4
-	Lighting.EnvironmentSpecularScale = 1
-	Lighting.FogColor = palette.Navy
-	Lighting.FogStart = 300
-	Lighting.FogEnd = 1600
 	local bloom = Lighting:FindFirstChild("TC_Bloom") or Instance.new("BloomEffect")
 	bloom.Name = "TC_Bloom"
-	bloom.Intensity = 0.7
-	bloom.Size = 24
-	bloom.Threshold = 1.4
 	bloom.Parent = Lighting
 	local grade = Lighting:FindFirstChild("TC_Grade") or Instance.new("ColorCorrectionEffect")
 	grade.Name = "TC_Grade"
-	grade.Contrast = 0.08
-	grade.Saturation = 0.12
 	grade.Parent = Lighting
+	-- prompt 02: the same night environment as before, now read from the default profile;
+	-- clients switch profiles locally per zone (prompt 04), the server never does.
+	VisualProfiles.Apply(Lighting, VisualProfiles.Get(VisualProfiles.Default), { bloom = bloom, grade = grade })
 end
 
-local function validate(self, def, layout, full)
-	local errors = full and TrackValidator.Validate(def, layout) or TrackDefinitions.Validate(def, layout)
-	for _, message in ipairs(errors) do
-		table.insert(self.validationErrors, def.Id .. ": " .. message)
-		warn("[Track] validation " .. def.Id .. ": " .. message)
+local function note(self, id, message)
+	table.insert(self.validationErrors, id .. ": " .. message)
+	warn("[Track] " .. id .. ": " .. message)
+end
+
+local function trackErrors(def, layout, full)
+	return full and TrackValidator.Validate(def, layout) or TrackDefinitions.Validate(def, layout)
+end
+
+local function buildMap(self, map, courseFolder, radius)
+	local def = TrackDefinitions.WorldsById[map.Track]
+	assert(def, "track " .. tostring(map.Track) .. " is not defined")
+	local build = TRACK_BUILDERS[map.Builder]
+	assert(build, "missing builder " .. tostring(map.Builder))
+	local layout = TrackDefinitions.Generate(def, radius)
+	local killY = layout.MinY - PhysicsConfig.Server.KillDepthBelowCourse
+	local errors = trackErrors(def, layout, true)
+	for _, message in ipairs(MapLoader.ValidateCourse(layout, killY)) do
+		errors[#errors + 1] = message
 	end
+	local root, count = build(layout, courseFolder, map.Id)
+	return {
+		def = def,
+		layout = layout,
+		root = root,
+		count = count,
+		killY = killY,
+		startGate = root:FindFirstChild("Gates") and root.Gates:FindFirstChild("StartGate"),
+	}, errors
+end
+
+local function buildHub(self, entry, radius)
+	local build = HUB_BUILDERS[entry.Builder]
+	assert(build, "missing hub builder " .. tostring(entry.Builder))
+	local chute = TrackDefinitions.Generate(entry.Chute, radius)
+	local errors = trackErrors(entry.Chute, chute, false)
+	local geometry = entry.Geometry
+	local killY = math.min(geometry.Center.Y, chute.MinY) - PhysicsConfig.Server.KillDepthBelowCourse
+	local spawns = HubBuilder.SpawnCFrames(geometry, radius, GameConfig.Spawn.SpawnLift)
+	for _, message in ipairs(MapLoader.ValidateHub(geometry, chute, spawns, killY)) do
+		errors[#errors + 1] = message
+	end
+	local root, hubCount = build(entry, workspace, entry.Chute.Pieces[1].Width[1])
+	local _, chuteCount = Builder.Build(chute, root, "PracticeChute")
+	root:SetAttribute("HubId", entry.Id)
+	return { entry = entry, layout = chute, root = root, spawns = spawns, cursor = 0, killY = killY, count = hubCount + chuteCount }, errors
 end
 
 function TrainingTrackService:Build()
 	local radius = PhysicsConfig.Ball.Radius
 	local started = os.clock()
-	for _, name in ipairs({ Protocol.CourseModelName, Protocol.HubModelName }) do
+	local names = { Protocol.CourseModelName, Protocol.HubModelName }
+	for _, entry in ipairs(MapRegistry.Hubs) do
+		names[#names + 1] = entry.ModelName
+	end
+	for _, name in ipairs(names) do
 		local existing = workspace:FindFirstChild(name)
 		if existing then
 			existing:Destroy()
 		end
 	end
+	for _, message in ipairs(MapRegistry.ValidateStatic(TrackDefinitions)) do
+		note(self, "registry", message)
+	end
 
-	-- Race worlds (B1): every world built once; the first is active until a round picks one
+	-- Race maps: each enabled registry map built once; a failing non-default map is dropped
 	local courseFolder = Instance.new("Folder")
 	courseFolder.Name = Protocol.CourseModelName
 	local raceCount = 0
-	for _, def in ipairs(TrackDefinitions.Worlds) do
-		local layout = TrackDefinitions.Generate(def, radius)
-		validate(self, def, layout, true)
-		local root, count = Builder.Build(layout, courseFolder, def.Id)
-		raceCount = raceCount + count
-		self.worlds[def.Id] = {
-			def = def,
-			layout = layout,
-			root = root,
-			killY = layout.MinY - PhysicsConfig.Server.KillDepthBelowCourse,
-			startGate = root:FindFirstChild("Gates") and root.Gates:FindFirstChild("StartGate"),
-		}
+	local results, built = {}, {}
+	for _, map in ipairs(MapRegistry.EnabledMaps(self.serverFeatures)) do
+		local ok, world, errors = pcall(buildMap, self, map, courseFolder, radius)
+		if not ok then
+			errors = { tostring(world) }
+			world = nil
+			local partial = courseFolder:FindFirstChild(map.Id)
+			if partial then
+				partial:Destroy()
+			end
+		end
+		for _, message in ipairs(errors) do
+			note(self, map.Id, message)
+		end
+		results[#results + 1] = { id = map.Id, ok = ok, errors = errors }
+		built[map.Id] = world
+	end
+	local enabled, dropped, fatal = MapLoader.Decide(results, MapRegistry.DefaultMapId)
+	if fatal then
+		error("[Track] " .. fatal) -- nothing safer to fall back to: fail loudly, as before
+	end
+	for _, id in ipairs(enabled) do
+		local world = built[id]
+		self.worlds[id] = world
+		self.worldOrder[#self.worldOrder + 1] = id
+		raceCount = raceCount + world.count
+	end
+	for id, reason in pairs(dropped) do
+		self.droppedMaps[id] = reason
+		local world = built[id]
+		if world and world.root then
+			world.root:Destroy()
+		end
 	end
 	courseFolder.Parent = workspace
-	self:SetActiveWorld(TrackDefinitions.Worlds[1].Id)
-	local raceDef = TrackDefinitions.Worlds[1]
+	local firstId = self.worlds[MapRegistry.DefaultMapId] and MapRegistry.DefaultMapId or self.worldOrder[1]
+	self:SetActiveWorld(firstId)
 	local race = self.layouts[ZONES.Race]
 
-	-- Hub + practice chute
-	local hub = TrackDefinitions.Hub
-	local chuteDef = TrackDefinitions.PracticeChute
-	local chute = TrackDefinitions.Generate(chuteDef, radius)
-	validate(self, chuteDef, chute)
-	local hubRoot, hubCount = HubBuilder.Build(hub, workspace, Protocol.HubModelName, chuteDef.Pieces[1].Width[1], Builder.MakePart)
-	local _, chuteCount = Builder.Build(chute, hubRoot, "PracticeChute")
-	self.layouts[ZONES.Hub] = chute
-	self.hubRoot = hubRoot
-	self.hubSpawns = HubBuilder.SpawnCFrames(hub, radius, GameConfig.Spawn.SpawnLift)
-	self.hubSpawnCursor = 0
-	self.killY[ZONES.Hub] = math.min(hub.Center.Y, chute.MinY) - PhysicsConfig.Server.KillDepthBelowCourse
+	-- Hubs: every Live/Gated registry hub (gated hubs are chosen per player, so they exist)
+	local hubCount = 0
+	for _, entry in ipairs(MapRegistry.Hubs) do
+		if entry.Status == "Live" or entry.Status == "Gated" then
+			local ok, hub, errors = pcall(buildHub, self, entry, radius)
+			if not ok then
+				errors = { tostring(hub) }
+				hub = nil
+			end
+			for _, message in ipairs(errors) do
+				note(self, entry.Id, message)
+			end
+			if entry.Id == MapRegistry.DefaultHubId then
+				if not hub then
+					error("[Track] default hub failed to build: " .. tostring(errors[1]))
+				end
+			elseif #errors > 0 then
+				if hub and hub.root then
+					hub.root:Destroy()
+				end
+				hub = nil
+			end
+			if hub then
+				self.hubs[entry.Id] = hub
+				self.hubOrder[#self.hubOrder + 1] = entry.Id
+				hubCount = hubCount + hub.count
+			else
+				local leftover = workspace:FindFirstChild(entry.ModelName)
+				if leftover and entry.Id ~= MapRegistry.DefaultHubId then
+					leftover:Destroy()
+				end
+			end
+		end
+	end
+	local defaultHub = self.hubs[MapRegistry.DefaultHubId]
+	self.layouts[ZONES.Hub] = defaultHub.layout
+	self.hubRoot = defaultHub.root
+	self.hubSpawns = defaultHub.spawns
+	self.killY[ZONES.Hub] = defaultHub.killY
 
+	workspace:SetAttribute(Protocol.WorkspaceAttributes.MapsEnabled, table.concat(self.worldOrder, ","))
+	workspace:SetAttribute(Protocol.WorkspaceAttributes.HubsEnabled, table.concat(self.hubOrder, ","))
 	if #self.validationErrors > 0 then
 		workspace:SetAttribute(Protocol.WorkspaceAttributes.CourseError, table.concat(self.validationErrors, "; "))
 	end
 	workspace:SetAttribute(Protocol.WorkspaceAttributes.CourseReady, true)
 	print(string.format(
-		"[Track] built %d worlds (%d parts; active %s, %.0f studs, %d checkpoints) + hub (%d parts) + chute (%d parts) in %.1f ms",
-		#TrackDefinitions.Worlds, raceCount, raceDef.Id, race.Route.total, #race.Checkpoints, hubCount, chuteCount, (os.clock() - started) * 1000
+		"[Track] built %d maps (%d parts; active %s, %.0f studs, %d checkpoints) + %d hubs (%d parts) in %.1f ms",
+		#self.worldOrder, raceCount, tostring(firstId), race.Route.total, #race.Checkpoints, #self.hubOrder, hubCount, (os.clock() - started) * 1000
 	))
 end
 
@@ -164,19 +273,42 @@ end
 
 function TrainingTrackService:GetWorldIds()
 	local ids = {}
-	for _, def in ipairs(TrackDefinitions.Worlds) do
-		if self.worlds[def.Id] then
-			ids[#ids + 1] = def.Id
-		end
+	for i, id in ipairs(self.worldOrder) do
+		ids[i] = id
 	end
 	return ids
 end
 
-function TrainingTrackService:GetLayout(zone)
+-- prompt 02: hubs by id. Unknown / failed ids resolve to the default hub (Orbital Garage).
+function TrainingTrackService:GetHub(hubId)
+	return self.hubs[hubId or ""] or self.hubs[MapRegistry.DefaultHubId]
+end
+
+function TrainingTrackService:GetHubIds()
+	local ids = {}
+	for i, id in ipairs(self.hubOrder) do
+		ids[i] = id
+	end
+	return ids
+end
+
+function TrainingTrackService:HasHub(hubId)
+	return self.hubs[hubId or ""] ~= nil
+end
+
+function TrainingTrackService:GetLayout(zone, hubId)
+	if zone == ZONES.Hub then
+		local hub = self:GetHub(hubId)
+		return hub and hub.layout or self.layouts[ZONES.Hub]
+	end
 	return self.layouts[zone or ZONES.Race]
 end
 
-function TrainingTrackService:GetKillY(zone)
+function TrainingTrackService:GetKillY(zone, hubId)
+	if zone == ZONES.Hub then
+		local hub = self:GetHub(hubId)
+		return hub and hub.killY or self.killY[ZONES.Hub]
+	end
 	return self.killY[zone or ZONES.Race]
 end
 
@@ -191,9 +323,10 @@ local function frameToCFrame(frame, lateral)
 end
 
 -- Hub spawns rotate through the ring so simultaneous arrivals do not stack.
-function TrainingTrackService:NextHubSpawnCFrame()
-	self.hubSpawnCursor = self.hubSpawnCursor % #self.hubSpawns + 1
-	return self.hubSpawns[self.hubSpawnCursor]
+function TrainingTrackService:NextHubSpawnCFrame(hubId)
+	local hub = self:GetHub(hubId)
+	hub.cursor = hub.cursor % #hub.spawns + 1
+	return hub.spawns[hub.cursor]
 end
 
 function TrainingTrackService:GetGridSlotCount()

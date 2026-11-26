@@ -54,6 +54,7 @@ local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local RouteTracker = require(Shared:WaitForChild("RouteTracker"))
 local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
+local MapRegistry = require(Shared:WaitForChild("MapRegistry"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local PlaceholderIds = require(Shared:WaitForChild("PlaceholderIds"))
 
@@ -128,7 +129,7 @@ local ui = UIController.new()
 raceHud:SetVisible(false)
 matchUi:SetLobbyVisible(false)
 
-hud:ShowMessage("Building the Orbital Garage and race track...")
+hud:ShowMessage("Building the hub and race tracks...")
 
 ---------------------------------------------------------------------------------------------
 -- Wait (bounded) for the server
@@ -197,19 +198,25 @@ if not remotesOk or not course or not marblesFolder then
 end
 hubRoot:WaitForChild("PracticeChute", 5)
 
--- B1: every world's layout (the server built them all); the Race zone means the active one.
+-- B1 / prompt 02: every registry map's layout, keyed by map id (the server built the same maps
+-- from the same data); the Race zone means the active one. Maps the server dropped never
+-- become active, so generating them here costs a little memory and nothing else.
 local worldLayouts = {}
-for _, def in ipairs(TrackDefinitions.Worlds) do
-	worldLayouts[def.Id] = TrackDefinitions.Generate(def, PhysicsConfig.Ball.Radius)
+for _, map in ipairs(MapRegistry.Maps) do
+	local def = TrackDefinitions.WorldsById[map.Track]
+	if def then
+		worldLayouts[map.Id] = TrackDefinitions.Generate(def, PhysicsConfig.Ball.Radius)
+	end
 end
 local activeWorldId = workspace:GetAttribute(Protocol.WorkspaceAttributes.ActiveWorld)
 if not worldLayouts[activeWorldId] then
-	activeWorldId = TrackDefinitions.Worlds[1].Id
+	activeWorldId = MapRegistry.DefaultMapId
 end
 course:WaitForChild(activeWorldId, 5)
+local defaultHub = MapRegistry.Hub(MapRegistry.DefaultHubId)
 local layouts = {
 	[ZONES.Race] = worldLayouts[activeWorldId],
-	[ZONES.Hub] = TrackDefinitions.Generate(TrackDefinitions.PracticeChute, PhysicsConfig.Ball.Radius),
+	[ZONES.Hub] = TrackDefinitions.Generate(defaultHub.Chute, PhysicsConfig.Ball.Radius),
 }
 local hazards = HazardController.new(course:FindFirstChild(activeWorldId) or course, motor, sound, layouts[ZONES.Race])
 motor:SetMarblesFolder(marblesFolder)
@@ -284,23 +291,35 @@ maid:Give(remote.SkillEvent.OnClientEvent:Connect(function(data)
 end))
 local trickZones = layouts[ZONES.Race].TrickZones or {}
 
-local function present(list)
-	local out = {}
-	for _, item in pairs(list) do
-		if item then
-			out[#out + 1] = item
+-- The chase camera's obstruction ray ignores rails, decor, hazards, gates and features. Since
+-- B1 each map sits in its own folder under the course, so collect them per map (the v16-v20
+-- list looked at the course root and found none: audit 2026-11-26), and per hub.
+local cameraIgnore = { marblesFolder }
+local function ignoreParts(root, folderNames)
+	if not root then
+		return
+	end
+	for _, name in ipairs(folderNames) do
+		local folder = root:FindFirstChild(name)
+		if folder then
+			cameraIgnore[#cameraIgnore + 1] = folder
 		end
 	end
-	return out
 end
-local chute = hubRoot:FindFirstChild("PracticeChute")
-local cameraIgnore = present({
-	marblesFolder,
-	course:FindFirstChild("Rails"), course:FindFirstChild("Decor"), course:FindFirstChild("Hazards"), course:FindFirstChild("Gates"),
-	hubRoot:FindFirstChild("Rails"), hubRoot:FindFirstChild("Decor"),
-	chute and chute:FindFirstChild("Rails"), chute and chute:FindFirstChild("Decor"),
-	course:FindFirstChild("Features"),
-})
+local RACE_DECOR = { "Rails", "Decor", "Hazards", "Gates", "Features" }
+for _, mapRoot in ipairs(course:GetChildren()) do
+	ignoreParts(mapRoot, RACE_DECOR)
+end
+local function ignoreHub(root)
+	ignoreParts(root, { "Rails", "Decor" })
+	ignoreParts(root and root:FindFirstChild("PracticeChute"), { "Rails", "Decor" })
+end
+ignoreHub(hubRoot)
+for _, entry in ipairs(MapRegistry.Hubs) do
+	if entry.ModelName ~= Protocol.HubModelName then
+		ignoreHub(workspace:FindFirstChild(entry.ModelName))
+	end
+end
 local groundIgnore = { marblesFolder }
 local boardPart = hubRoot:FindFirstChild("Decor") and hubRoot.Decor:FindFirstChild("NextRaceBoard")
 local board = boardPart and boardPart:FindFirstChild("Board")
@@ -990,7 +1009,7 @@ local lastAnchored = nil
 -- Hub platform free roam (owner playtest 2026-11-25): on the round platform there is no track, so
 -- the track-relative steering and auto-align fought the player. On the platform the stick moves the
 -- marble relative to the camera; on the practice chute (and the race) steering follows the track.
-local HUB_DEF = TrackDefinitions.Hub
+local HUB_DEF = defaultHub.Geometry
 local function onHubPlatform(position)
 	if currentZone ~= ZONES.Hub then
 		return false
