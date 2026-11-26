@@ -132,17 +132,67 @@ local ui = UIController.new()
 raceHud:SetVisible(false)
 matchUi:SetLobbyVisible(false)
 
-hud:ShowMessage("Building the hub and race tracks...")
+-- Loading diagnostics (owner report 2026-11-26: stuck on this screen). The screen shows how
+-- long it has waited and for what, a server start-up error as soon as the server reports one,
+-- and any client script error while loading, so one phone screenshot names the failure.
+local loadStage = "waiting for the server"
+local loadStarted = os.clock()
+local function showLoading()
+	hud:ShowMessage(string.format("Building the hub and race tracks... %d s\n(%s)", math.floor(os.clock() - loadStarted), loadStage))
+end
+showLoading()
+maid:Give(game:GetService("ScriptContext").Error:Connect(function(message, trace)
+	if hud:GetOverlay() == "Message" and loadStage ~= "ready" then
+		local firstLine = string.match(tostring(trace or ""), "[^\n]+") or ""
+		hud:ShowMessage("Client error while " .. loadStage .. ":\n" .. tostring(message) .. "\n" .. firstLine, true)
+		loadStage = "failed"
+	end
+end))
+local function serverError()
+	return workspace:GetAttribute(Protocol.WorkspaceAttributes.ServerError)
+end
 
 ---------------------------------------------------------------------------------------------
 -- Wait (bounded) for the server
 ---------------------------------------------------------------------------------------------
 local timeout = GameConfig.Spawn.ClientWaitTimeoutSeconds
-local remotes = ReplicatedStorage:WaitForChild(RoundProtocol.FolderName, timeout)
+-- poll for a child with a deadline; stops early (nil, reason) when the server reports an error
+local function waitFor(parent, name, seconds)
+	local deadline = os.clock() + seconds
+	local lastShown = -1
+	while os.clock() < deadline do
+		local found = parent:FindFirstChild(name)
+		if found then
+			return found
+		end
+		local err = serverError()
+		if err then
+			return nil, err
+		end
+		local elapsed = math.floor(os.clock() - loadStarted)
+		if elapsed ~= lastShown then
+			lastShown = elapsed
+			showLoading()
+		end
+		task.wait(0.1)
+	end
+	return nil
+end
+local remotes, remotesError = waitFor(ReplicatedStorage, RoundProtocol.FolderName, timeout)
 
 local function waitForWorld()
 	local deadline = os.clock() + timeout
+	local lastShown = -1
 	while os.clock() < deadline do
+		local err = serverError()
+		if err then
+			return nil, nil, "server error: " .. tostring(err)
+		end
+		local elapsed = math.floor(os.clock() - loadStarted)
+		if elapsed ~= lastShown then
+			lastShown = elapsed
+			showLoading()
+		end
 		if workspace:GetAttribute(Protocol.WorkspaceAttributes.CourseReady) then
 			local course = workspace:FindFirstChild(Protocol.CourseModelName)
 			local hubRoot = workspace:FindFirstChild(Protocol.HubModelName)
@@ -157,8 +207,20 @@ local function waitForWorld()
 	return nil, nil, "timed out waiting for the server to build the world"
 end
 
+loadStage = "waiting for the world"
 local course, hubRoot, worldError = waitForWorld()
-local marblesFolder = course and workspace:WaitForChild(Protocol.MarblesFolderName, timeout)
+if not worldError and remotesError then
+	worldError = "server error: " .. tostring(remotesError)
+end
+loadStage = "waiting for the marbles"
+local marblesFolder, marblesError = nil, nil
+if course then
+	marblesFolder, marblesError = waitFor(workspace, Protocol.MarblesFolderName, timeout)
+	if not worldError and marblesError then
+		worldError = "server error: " .. tostring(marblesError)
+	end
+end
+loadStage = "connecting"
 local remote = {}
 if remotes then
 	for name, spec in pairs(RoundProtocol.Remotes) do
@@ -196,9 +258,14 @@ if not remotesOk or not course or not marblesFolder then
 	elseif not reason then
 		reason = "the server did not finish starting (no marbles folder)"
 	end
+	local late = serverError()
+	if late and not string.find(tostring(reason), "server error", 1, true) then
+		reason = tostring(reason) .. "\nserver error: " .. tostring(late)
+	end
 	hud:ShowMessage("Could not start: " .. tostring(reason) .. "\nOpen /console (Log, Server) for [TumbleCircuit] errors, then rejoin.", true)
 	return
 end
+loadStage = "loading maps"
 hubRoot:WaitForChild("PracticeChute", 5)
 
 -- B1 / prompt 02: every registry map's layout, keyed by map id (the server built the same maps
@@ -295,6 +362,7 @@ local loadout = maid:Give(StarterLoadoutController.new({ remotes = remote }))
 local results = maid:Give(ResultsController.new())
 maid:Give(DevPanelController.new(remotes))
 local social = maid:Give(SocialController.new({ remotes = remote, marblesFolder = marblesFolder, localUserId = player.UserId }))
+loadStage = "building the menus"
 -- prompt 03: Map Selection (Visit Hub / Practice / Vote for Next Race)
 local mapSelect = maid:Give(MapSelectController.new({
 	remotes = remote,
@@ -859,6 +927,7 @@ local function applySettings(s)
 	sound:SetVolumes(s.music, s.sfx)
 	applyGraphics(s.graphicsMode)
 end
+loadStage = "applying settings"
 maid:Give(settings.Changed:Connect(applySettings))
 applySettings(settings:Get())
 
@@ -1140,6 +1209,7 @@ local function applyZoneProfile()
 	end
 	appliedProfile = name
 end
+loadStage = "dressing the hub"
 local function refreshDressing()
 	dressing:SetEnabled(myFeatures().NewHubs == true)
 end
@@ -1210,6 +1280,7 @@ local function whereLabel(zone, index)
 	return string.format("@%s/%s", tostring(zone), piece and piece.Name or "?")
 end
 
+loadStage = "starting"
 RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, function(dt)
 	applyZoneProfile() -- prompt 04: no-op unless your zone / hub / race map changed
 	hud:RecordFrame(dt)
@@ -1397,6 +1468,7 @@ script.Destroying:Connect(function()
 	maid:Cleanup()
 end)
 
+loadStage = "ready"
 hud:ShowTitle()
 refreshGates()
 print("[TumbleCircuit] client ready (" .. GameConfig.Version .. ")")

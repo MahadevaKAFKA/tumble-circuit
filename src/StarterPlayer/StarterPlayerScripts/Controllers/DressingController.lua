@@ -151,8 +151,12 @@ end
 
 function DressingController:SetQuality(low)
 	self.low = low == true
+	local parent = nil
+	if not self.low then
+		parent = self.folder
+	end
 	for _, part in ipairs(self.detail) do
-		part.Parent = (self.low or not self.folder) and nil or self.folder
+		part.Parent = parent
 	end
 end
 

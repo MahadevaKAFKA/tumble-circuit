@@ -17,6 +17,16 @@ local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
 local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 
+-- Start-up diagnostics (owner report 2026-11-26): the first script error before the server is
+-- ready is published as a workspace attribute; the loading screen shows it on the phone.
+local serverReady = false
+game:GetService("ScriptContext").Error:Connect(function(message, trace)
+	if not serverReady and workspace:GetAttribute(Protocol.WorkspaceAttributes.ServerError) == nil then
+		local firstLine = string.match(tostring(trace or ""), "[^\n]+") or ""
+		workspace:SetAttribute(Protocol.WorkspaceAttributes.ServerError, string.sub(tostring(message) .. " | " .. firstLine, 1, 400))
+	end
+end)
+
 local Services = script.Parent:WaitForChild("Services")
 local TrainingTrackService = require(Services:WaitForChild("TrainingTrackService"))
 local MarbleCharacterService = require(Services:WaitForChild("MarbleCharacterService"))
@@ -210,4 +220,5 @@ perf:Start()
 -- Studio integration tests can reach the live services through this table (never replicated).
 _G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev, social = social, party = party, timeTrial = timeTrial, cosmetics = cosmetics, quests = quests, leaderboards = leaderboards, telemetry = telemetry, capsules = capsules, seasons = seasons, products = products, anticheat = anticheat, hubs = hubs }
 
+serverReady = true
 print(string.format("[TumbleCircuit] server ready (%s, protocol v%d)", GameConfig.Version, RoundProtocol.Version))
