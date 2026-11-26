@@ -82,6 +82,7 @@ local modules = {
 	FeatureGates = require(Services:WaitForChild("FeatureGates")),
 	BallotRules = require(Services:WaitForChild("BallotRules")),
 	Dressing = require(Shared:WaitForChild("Dressing")),
+	EnvironmentProfiles = require(Shared:WaitForChild("EnvironmentProfiles")),
 	HubRules = require(Services:WaitForChild("HubRules")),
 }
 do
@@ -150,6 +151,7 @@ report("Prompts 04/07 hub lifecycle specs", require(Unit:WaitForChild("HubLifecy
 report("Prompts 05/06 dressing specs", require(Unit:WaitForChild("Dressing.spec")).run(modules))
 report("Protocol key specs", require(Unit:WaitForChild("ProtocolKeys.spec")).run(modules))
 report("UI overhaul specs", require(Unit:WaitForChild("UIOverhaul.spec")).run(modules))
+report("Environment specs", require(Unit:WaitForChild("Environment.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

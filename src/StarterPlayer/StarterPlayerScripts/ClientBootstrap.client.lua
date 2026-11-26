@@ -80,7 +80,7 @@ local SocialController = require(Controllers:WaitForChild("SocialController"))
 local ModesController = require(Controllers:WaitForChild("ModesController"))
 local HubMenusController = require(Controllers:WaitForChild("HubMenusController"))
 local MapSelectController = require(Controllers:WaitForChild("MapSelectController"))
-local DressingController = require(Controllers:WaitForChild("DressingController"))
+local EnvironmentController = require(Controllers:WaitForChild("EnvironmentController"))
 local UIKit = require(Controllers:WaitForChild("UIKit"))
 local LabController = require(Controllers:WaitForChild("LabController"))
 local ShopController = require(Controllers:WaitForChild("ShopController"))
@@ -302,16 +302,10 @@ local layouts = {
 }
 local hazards = HazardController.new(course:FindFirstChild(activeWorldId) or course, motor, sound, layouts[ZONES.Race])
 -- prompts 05 / 06: local-only Foundry visual pass + Garage observation deck (NewHubs gate)
-local dressing = DressingController.new({
-	course = course,
-	foundryId = MapRegistry.DefaultMapId,
-	foundryLayout = worldLayouts[MapRegistry.DefaultMapId],
-	hubGeometry = defaultHub.Geometry,
-	hubId = MapRegistry.DefaultHubId,
-	chuteWidth = defaultHub.Chute.Pieces[1].Width[1],
-})
+-- UI / environment overhaul: each map's backdrop + hub staging, built on this client only
+local environment = EnvironmentController.new({ course = course, worldLayouts = worldLayouts, hubLayouts = hubLayouts })
 maid:Give(function()
-	dressing:Destroy()
+	environment:Destroy()
 end)
 motor:SetMarblesFolder(marblesFolder)
 local currentZone -- declared early: the environment push below only applies on the race course
@@ -939,7 +933,6 @@ local function applyGraphics(mode)
 		bloom.Enabled = not low
 	end
 	vfx:SetQuality(low and "Low" or "High")
-	dressing:SetQuality(low) -- prompt 05: no panel breaks / spines / blades on Low
 end
 -- the map whose accent "Follow map" uses: your hub's map in a hub, the race map on the course
 local function accentMapId()
@@ -958,6 +951,7 @@ local function applyDisplay(s)
 	matchUi:SetDensity(s.hudDensity)
 	hud:SetDensity(s.hudDensity)
 	hud:SetPerfVisible(s.perfOverlay == true and isDeveloper())
+	environment:SetDetail(s.sceneryDetail) -- Low / Standard / High backdrop layers
 end
 local function applySettings(s)
 	applyDisplay(s) -- UI overhaul: HUD size / opacity / accent / contrast / layout / density
@@ -1230,27 +1224,34 @@ end
 
 -- Visual profile of the zone you are in, applied to YOUR Lighting only (never the server's, so
 -- another player's hub or race never changes yours). Every profile writes every field, so
--- leaving a zone unwinds the previous one completely. Behind the NewHubs gate: players without
--- it keep the one night profile every build so far has used.
-local function myFeatures()
-	local out = {}
-	local text = player:GetAttribute(Protocol.PlayerAttributes.Features)
-	for name in string.gmatch(type(text) == "string" and text or "", "[^,]+") do
-		out[name] = true
-	end
-	return out
-end
+-- leaving a zone unwinds the previous one completely (atmosphere included).
 local appliedProfile = nil
+local function zoneAtmosphere()
+	local atmosphere = Lighting:FindFirstChild("TC_Atmosphere")
+	if not atmosphere then
+		atmosphere = Instance.new("Atmosphere") -- local to this client
+		atmosphere.Name = "TC_Atmosphere"
+		atmosphere.Parent = Lighting
+	end
+	return atmosphere
+end
+local environmentKey = nil
 local function applyZoneProfile()
+	-- UI / environment overhaul: every player gets the zone's lighting (no longer gated)
 	local name = VisualProfiles.Default
-	if myFeatures().NewHubs then
-		if currentZone == ZONES.Hub then
-			local hub = MapRegistry.RawHub(currentHubId)
-			name = hub and hub.Profile or name
-		else
-			local map = MapRegistry.RawMap(activeWorldId)
-			name = map and map.Profile or name
-		end
+	local hub = MapRegistry.RawHub(currentHubId) or defaultHub
+	if currentZone == ZONES.Hub then
+		name = hub.Profile or name
+	else
+		local map = MapRegistry.RawMap(activeWorldId)
+		name = map and map.Profile or name
+	end
+	-- backdrops: the race map in play + your hub's map; staging for your hub
+	local key = tostring(activeWorldId) .. "|" .. tostring(hub.Map) .. "|" .. tostring(hub.Id)
+	if key ~= environmentKey then
+		environmentKey = key
+		environment:SetMaps({ activeWorldId, hub.Map })
+		environment:SetHub(hub.Id)
 	end
 	if name == appliedProfile then
 		return
@@ -1259,20 +1260,20 @@ local function applyZoneProfile()
 	if fellBack then
 		warn("[Visual] profile " .. tostring(name) .. " missing; using " .. VisualProfiles.Default)
 	end
-	local ok, err = pcall(VisualProfiles.Apply, Lighting, profile, { bloom = Lighting:FindFirstChild("TC_Bloom"), grade = Lighting:FindFirstChild("TC_Grade") })
+	local ok, err = pcall(function()
+		VisualProfiles.Apply(Lighting, profile, { bloom = Lighting:FindFirstChild("TC_Bloom"), grade = Lighting:FindFirstChild("TC_Grade"), atmosphere = zoneAtmosphere() })
+	end)
 	if not ok then
 		warn("[Visual] profile apply failed: " .. tostring(err)) -- the previous look stays; play goes on
 	end
 	appliedProfile = name
 end
 loadStage = "dressing the hub"
-local function refreshDressing()
-	dressing:SetEnabled(myFeatures().NewHubs == true)
-end
-refreshDressing()
+pcall(function()
+	environment:Restyle() -- road midtones, narrow guide lights, practice lanes (once)
+end)
 maid:Give(player:GetAttributeChangedSignal(Protocol.PlayerAttributes.Features):Connect(function()
 	applyZoneProfile()
-	refreshDressing()
 end))
 
 -- MAPS selector pads (themed hubs): rolling onto one opens Map Selection once; leaving re-arms
@@ -1295,7 +1296,7 @@ local function checkSelectorPads(position)
 		return
 	end
 	local inside = false
-	for _, list in ipairs({ selectorPads, dressing:GetSelectorPads() }) do
+	for _, list in ipairs({ selectorPads, environment:GetSelectorPads() }) do
 		for _, pad in ipairs(list) do
 			if pad.hubId == currentHubId and pad.part.Parent then
 				local d = position - pad.part.Position

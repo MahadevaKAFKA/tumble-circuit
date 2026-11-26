@@ -86,6 +86,7 @@ local modules = {
 	MapLoader = H.module("ServerScriptService/Services/MapLoader"),
 	BallotRules = H.module("ServerScriptService/Services/BallotRules"),
 	Dressing = H.module("ReplicatedStorage/Shared/Dressing"),
+	EnvironmentProfiles = H.module("ReplicatedStorage/Shared/EnvironmentProfiles"),
 	HubRules = H.module("ServerScriptService/Services/HubRules"),
 }
 -- A5 client modules: load-time references to client services are stubbed; only their pure
@@ -294,6 +295,7 @@ local suites = {
 	{ "Prompts 05/06 dressing specs", root .. "/src/Tests/Unit/Dressing.spec.lua" },
 	{ "Protocol key specs", root .. "/src/Tests/Unit/ProtocolKeys.spec.lua" },
 	{ "UI overhaul specs", root .. "/src/Tests/Unit/UIOverhaul.spec.lua" },
+	{ "Environment specs", root .. "/src/Tests/Unit/Environment.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

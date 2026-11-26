@@ -137,16 +137,16 @@ function Spec.run(m)
 
 	------------------------------------------------------------------ presentation only
 	if m.ReadFile then
-		local src = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/Controllers/DressingController.lua")
-		check("dressing parts never collide, raycast, touch or cast shadows", src:find("part.CanCollide = false", 1, true) and src:find("part.CanQuery = false", 1, true) and src:find("part.CanTouch = false", 1, true) and src:find("part.CastShadow = false", 1, true))
-		check("disabling restores every restyled part (colour and material)", src:find("entry.part.Color = entry.color", 1, true) and src:find("entry.part.Material = entry.material", 1, true))
-		check("floor restyle changes colour only (physics stay the server's)", src:find("part.Color = Dressing.Restyle.Floor.Color", 1, true) ~= nil and not src:find("Restyle.Floor.Material", 1, true))
+		local src = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/Controllers/EnvironmentController.lua")
+		check("backdrop parts never collide, raycast, touch or cast shadows", src:find("part.CanCollide = false", 1, true) and src:find("part.CanQuery = false", 1, true) and src:find("part.CanTouch = false", 1, true) and src:find("part.CastShadow = false", 1, true))
+		check("a map / hub / detail change destroys the old folder first", src:find("folder:Destroy()", 1, true) and src:find("self.hubFolder:Destroy()", 1, true))
+		check("road restyle changes colour only (physics stay the server's)", src:find("part.Color = profile.Road", 1, true) ~= nil and not src:find("profile.Road.Material", 1, true) and not src:find("CustomPhysicalProperties", 1, true))
 		local round = m.ReadFile("src/ServerScriptService/Services/RoundService.lua")
 		local hubBranch = round:find("if info.zone == ZONES.Hub then", 1, true)
 		local checkpoint = round:find("self.checkpoints:Process(player, info)", 1, true)
 		check("race triggers are blocked inside hubs (hub progress returns before checkpoints)", hubBranch and checkpoint and hubBranch < checkpoint)
 		local boot = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua")
-		check("the dressing is behind the NewHubs gate", boot:find("dressing:SetEnabled(myFeatures().NewHubs == true)", 1, true) ~= nil)
+		check("environments apply to every player (the zone lighting is no longer gated)", boot:find("every player gets the zone's lighting", 1, true) ~= nil and not boot:find("if myFeatures().NewHubs then", 1, true))
 	end
 	return results
 end

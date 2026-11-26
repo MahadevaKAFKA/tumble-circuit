@@ -5,7 +5,8 @@
 	Every profile sets EVERY field it owns (no partial profiles), so switching from any profile to
 	any other leaves nothing behind. Apply(lighting, profile, effects) takes the Lighting
 	service (or a fake table in specs) and returns the list of fields it wrote.
-	"NeonFoundry" is the exact pre-registry environment (TrainingTrackService:ApplyEnvironment).
+	"ClassicNight" is the exact pre-registry environment (the server's start-up lighting); the
+	map profiles (UI / environment overhaul) are applied by each client for the zone it is in.
 ]]
 
 local VisualProfiles = {}
@@ -14,10 +15,14 @@ local function rgb(r, g, b)
 	return Color3.fromRGB(r, g, b)
 end
 
-VisualProfiles.Default = "NeonFoundry"
+VisualProfiles.Default = "ClassicNight"
+
+-- Atmosphere defaults for profiles that have none (= effectively off)
+local NO_ATMOSPHERE = { Density = 0, Offset = 0, Color = rgb(199, 199, 199), Decay = rgb(106, 112, 125), Glare = 0, Haze = 0 }
 
 VisualProfiles.Profiles = {
-	NeonFoundry = {
+	-- the A1-B1 night look; the server's start-up lighting and the fallback for unknown names
+	ClassicNight = {
 		ClockTime = 0,
 		Brightness = 2,
 		Ambient = rgb(46, 56, 96),
@@ -29,32 +34,50 @@ VisualProfiles.Profiles = {
 		FogEnd = 1600,
 		Bloom = { Intensity = 0.7, Size = 24, Threshold = 1.4 },
 		Grade = { Contrast = 0.08, Saturation = 0.12, Brightness = 0, TintColor = rgb(255, 255, 255) },
+		Atmosphere = NO_ATMOSPHERE,
 	},
-	SkyCarnival = {
-		ClockTime = 14.5,
-		Brightness = 2.6,
-		Ambient = rgb(120, 130, 170),
-		OutdoorAmbient = rgb(150, 160, 200),
-		EnvironmentDiffuseScale = 0.6,
+	-- UI / environment overhaul (2026-11-26): one art direction per map (handoff table)
+	NeonFoundry = { -- cobalt dusk
+		ClockTime = 18.4,
+		Brightness = 1.8,
+		Ambient = rgb(60, 70, 110),
+		OutdoorAmbient = rgb(82, 94, 142),
+		EnvironmentDiffuseScale = 0.5,
 		EnvironmentSpecularScale = 0.6,
-		FogColor = rgb(200, 220, 245),
-		FogStart = 500,
+		FogColor = rgb(44, 56, 102),
+		FogStart = 420,
 		FogEnd = 2400,
-		Bloom = { Intensity = 0.35, Size = 18, Threshold = 1.8 },
-		Grade = { Contrast = 0.05, Saturation = 0.1, Brightness = 0.02, TintColor = rgb(255, 250, 244) },
+		Bloom = { Intensity = 0.45, Size = 20, Threshold = 1.6 },
+		Grade = { Contrast = 0.08, Saturation = 0.08, Brightness = 0, TintColor = rgb(236, 240, 255) },
+		Atmosphere = { Density = 0.3, Offset = 0.1, Color = rgb(98, 112, 170), Decay = rgb(40, 46, 92), Glare = 0.2, Haze = 1.6 },
 	},
-	VolcanoVault = {
-		ClockTime = 19,
-		Brightness = 1.6,
-		Ambient = rgb(70, 46, 46),
-		OutdoorAmbient = rgb(96, 64, 58),
-		EnvironmentDiffuseScale = 0.4,
-		EnvironmentSpecularScale = 0.8,
-		FogColor = rgb(41, 35, 41),
-		FogStart = 260,
-		FogEnd = 1500,
-		Bloom = { Intensity = 0.55, Size = 22, Threshold = 1.5 },
-		Grade = { Contrast = 0.1, Saturation = 0.05, Brightness = 0, TintColor = rgb(255, 244, 236) },
+	SkyCarnival = { -- peach daylight
+		ClockTime = 16.2,
+		Brightness = 2.6,
+		Ambient = rgb(140, 128, 128),
+		OutdoorAmbient = rgb(170, 152, 140),
+		EnvironmentDiffuseScale = 0.6,
+		EnvironmentSpecularScale = 0.5,
+		FogColor = rgb(255, 214, 190),
+		FogStart = 650,
+		FogEnd = 3200,
+		Bloom = { Intensity = 0.3, Size = 18, Threshold = 2.0 },
+		Grade = { Contrast = 0.04, Saturation = 0.12, Brightness = 0.01, TintColor = rgb(255, 246, 236) },
+		Atmosphere = { Density = 0.26, Offset = 0.2, Color = rgb(255, 206, 176), Decay = rgb(255, 170, 150), Glare = 0.4, Haze = 1.2 },
+	},
+	VolcanoVault = { -- smoky copper (no full-screen orange haze: moderate density)
+		ClockTime = 17.6,
+		Brightness = 1.5,
+		Ambient = rgb(92, 66, 56),
+		OutdoorAmbient = rgb(112, 80, 64),
+		EnvironmentDiffuseScale = 0.45,
+		EnvironmentSpecularScale = 0.6,
+		FogColor = rgb(90, 60, 46),
+		FogStart = 320,
+		FogEnd = 2000,
+		Bloom = { Intensity = 0.4, Size = 20, Threshold = 1.6 },
+		Grade = { Contrast = 0.1, Saturation = 0, Brightness = 0, TintColor = rgb(255, 238, 226) },
+		Atmosphere = { Density = 0.38, Offset = 0.15, Color = rgb(176, 112, 76), Decay = rgb(92, 50, 34), Glare = 0.1, Haze = 2.2 },
 	},
 }
 VisualProfiles.Profiles.OrbitalGarage = VisualProfiles.Profiles.NeonFoundry
@@ -94,6 +117,12 @@ function VisualProfiles.Apply(lighting, profile, effects)
 			effects.grade[key] = value
 		end
 		written[#written + 1] = "Grade"
+	end
+	if effects.atmosphere then
+		for key, value in pairs(profile.Atmosphere or NO_ATMOSPHERE) do
+			effects.atmosphere[key] = value
+		end
+		written[#written + 1] = "Atmosphere"
 	end
 	return written
 end

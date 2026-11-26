@@ -1,6 +1,7 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
+**Active milestone:** UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
+settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
 02 registry (v21), 03 map selection / ballots (v22), 04 + 07 per-map hubs (v23, gated),
 05 + 06 Foundry look and Garage deck (v24, gated) done. Prompts 01–07 complete.
 Baseline: docs/AUDIT_BASELINE.md.
@@ -12,6 +13,62 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — UI overhaul, part 2: a backdrop per map (v29, private)
+
+- **`Shared/EnvironmentProfiles`**, keyed by map id. Each client builds the backdrop locally
+  through `EnvironmentController`, which replaces DressingController. Every part is anchored,
+  with no collision, queries, touch or shadow.
+  - **Neon Foundry (cobalt dusk):** three layers of factory silhouettes (some with lit window
+    bands), catwalks high over the course (High only), and the turbine as its signature.
+    Hazard warning marks and gate insets stay at every level.
+  - **Sky Carnival (peach daylight):** a ring island as its signature, floating islands,
+    cumulus layers kept *below* the course (clear sky behind every landing), and bunting on
+    poles beside the lane (High).
+  - **Volcano Vault (smoky copper):** a stepped volcano with a glowing crater as its
+    signature, basalt ridges, distant lava channels and smoke columns (High). The race
+    surface is a neutral warm grey.
+  - Lighting: the new map profiles plus an Atmosphere (sky colour and haze), now for
+    **every** player (no longer gated). The server still starts on ClassicNight.
+- **Hubs.**
+  - Orbital Garage: assembly arms, and the Foundry turbine in view; its deck signage and MAPS
+    pad come from prompt 06.
+  - Balloon Terminal: balloons tethered above the practice drum, and a ticket canopy.
+  - Basalt Inspection Deck: a vent field below the deck, and a warm shelter.
+  - Each practice lane gets its own road colour, so the deck and the lane read as separate
+    surfaces.
+- **Road and edges** (local, colour/size only, no physics change):
+  - Each map's floor becomes a visible midtone. The Foundry is cool blue (92, 110, 146),
+    lighter than the cobalt marble.
+  - Rail-top neon caps shrink from 1.3 × 0.3 studs to 0.28 × 0.14 studs: narrow guide
+    lights, so the edges no longer outshine the road.
+  - Foundry gate pillars are dark metal, with neon insets carrying the colour.
+- **Scenery detail:**
+  - Low: lighting, road, edges, hazard tells and the signature landmark only.
+  - Standard: adds the middle layers, panel breaks and spines.
+  - High: adds the near-course framing.
+  - Changing detail, map or hub destroys the old folder before building the new one.
+- Maps that don't exist (Tideworks … Pinball Metro) have no profile and stay off.
+- **Results.**
+  - Offline: 726 passing, including Environment.spec (29), which checks:
+    - every map's profile and lighting;
+    - the signature at every detail level;
+    - backdrop clearance from the race line (≥ 150 studs; framing ≥ 18 studs above the
+      lane);
+    - road midtone and contrast with the marble, and narrow guide lights;
+    - hub staging off the deck floor, and deterministic layouts.
+
+    Boot smoke passes, with the client building the environments.
+  - Backdrop parts per detail level:
+
+    | Map | Low | Standard | High |
+    | --- | --- | --- | --- |
+    | Foundry | 428 | 716 | 734 |
+    | Sky | 3 | 125 | 225 |
+    | Volcano | 5 | 70 | 76 |
+
+    (The Foundry's Low count is mostly hazard warning marks.)
+  - Runtime: **pending.** Phone screenshots are needed for each map at Low and High.
 
 ## 2026-11-26 — UI overhaul, part 1: hub card, race strip, display settings (v28, private)
 

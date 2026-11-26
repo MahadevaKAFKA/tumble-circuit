@@ -4,6 +4,7 @@ ok    src/ReplicatedStorage/Shared/AbilityConfig.lua
 ok    src/ReplicatedStorage/Shared/CapsuleOdds.lua
 ok    src/ReplicatedStorage/Shared/Catalog.lua
 ok    src/ReplicatedStorage/Shared/Dressing.lua
+ok    src/ReplicatedStorage/Shared/EnvironmentProfiles.lua
 ok    src/ReplicatedStorage/Shared/GameConfig.lua
 ok    src/ReplicatedStorage/Shared/HazardSim.lua
 ok    src/ReplicatedStorage/Shared/HazardTiming.lua
@@ -75,7 +76,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/AbilityController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/DevPanelController.lua
-ok    src/StarterPlayer/StarterPlayerScripts/Controllers/DressingController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/EnvironmentController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HubMenusController.lua
@@ -109,6 +110,7 @@ ok    src/Tests/Unit/CCapsules.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
 ok    src/Tests/Unit/DCommerce.spec.lua
 ok    src/Tests/Unit/Dressing.spec.lua
+ok    src/Tests/Unit/Environment.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
 ok    src/Tests/Unit/HubFreeRoam.spec.lua
@@ -135,7 +137,7 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 116.5 ms
+PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 122.9 ms
 PRINT	[TumbleCircuit] server ready (A6.0, protocol v12)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
@@ -642,10 +644,11 @@ PASS  a hub without a practice chute is reported
 PASS  failing non-default maps are dropped, the rest keep running
 PASS  the default map stays even with validation notes
 PASS  the default map failing to build is fatal (nothing safer to fall back to)
-PASS  NeonFoundry profile = the exact pre-registry environment
+PASS  ClassicNight (server start-up) = the exact pre-registry environment
 PASS  every profile sets every field it owns (switching leaves nothing behind)
-PASS  Apply writes all lighting fields + bloom + grade
-PASS  unknown profile -> NeonFoundry
+PASS  Apply writes all lighting fields + bloom + grade + atmosphere
+PASS  leaving a map profile for the night profile clears the atmosphere (density 0)
+PASS  unknown profile -> ClassicNight
 PASS  every registry map and hub names an existing profile
 PASS  Studio: every gate on
 PASS  live: a stranger gets no gates
@@ -752,11 +755,11 @@ PASS  MAPS pad is a short roll from the spawn ring and on the deck
 PASS  the overlook faces the Neon Foundry and not the chute opening
 PASS  no edge light across the chute opening
 PASS  navigation panels are static text signs (readable on Low)
-PASS  dressing parts never collide, raycast, touch or cast shadows
-PASS  disabling restores every restyled part (colour and material)
-PASS  floor restyle changes colour only (physics stay the server's)
+PASS  backdrop parts never collide, raycast, touch or cast shadows
+PASS  a map / hub / detail change destroys the old folder first
+PASS  road restyle changes colour only (physics stay the server's)
 PASS  race triggers are blocked inside hubs (hub progress returns before checkpoints)
-PASS  the dressing is behind the NewHubs gate
+PASS  environments apply to every player (the zone lighting is no longer gated)
 info  Foundry dressing: 675 local parts (206 detail, hidden on Low)
 
 -- Protocol key specs --
@@ -788,6 +791,50 @@ PASS  legacy HUD stays one flag away
 PASS  debug telemetry is off in the player view; developers only
 PASS  closing Settings during a reset preview undoes it
 PASS  hub card controls are wired screen buttons (MAPS, MENU, profile, EXIT PRACTICE)
+
+-- Environment specs --
+PASS  NeonFoundry_A4: has an environment profile and a lighting profile
+PASS  NeonFoundry_A4 Low: the signature landmark is there
+PASS  NeonFoundry_A4 Standard: the signature landmark is there
+PASS  NeonFoundry_A4 High: the signature landmark is there
+PASS  NeonFoundry_A4: sizes valid; Low keeps only the signature + hazard tells; more detail = more parts
+PASS  NeonFoundry_A4: backdrop stays clear of the race line (start, lanes, finish stay legible)
+PASS  NeonFoundry_A4: road is a visible midtone (not black, not white)
+PASS  NeonFoundry_A4: road differs from the cobalt marble in brightness or colour
+PASS  NeonFoundry_A4: guide lights are narrow (emission on small surfaces)
+PASS  SkyCarnival_B1: has an environment profile and a lighting profile
+PASS  SkyCarnival_B1 Low: the signature landmark is there
+PASS  SkyCarnival_B1 Standard: the signature landmark is there
+PASS  SkyCarnival_B1 High: the signature landmark is there
+PASS  SkyCarnival_B1: sizes valid; Low keeps only the signature + hazard tells; more detail = more parts
+PASS  SkyCarnival_B1: backdrop stays clear of the race line (start, lanes, finish stay legible)
+PASS  SkyCarnival_B1: road is a visible midtone (not black, not white)
+PASS  SkyCarnival_B1: road differs from the cobalt marble in brightness or colour
+PASS  SkyCarnival_B1: guide lights are narrow (emission on small surfaces)
+PASS  VolcanoVault_B1: has an environment profile and a lighting profile
+PASS  VolcanoVault_B1 Low: the signature landmark is there
+PASS  VolcanoVault_B1 Standard: the signature landmark is there
+PASS  VolcanoVault_B1 High: the signature landmark is there
+PASS  VolcanoVault_B1: sizes valid; Low keeps only the signature + hazard tells; more detail = more parts
+PASS  VolcanoVault_B1: backdrop stays clear of the race line (start, lanes, finish stay legible)
+PASS  VolcanoVault_B1: road is a visible midtone (not black, not white)
+PASS  VolcanoVault_B1: road differs from the cobalt marble in brightness or colour
+PASS  VolcanoVault_B1: guide lights are narrow (emission on small surfaces)
+PASS  OrbitalGarage: hub staging has its landmark on Low and more on High
+PASS  OrbitalGarage: staging leaves the deck floor open (nothing tall on the roll area)
+PASS  OrbitalGarage: practice lane gets its own road colour
+PASS  BalloonTerminal: hub staging has its landmark on Low and more on High
+PASS  BalloonTerminal: staging leaves the deck floor open (nothing tall on the roll area)
+PASS  BalloonTerminal: practice lane gets its own road colour
+PASS  BasaltDeck: hub staging has its landmark on Low and more on High
+PASS  BasaltDeck: staging leaves the deck floor open (nothing tall on the roll area)
+PASS  BasaltDeck: practice lane gets its own road colour
+PASS  a map without a profile gets no backdrop (unbuilt maps stay off)
+PASS  same layout -> same backdrop (deterministic on every client)
+PASS  UI 'Follow map' accents match the environment accents
+info  NeonFoundry_A4 backdrop parts: Low 428 / Standard 716 / High 734
+info  SkyCarnival_B1 backdrop parts: Low 3 / Standard 125 / High 225
+info  VolcanoVault_B1 backdrop parts: Low 5 / Standard 70 / High 76
 
 -- A5 persistence specs --
 PASS  defaults are deterministic
@@ -902,4 +949,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-686 passed, 0 failed (+ 0 syntax failures)
+726 passed, 0 failed (+ 0 syntax failures)

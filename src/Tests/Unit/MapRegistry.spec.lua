@@ -134,11 +134,11 @@ function Spec.run(m)
 		local function sameColor(a, b)
 			return a and b and math.abs(a.R - b.R) < 1e-6 and math.abs(a.G - b.G) < 1e-6 and math.abs(a.B - b.B) < 1e-6
 		end
-		local p = VP.Get("NeonFoundry")
+		local p = VP.Get("ClassicNight")
 		local same = p.ClockTime == 0 and p.Brightness == 2 and sameColor(p.Ambient, Color3.fromRGB(46, 56, 96)) and sameColor(p.OutdoorAmbient, Color3.fromRGB(70, 82, 130))
 			and sameColor(p.FogColor, m.GameConfig.Palette.Navy) and p.FogStart == 300 and p.FogEnd == 1600 and p.EnvironmentDiffuseScale == 0.4 and p.EnvironmentSpecularScale == 1
 			and p.Bloom.Intensity == 0.7 and p.Bloom.Size == 24 and p.Bloom.Threshold == 1.4 and p.Grade.Contrast == 0.08 and p.Grade.Saturation == 0.12
-		check("NeonFoundry profile = the exact pre-registry environment", same)
+		check("ClassicNight (server start-up) = the exact pre-registry environment", same)
 		local complete = true
 		for _, profile in pairs(VP.Profiles) do
 			for _, field in ipairs(VP.Fields) do
@@ -146,14 +146,17 @@ function Spec.run(m)
 					complete = false
 				end
 			end
-			complete = complete and profile.Bloom and profile.Grade and profile.Grade.TintColor ~= nil and profile.Grade.Brightness ~= nil
+			complete = complete and profile.Bloom and profile.Grade and profile.Grade.TintColor ~= nil and profile.Grade.Brightness ~= nil and profile.Atmosphere ~= nil
 		end
 		check("every profile sets every field it owns (switching leaves nothing behind)", complete)
-		local fakeLighting, bloom, grade = {}, {}, {}
-		local written = VP.Apply(fakeLighting, VP.Get("SkyCarnival"), { bloom = bloom, grade = grade })
-		check("Apply writes all lighting fields + bloom + grade", #written == #VP.Fields + 2 and fakeLighting.ClockTime == 14.5 and bloom.Intensity == 0.35 and grade.TintColor ~= nil)
+		local fakeLighting, bloom, grade, atmosphere = {}, {}, {}, {}
+		local written = VP.Apply(fakeLighting, VP.Get("SkyCarnival"), { bloom = bloom, grade = grade, atmosphere = atmosphere })
+		check("Apply writes all lighting fields + bloom + grade + atmosphere", #written == #VP.Fields + 3 and fakeLighting.ClockTime == 16.2 and bloom.Intensity == 0.3 and grade.TintColor ~= nil and atmosphere.Density == 0.26)
+		local night = {}
+		VP.Apply({}, VP.Get("ClassicNight"), { atmosphere = night })
+		check("leaving a map profile for the night profile clears the atmosphere (density 0)", night.Density == 0 and night.Haze == 0)
 		local unknown, fellBack = VP.Get("Nope")
-		check("unknown profile -> NeonFoundry", unknown == p and fellBack)
+		check("unknown profile -> ClassicNight", unknown == p and fellBack)
 		local named = true
 		for _, entry in ipairs(R.Maps) do
 			named = named and VP.Profiles[entry.Profile] ~= nil
