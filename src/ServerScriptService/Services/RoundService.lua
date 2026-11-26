@@ -32,6 +32,7 @@ local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local RaceRules = require(script.Parent:WaitForChild("RaceRules"))
+local RaceStats = require(script.Parent:WaitForChild("RaceStats"))
 local MapVoteRules = require(script.Parent:WaitForChild("MapVoteRules"))
 local BallotRules = require(script.Parent:WaitForChild("BallotRules"))
 local MapRegistry = require(Shared:WaitForChild("MapRegistry"))
@@ -69,6 +70,7 @@ function RoundService.new(deps)
 	self.lastResolution = nil -- { roundId, mapId, counts, counted, fellBack }
 	self.hubs = deps.hubs -- prompt 03/04 (optional): per-player hub (HubService); set by the bootstrap
 	self.party = deps.party -- B1 (optional): keeps Roblox party members on neighbouring slots
+	self.telemetry = deps.telemetry -- brief 3 (optional): per-sector race health counts
 	if self.physics then
 		-- circuits: a new marble's tracker starts on the right lap (grid = just behind the line)
 		self.physics.hintFor = function(entity, zone)
@@ -482,6 +484,7 @@ function RoundService:_enterRacing()
 		end
 	end
 	self:_setTimer(self:_raceSeconds())
+	self.stats = RaceStats.new(layout) -- brief 3: per-sector resets / falls / seam launches
 end
 
 function RoundService:_enterResults()
@@ -491,6 +494,33 @@ function RoundService:_enterResults()
 		end
 	end
 	self.results = self.progress:Standings(self.racers)
+	if self.stats then
+		for _, racer in ipairs(self.racers) do
+			self.stats:OnResult(racer.finished == true)
+		end
+		local summary = self.stats:Summary()
+		local def = self.track:GetLayout(ZONES.Race).Definition
+		print(string.format("[RaceStats] %s v%d %s: %s", tostring(def.Id), def.LayoutVersion or 1, tostring(self.roundId), summary.line))
+		self.lastRaceStats = summary
+		local reporter = nil -- AnalyticsService events need a player in the server: any human racer
+		for _, racer in ipairs(self.racers) do
+			if not racer.isBot and racer.player and racer.player.Parent then
+				reporter = racer.player
+				break
+			end
+		end
+		if self.telemetry and reporter then
+			for _, row in ipairs(summary.sectors) do
+				if row.resets + row.falls > 0 then
+					self.telemetry:Event(reporter, "race_sector_recoveries", { map = def.Id, sector = row.index, value = row.resets + row.falls })
+				end
+				if row.launches > 0 then
+					self.telemetry:Event(reporter, "race_sector_seam_launch", { map = def.Id, sector = row.index, value = row.launches })
+				end
+			end
+		end
+		self.stats = nil
+	end
 	self:_setTimer(T.ResultsSeconds)
 	self.RaceFinished:Fire(self.roundId, self.results)
 end
@@ -675,6 +705,9 @@ function RoundService:ResolveSpawn(player, reason)
 				return { CFrame = self.track:GetFinishRespawnCFrame(), Zone = ZONES.Race, Frozen = false }
 			end
 			if state == S.Racing then
+				if self.stats then
+					self.stats:OnRespawn(player, reason)
+				end
 				local target = self.checkpoints:GetConfirmedTarget(player)
 				local cf = target and target.RespawnFrame and self.track:FrameCFrame(target.RespawnFrame) or self.track:GetGridCFrame(racer.slot)
 				return { CFrame = cf, Zone = ZONES.Race, Frozen = false }
@@ -714,6 +747,9 @@ function RoundService:_onProgress(player, info)
 	local racer = self.racerByPlayer[player]
 	if not racer then
 		return
+	end
+	if self.stats then
+		self.stats:OnSample(player, info)
 	end
 	local events = self.checkpoints:Process(player, info)
 	if not events then

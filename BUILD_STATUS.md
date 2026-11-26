@@ -18,6 +18,31 @@ The promo pack adds no monetization. Every deploy stays private.
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
 
+## 2026-11-26 — Graphics/gameplay brief A–C: Volcano Vault circuit, roadside speed cues, readability, race instrumentation (v38, private)
+
+Brief: Tumble-Circuit-Graphics-Gameplay-and-Ranked-Master-Prompt (milestones A–C; D/E follow).
+
+- **Volcano Vault circuit** (layout v2, 2,723-stud lap, clockwise rectangle of two basalt bowls,
+  a rock chicane, the brake split and the final turn): vent split (inside: one big timed vent |
+  outside: three small vents with frequent gaps), roofed maintenance corridor with a piston,
+  brake split (inside: brake-heavy tight line | outside: long exit), roofed uphill ridge tunnel
+  at 6.8° with a boost lane. Neutral-grey road against the lava. Back in rotation (all three maps
+  are validated circuits). Lap MODEL 64 s.
+- **Neon Foundry first slice:** banked turbine turn into a **compression valley** (dip + rise)
+  before the passing straight; re-solved (climb 7.3°).
+- **Roadside motion layer** on every circuit (Roadside folder, no collision): segmented rail
+  inlays every 16 studs, centre dash marks, supports into the haze, passing light gantries, ribs
+  on tall walls. Low graphics keeps inlays + dashes and drops the scale props.
+- **Your marble reads on any surface:** a soft contact shadow (fades with height) + a thin
+  outline (stronger with High contrast). Rivals stay plain (budget).
+- **Instrumentation:** RaceStats counts resets, falls and "seam launches" (airborne on plain road,
+  away from kickers / drums / bumpers / gaps) per gate sector per race; one-line summary in the
+  server log + aggregate AnalyticsService events (recoveries / seam launches per sector).
+
+**Verified here:** 880 offline checks (all three circuits validate; model lap times; stacked
+helix; instrumentation flags a plain-road launch and ignores a kicker), Luau, place assembly,
+boot smokes. **Not verified:** everything visual and physical on a device.
+
 ## 2026-11-26 — Three-lap circuits + new in-race HUD (v37, private)
 
 Brief: three-lap races and the in-race HUD (milestones 1–3; plan, baseline and owner playtest in

@@ -240,7 +240,7 @@ function Spec.run(m)
 	local skyErrors = TD.Validate(sky, skyLayout)
 	local skyTv = TV.Validate(sky, skyLayout)
 	check("Sky Carnival circuit validates (generator + TrackValidator)", #skyErrors == 0 and #skyTv == 0, table.concat(skyErrors, " | ") .. table.concat(skyTv, " | "))
-	check("Sky Carnival is a race-ready circuit in the rotation", TD.Worlds[2] == sky and TD.RaceReady("SkyCarnival_B1") and not TD.RaceReady("VolcanoVault_B1"))
+	check("Sky Carnival is a race-ready circuit in the rotation", TD.Worlds[2] == sky and TD.RaceReady("SkyCarnival_B1"))
 	local skyYaw, foundryYaw = 0, 0
 	for _, piece in ipairs(sky.Pieces) do
 		skyYaw = skyYaw + (piece.Yaw or 0)
@@ -287,6 +287,49 @@ function Spec.run(m)
 		end
 	end
 	check("Sky Carnival choices: drum bounce over the cloud gap (or the bridge), two kicker hops (or the wide arc)", bounce and hops == 2 and #skyLayout.TrickZones >= 2)
+
+	------------------------------------------------------------------ Volcano Vault (graphics brief C)
+	local vv = TD.VolcanoVaultCircuit
+	local vvLayout = TD.Generate(vv, radius)
+	local vvErr, vvTv = TD.Validate(vv, vvLayout), TV.Validate(vv, vvLayout)
+	check("Volcano Vault circuit validates and is back in rotation", #vvErr == 0 and #vvTv == 0 and TD.Worlds[3] == vv and TD.RaceReady("VolcanoVault_B1"), table.concat(vvErr, " | ") .. table.concat(vvTv, " | "))
+	local _, vvFlying, vvRace = TD.EstimateLapSeconds(vvLayout, m.PhysicsConfig.Movement, 196.2, 3)
+	results.info[#results.info + 1] = string.format("Volcano Vault circuit: lap %.0f studs, model flying lap %.1f s, race %.0f s (MODEL)", vvLayout.LapLength, vvFlying, vvRace)
+	check("Volcano Vault lap MODEL inside 55-80 s, race 3-5 min", vvFlying >= 55 and vvFlying <= 80 and vvRace >= 160 and vvRace <= 300, string.format("%.1f / %.0f", vvFlying, vvRace))
+	local road = vv.Theme.NavyFloor
+	local lum = 0.2126 * road.R + 0.7152 * road.G + 0.0722 * road.B
+	check("Volcano Vault road is a neutral-grey midtone against the lava", lum > 0.3 and lum < 0.5 and math.abs(road.R - road.B) < 0.05, string.format("%.2f", lum))
+	local roofed, ventSplit = 0, layout and vvLayout.PieceByName.VentSplit
+	for _, piece in ipairs(vv.Pieces) do
+		if piece.Roof then
+			roofed = roofed + 1
+		end
+	end
+	check("Volcano Vault: a timed-vent split, a brake split and an uphill tunnel through the ridge", ventSplit and ventSplit.Definition.Divider and vvLayout.PieceByName.BrakeSplit.Definition.Divider and roofed >= 4)
+
+	------------------------------------------------------------------ instrumentation (brief 3 A)
+	local RS = m.RaceStats
+	if RS then
+		local stats = RS.new(layout)
+		local plain = layout.Sections[layout.PieceByName.PassingA.FirstSection].S + 60 -- a passing straight: plain road
+		stats:OnSample("P", { s = plain, height = 0.1 })
+		stats:OnSample("P", { s = plain + 5, height = 3.2 }) -- airborne on plain road = seam suspect
+		local kick = layout.TrickZones[1].LipS
+		stats:OnSample("Q", { s = kick - 2, height = 0.1 })
+		stats:OnSample("Q", { s = kick + 4, height = 3.5 }) -- the trick ramp: by design
+		stats:OnRespawn("Q", "Fell")
+		stats:OnRespawn("P", "Reset")
+		stats:OnResult(true)
+		stats:OnResult(false)
+		local sum = stats:Summary()
+		local launches, falls, resets = 0, 0, 0
+		for _, row in ipairs(sum.sectors) do
+			launches, falls, resets = launches + row.launches, falls + row.falls, resets + row.resets
+		end
+		check("race stats: a launch on plain road is flagged, a kicker jump is not; resets / falls counted per sector", launches == 1 and falls == 1 and resets == 1 and sum.line:find("finished 1, dnf 1", 1, true) ~= nil, sum.line)
+		local lap2 = stats:SectorAt(L + layout.Checkpoints[3].S + 1)
+		check("race stats: sectors are per lap (lap 2 gate 3 = sector 3)", lap2 == 3)
+	end
 
 	------------------------------------------------------------------ HUD / tags / reveal
 	local NP = m.NameplatePure

@@ -60,6 +60,7 @@ ok    src/ServerScriptService/Services/ProgressService.lua
 ok    src/ServerScriptService/Services/QuestService.lua
 ok    src/ServerScriptService/Services/RacePhysicsService.lua
 ok    src/ServerScriptService/Services/RaceRules.lua
+ok    src/ServerScriptService/Services/RaceStats.lua
 ok    src/ServerScriptService/Services/RewardRules.lua
 ok    src/ServerScriptService/Services/RoundService.lua
 ok    src/ServerScriptService/Services/SeasonService.lua
@@ -87,6 +88,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ItemSwatch.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/LabController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MapSelectController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MarbleReadability.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ModesController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/NameplateController.lua
@@ -140,6 +142,7 @@ ok    src/Tests/Unit/UIOverhaul.spec.lua
 ok    src/Tests/Unit/UIState.spec.lua
 ok    src/Tests/Unit/Worlds.spec.lua
 ok    tools/offline/boot_smoke.lua
+ok    tools/offline/circuit_map.lua
 ok    tools/offline/circuit_solver.lua
 ok    tools/offline/harness.lua
 ok    tools/offline/roblox_shim.lua
@@ -149,7 +152,7 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 2 maps (4764 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 139.4 ms
+PRINT	[Track] built 3 maps (8947 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 289.8 ms
 PRINT	[TumbleCircuit] server ready (A6.0, protocol v15)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
@@ -461,9 +464,9 @@ PASS  no world comes within 150 studs of the hub
 info  Neon Foundry: 2931 studs, 16 modules, drop 184, 1-D model clean run 64 s (a model, not a measurement)
 info  Sky Carnival: 2530 studs, 14 modules, drop 162, 1-D model clean run 54 s (a model, not a measurement)
 info  Volcano Vault: 2300 studs, 14 modules, drop 158, 1-D model clean run 49 s (a model, not a measurement)
-info  Neon Foundry: 2076 parts, 1093 collidable
-info  Sky Carnival: 2688 parts, 1527 collidable
-info  Volcano Vault: 1843 parts, 1127 collidable
+info  Neon Foundry: 2842 parts, 1129 collidable
+info  Sky Carnival: 3518 parts, 1527 collidable
+info  Volcano Vault: 2587 parts, 916 collidable
 
 -- B1 rules specs --
 PASS  rotation: nothing raced -> world 1, then 2, 3, back to 1
@@ -801,7 +804,7 @@ info  Foundry dressing: 675 local parts (206 detail, hidden on Low)
 -- Protocol key specs --
 PASS  every Protocol attribute / reason / zone key used in code exists
 PASS  no Protocol table is defined twice (a second one silently replaces the first)
-info  119 protocol key uses scanned
+info  120 protocol key uses scanned
 
 -- UI overhaul specs --
 PASS  display preferences exist with the handoff defaults (100%, 95%, Standard, Follow map, ...)
@@ -889,7 +892,7 @@ PASS  same layout -> same backdrop (deterministic on every client)
 PASS  UI 'Follow map' accents match the environment accents
 info  NeonFoundry_A4 backdrop parts: Low 877 / Standard 1042 / High 1060
 info  SkyCarnival_B1 backdrop parts: Low 3 / Standard 110 / High 235
-info  VolcanoVault_B1 backdrop parts: Low 5 / Standard 64 / High 68
+info  VolcanoVault_B1 backdrop parts: Low 5 / Standard 61 / High 66
 
 -- Motion specs (UI entrances, race entry) --
 PASS  speed reference = the existing speed cap (TerminalSpeed)
@@ -1116,11 +1119,18 @@ PASS  helix turns are stacked with real headroom (>= 30 studs between the turns)
 PASS  progress never jumps between the stacked helix turns
 PASS  Sky Carnival lap MODEL inside 55-80 s, race 3-5 min
 PASS  Sky Carnival choices: drum bounce over the cloud gap (or the bridge), two kicker hops (or the wide arc)
+PASS  Volcano Vault circuit validates and is back in rotation
+PASS  Volcano Vault lap MODEL inside 55-80 s, race 3-5 min
+PASS  Volcano Vault road is a neutral-grey midtone against the lava
+PASS  Volcano Vault: a timed-vent split, a brake split and an uphill tunnel through the ridge
+PASS  race stats: a launch on plain road is flagged, a kicker jump is not; resets / falls counted per sector
+PASS  race stats: sectors are per lap (lap 2 gate 3 = sector 3)
 PASS  name tags: never the stacked row - none closer than 16 studs, overlaps hidden, at most 3
 PASS  name tags: none at all on the start grid
 PASS  case opening: pops in, shakes harder, the lid flies off with a flash
 PASS  Reduced Motion: the case opens without any shake
-info  Neon Foundry circuit: lap 2963 studs, model standing 70.9 s / flying 69.8 s / race 211 s (MODEL, not a measurement)
+info  Neon Foundry circuit: lap 2963 studs, model standing 71.0 s / flying 69.8 s / race 211 s (MODEL, not a measurement)
 info  Sky Carnival circuit: lap 3305 studs, model flying lap 76.9 s, race 232 s (MODEL)
+info  Volcano Vault circuit: lap 2723 studs, model flying lap 64.4 s, race 194 s (MODEL)
 
-874 passed, 0 failed (+ 0 syntax failures)
+880 passed, 0 failed (+ 0 syntax failures)

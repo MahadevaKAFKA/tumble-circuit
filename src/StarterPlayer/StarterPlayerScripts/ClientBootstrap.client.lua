@@ -54,6 +54,7 @@ local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local RouteTracker = require(Shared:WaitForChild("RouteTracker"))
 local NameplateController = require(Controllers:WaitForChild("NameplateController"))
+local MarbleReadability = require(Controllers:WaitForChild("MarbleReadability"))
 local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 local MapRegistry = require(Shared:WaitForChild("MapRegistry"))
 local VisualProfiles = require(Shared:WaitForChild("VisualProfiles"))
@@ -486,6 +487,8 @@ end
 local uiState = "Title" -- "Title" | "Live"
 local resultsDismissedRound = nil -- PLAY AGAIN / SIT OUT close the results for that round
 local snapshot = nil
+local readability = maid:Give(MarbleReadability.new()) -- brief 3: own-marble shadow + outline
+local highContrastOn = false
 local currentBall = nil
 currentZone = ZONES.Hub
 local tracker = RouteTracker.new(layouts[ZONES.Hub].Route)
@@ -789,6 +792,7 @@ local function bindBall(ball)
 	if plate then
 		plate.Enabled = false -- your own name never floats in front of the chase camera
 	end
+	readability:Attach(ball, { marblesFolder }, highContrastOn) -- brief 3: contact shadow + outline
 	local start = layouts[currentZone].Route
 	steerForward = flatUnit(RouteTracker.TangentAtS(start, tracker:Update(ball.Position).s), Vector3.new(1, 0, 0))
 	stuck.seconds = 0
@@ -988,6 +992,17 @@ local function applyGraphics(mode)
 	vfx:SetQuality(low and "Low" or "High")
 	speedFeel:SetQuality(low and "Low" or (mode == "High" and "High" or "Standard"))
 	lab:SetQuality(low) -- Low: the case reveal uses its single-camera ribbon
+	-- brief 3: Low keeps the cheap speed cues (rail inlays, dash marks) and drops the scale
+	-- props (supports, gantries, wall ribs) first; collision and gates are identical everywhere
+	for _, folder in ipairs(course:GetDescendants()) do
+		if folder.Name == "Roadside" and folder:IsA("Folder") then
+			for _, part in ipairs(folder:GetChildren()) do
+				if part:IsA("BasePart") and part.Name ~= "RailInlay" and part.Name ~= "DashMark" then
+					part.LocalTransparencyModifier = low and 1 or 0
+				end
+			end
+		end
+	end
 end
 -- the map whose accent "Follow map" uses: your hub's map in a hub, the race map on the course
 local function accentMapId()
@@ -1000,6 +1015,8 @@ end
 local function applyDisplay(s)
 	local style = UIKit.StyleFromSettings(s, accentMapId())
 	UIKit.ApplyStyle(style)
+	highContrastOn = s.highContrast == true
+	readability:SetHighContrast(highContrastOn)
 	touch:SetLayout(s.controlLayout, style.scale)
 	abilities:SetLayout(s.controlLayout, s.hudDensity)
 	raceHud:SetDensity(s.hudDensity)
@@ -1645,6 +1662,7 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 		wrongWay.seconds, wrongWay.lastS = 0, nil
 	end
 	nameplates:Step(dt, marblesFolder, ball, (state == S.Preparing or state == S.Countdown) and amRacing())
+	readability:Step(PhysicsConfig.Ball.Radius)
 	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown, progress = progressFraction, rivals = rivalFractions })
 	results:Update(now)
 	social:Update(now)

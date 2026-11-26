@@ -167,6 +167,99 @@ function Builder.ThemePalette(theme)
 	})
 end
 
+-- Roadside references along a course (pure; part budget ~ lap / 4).
+function Builder.RoadsideSpecs(layout, palette, railT, thickness)
+	local specs = {}
+	local def = layout.Definition
+	local total = layout.LapLength or layout.Route.total
+	local function piece(sec)
+		return layout.Pieces[sec.PieceIndex]
+	end
+	local function frameAt(s)
+		-- section-level frame at route distance s (the H/S relation is ~1:1 on these courses)
+		local best = layout.Sections[1]
+		for _, sec in ipairs(layout.Sections) do
+			if sec.S <= s then
+				best = sec
+			else
+				break
+			end
+		end
+		return TrackDefinitions.SampleAtH(layout, best.H + (s - best.S))
+	end
+	-- 1) rail inlays: short bright blocks on the inner face of both rails every 12 studs,
+	--    alternating with dim ones (the strongest optic-flow cue at chase-camera height)
+	local k = 0
+	for s = 6, total - 6, 16 do
+		local f = frameAt(s)
+		local pc = piece(layout.Sections[f.SectionIndex])
+		k = k + 1
+		local bright = k % 2 == 0
+		for _, side in ipairs({ -1, 1 }) do
+			local railH = side < 0 and (pc and (pc.Definition.Rails or def.DefaultRails)[1] or 4.5) or (pc and (pc.Definition.Rails or def.DefaultRails)[2] or 4.5)
+			local base = CFrame.fromMatrix(f.Position + f.Right * (side * (f.Width / 2 - 0.08)) + f.Up * (railH * 0.55), f.Right, f.Up)
+			specs[#specs + 1] = { Class = "Part", Name = "RailInlay", Folder = "Roadside", Size = Vector3.new(0.12, 0.7, 3.2), CFrame = base, Color = bright and palette.Cyan or palette.NavyRail:Lerp(palette.Cyan, 0.35), Material = bright and "Neon" or "SmoothPlastic", Transparency = bright and 0.1 or 0, Collide = false }
+		end
+	end
+	-- 2) runway dash marks down the centre of plain stretches (not on split lanes / arrows)
+	for s = 4, total - 4, 14 do
+		local f = frameAt(s)
+		local pc = piece(layout.Sections[f.SectionIndex])
+		local d = pc and pc.Definition
+		if d and not d.Divider and not d.Arrows and not d.HalfFloor and d.Floor ~= "Tiles" then
+			specs[#specs + 1] = { Class = "Part", Name = "DashMark", Folder = "Roadside", Size = Vector3.new(0.5, 0.08, 4.2), CFrame = CFrame.fromMatrix(f.Position + f.Up * 0.05, f.Right, f.Up), Color = palette.White, Material = "SmoothPlastic", Transparency = 0.55, Collide = false }
+		end
+	end
+	-- 3) supports: a pylon under the road every 48 studs down toward the haze (scale cue)
+	for s = 20, total - 20, 48 do
+		local f = frameAt(s)
+		-- never through a stacked turn below (Sky Carnival helix)
+		local blocked = false
+		for _, other in ipairs(layout.Sections) do
+			local d = other.Position - f.Position
+			if d.Y < -6 and math.sqrt(d.X * d.X + d.Z * d.Z) < other.Width / 2 + 4 then
+				blocked = true
+				break
+			end
+		end
+		local depth = math.max(24, f.Position.Y - (layout.MinY - 70))
+		if not blocked then
+		specs[#specs + 1] = { Class = "Part", Name = "Support", Folder = "Roadside", Size = Vector3.new(2.6, depth, 2.6), CFrame = CFrame.new(f.Position - Vector3.new(0, thickness + depth / 2, 0)), Color = palette.NavyRail:Lerp(palette.Navy, 0.4), Material = "SmoothPlastic", Collide = false }
+		specs[#specs + 1] = { Class = "Part", Name = "SupportCap", Folder = "Roadside", Size = Vector3.new(f.Width * 0.6, 1.2, 3), CFrame = CFrame.fromMatrix(f.Position - f.Up * (thickness + 0.6), f.Right, f.Up), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false }
+		end
+	end
+	-- 4) passing light gantries over straights (start, passing straights, launch decks)
+	for _, pc in ipairs(layout.Pieces) do
+		local kind = pc.Definition.Kind
+		if (kind == "Passing" or kind == "StraightRamp" or kind == "Start") and not pc.Definition.Yaw then
+			local length = pc.Definition.Length
+			for at = 40, length - 20, 90 do
+				local f = TrackDefinitions.SampleAtH(layout, pc.StartH + at)
+				local span = f.Width / 2 + railT + 2
+				local base = CFrame.fromMatrix(f.Position, f.Right, f.Up)
+				for _, side in ipairs({ -1, 1 }) do
+					specs[#specs + 1] = { Class = "Part", Name = "GantryPost", Folder = "Roadside", Size = Vector3.new(1.1, 15, 1.1), CFrame = base * CFrame.new(side * span, 7.5, 0), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false }
+				end
+				specs[#specs + 1] = { Class = "Part", Name = "GantryBeam", Folder = "Roadside", Size = Vector3.new(span * 2 + 1.1, 0.9, 1.1), CFrame = base * CFrame.new(0, 15, 0), Color = palette.NavyRail, Material = "SmoothPlastic", Collide = false }
+				specs[#specs + 1] = { Class = "Part", Name = "GantryLight", Folder = "Roadside", Size = Vector3.new(span * 2 - 2, 0.25, 0.5), CFrame = base * CFrame.new(0, 14.5, 0), Color = palette.White, Material = "Neon", Transparency = 0.2, Collide = false }
+			end
+		end
+	end
+	-- 5) staggered ribs on tall outer walls (turns), every 10 studs
+	for s = 5, total - 5, 16 do
+		local f = frameAt(s)
+		local pc = piece(layout.Sections[f.SectionIndex])
+		local rails = pc and (pc.Definition.Rails or def.DefaultRails) or def.DefaultRails
+		for side, h in ipairs(rails) do
+			if h > 6 then
+				local sign = side == 1 and -1 or 1
+				specs[#specs + 1] = { Class = "Part", Name = "WallRib", Folder = "Roadside", Size = Vector3.new(0.5, h + 0.6, 0.8), CFrame = CFrame.fromMatrix(f.Position + f.Right * sign * (f.Width / 2 + railT + 0.3) + f.Up * (h / 2), f.Right, f.Up), Color = palette.Violet:Lerp(palette.NavyRail, 0.5), Material = "SmoothPlastic", Collide = false }
+			end
+		end
+	end
+	return specs
+end
+
 function Builder.ComputeSpecs(layout)
 	local def = layout.Definition
 	local palette = Builder.ThemePalette(def.Theme)
@@ -296,6 +389,15 @@ function Builder.ComputeSpecs(layout)
 	end
 	if def.Pieces[#def.Pieces].EndCap then
 		capWall(last, -1, "FinishEndWall", 7)
+	end
+
+	-- Roadside motion layer (brief 3, 2026-11-26): stable, world-spaced references that sweep
+	-- past at speed - so a long dark straight no longer reads as standing still. All decor
+	-- (no collision, no queries) in their own "Roadside" folder: clients hide it on Low.
+	if def.Loop or def.Roadside then
+		for _, spec in ipairs(Builder.RoadsideSpecs(layout, palette, railT, thickness)) do
+			add(spec)
+		end
 	end
 
 	-- Floor chevrons: cyan direction arrows, yellow warning arrows before the hazard.

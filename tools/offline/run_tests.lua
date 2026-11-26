@@ -118,6 +118,7 @@ modules.RaceIntroPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers
 modules.SpeedFeelPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/SpeedFeelController")
 modules.RevealPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CapsuleRevealController")
 modules.NameplatePure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/NameplateController")
+modules.RaceStats = H.module("ServerScriptService/Services/RaceStats")
 modules.PhaseStripPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/PhaseStripController")
 modules.CameraPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CameraController")
 H.stubServices = {}

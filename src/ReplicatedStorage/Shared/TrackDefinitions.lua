@@ -274,7 +274,11 @@ TrackDefinitions.NeonFoundryCircuit = {
 		{ Name = "FieldIn", Segment = "BumperField", Kind = "BumperField", Length = 30, Pitch = { 2, 2 }, Width = { 26, 30 }, Arrows = true },
 		{ Name = "Field", Segment = "BumperField", Length = 140, Pitch = { 2, 1 }, Width = { 30, 30 } },
 		{ Name = "FieldOut", Segment = "BumperField", Length = 30, Pitch = { 1, 1 }, Width = { 30, 26 } },
-		{ Name = "PassingA", Segment = "PassingA", Kind = "Passing", Length = 317.77, Pitch = { 1, 1 }, Width = { 26, 26 }, Arrows = true },
+		-- compression valley (brief 3 slice): dip down and back up - a clean line keeps speed
+		{ Name = "ValleyIn", Segment = "CompressionValley", Kind = "Valley", Length = 40, Pitch = { 1, 6 }, Width = { 26, 28 }, Rails = { 5, 5 } },
+		{ Name = "ValleyFloor", Segment = "CompressionValley", Length = 60, Pitch = { 6, -5 }, Width = { 28, 28 }, Rails = { 5, 5 } },
+		{ Name = "ValleyOut", Segment = "CompressionValley", Length = 40, Pitch = { -5, 1 }, Width = { 28, 26 }, Rails = { 5, 5 } },
+		{ Name = "PassingA", Segment = "PassingA", Kind = "Passing", Length = 177.77, Pitch = { 1, 1 }, Width = { 26, 26 }, Arrows = true },
 		{ Name = "SplitAIn", Segment = "SplitA", Kind = "SplitLane", Length = 24, Yaw = -10, Pitch = { 1, 2 }, Bank = { 0, -6 }, Width = { 26, 34 } },
 		{ Name = "SplitACurve", Segment = "SplitA", Length = 120, Yaw = -60, Pitch = { 2, 2 }, Bank = { -6, -6 }, Width = { 34, 34 }, Rails = { 5, 7 }, Divider = { From = 4, To = 116, Height = 4.5 } },
 		{ Name = "SplitAOut", Segment = "SplitA", Length = 24, Yaw = -10, Pitch = { 2, 2 }, Bank = { -6, 0 }, Width = { 34, 26 } },
@@ -293,11 +297,11 @@ TrackDefinitions.NeonFoundryCircuit = {
 		{ Name = "SplitBCurveB", Segment = "SplitB", Length = 60, Yaw = 21, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 0, To = 58, Height = 4.5 } },
 		{ Name = "SplitBOut", Segment = "SplitB", Length = 24, Yaw = 5, Pitch = { 2, 2 }, Bank = { 6, 0 }, Width = { 34, 26 } },
 		{ Name = "HammerRun", Segment = "Hammer", Kind = "SwingingHammer", Length = 80, Pitch = { 2, 1 }, Width = { 26, 26 } },
-		{ Name = "AscentIn", Segment = "MaintenanceAscent", Kind = "GuidedAscent", Length = 40, Pitch = { 1, -7.431 }, Width = { 26, 28 }, Rails = { 6, 6 } },
-		{ Name = "AscentBankA", Segment = "MaintenanceAscent", Length = 60, Yaw = 10, Pitch = { -7.431, -7.431 }, Bank = { 0, 10 }, Width = { 28, 28 }, Rails = { 7, 5 } },
-		{ Name = "AscentBankB", Segment = "MaintenanceAscent", Length = 280, Yaw = 40, Pitch = { -7.431, -7.431 }, Bank = { 10, 10 }, Width = { 28, 28 }, Rails = { 7, 5 } },
-		{ Name = "AscentBankC", Segment = "MaintenanceAscent", Length = 60, Yaw = 10, Pitch = { -7.431, -7.431 }, Bank = { 10, 0 }, Width = { 28, 28 }, Rails = { 7, 5 } },
-		{ Name = "AscentOut", Segment = "MaintenanceAscent", Length = 50, Pitch = { -7.431, 0 }, Width = { 28, 26 }, Rails = { 6, 6 } },
+		{ Name = "AscentIn", Segment = "MaintenanceAscent", Kind = "GuidedAscent", Length = 40, Pitch = { 1, -7.321 }, Width = { 26, 28 }, Rails = { 6, 6 } },
+		{ Name = "AscentBankA", Segment = "MaintenanceAscent", Length = 60, Yaw = 10, Pitch = { -7.321, -7.321 }, Bank = { 0, 10 }, Width = { 28, 28 }, Rails = { 7, 5 } },
+		{ Name = "AscentBankB", Segment = "MaintenanceAscent", Length = 280, Yaw = 40, Pitch = { -7.321, -7.321 }, Bank = { 10, 10 }, Width = { 28, 28 }, Rails = { 7, 5 } },
+		{ Name = "AscentBankC", Segment = "MaintenanceAscent", Length = 60, Yaw = 10, Pitch = { -7.321, -7.321 }, Bank = { 10, 0 }, Width = { 28, 28 }, Rails = { 7, 5 } },
+		{ Name = "AscentOut", Segment = "MaintenanceAscent", Length = 50, Pitch = { -7.321, 0 }, Width = { 28, 26 }, Rails = { 6, 6 } },
 		{ Name = "FinalTurnA", Segment = "FinalTurn", Kind = "Finish", Length = 35, Yaw = 12.5, Pitch = { 0, 0 }, Bank = { 0, 8 }, Width = { 26, 28 }, Rails = { 6, 4.5 } },
 		{ Name = "FinalTurnB", Segment = "FinalTurn", Length = 35, Yaw = 12.5, Pitch = { 0, 0 }, Bank = { 8, 0 }, Width = { 28, 30 }, Rails = { 6, 4.5 } },
 		{ Name = "MainStraight", Segment = "MainStraight", Kind = "Start", Length = 200, Pitch = { 0, 0 }, Width = { 30, 30 }, Rails = { 5, 5 }, Arrows = true },
@@ -775,10 +779,138 @@ TrackDefinitions.SkyCarnivalCircuit = {
 	MaxRaceSeconds = 480, -- provisional, from the lap MODEL
 }
 
+---------------------------------------------------------------------------------------------
+-- 2026-11-26 (graphics/gameplay brief, milestone C): VOLCANO VAULT CIRCUIT (layout v2). The
+-- timing-and-braking course, clockwise like the Foundry but built from bowls and chicanes:
+-- vent straight -> basalt bowl A -> rock chicane -> passing straight -> vent split (inside: one
+-- big timed vent | outside: three small vents, frequent safe gaps) -> cool maintenance corridor
+-- (roofed, piston) -> basalt bowl B -> passing straight -> brake split (inside: brake-heavy
+-- tight line | outside: longer exit) -> uphill tunnel through the ridge (roofed, boost lane)
+-- -> final turn -> main straight. Neutral-grey road against warm lava channels.
+---------------------------------------------------------------------------------------------
+do
+	local theme = {}
+	for k, v in pairs(TrackDefinitions.VolcanoVault.Theme) do
+		theme[k] = v
+	end
+	theme.NavyFloor = Color3.fromRGB(98, 98, 104) -- neutral grey road (brief: readable midtone)
+	theme.Navy = Color3.fromRGB(64, 62, 68)
+	theme.NavyRail = Color3.fromRGB(124, 120, 124)
+	TrackDefinitions.VolcanoVaultCircuit = {
+		Id = "VolcanoVault_B1",
+		DisplayName = "Volcano Vault",
+		LayoutVersion = 2,
+		Loop = true,
+		Laps = 3,
+		Origin = Vector3.new(-2600, 440, 0),
+		StartHeadingDeg = -90,
+		FloorThickness = 1.6,
+		RailThickness = 1.2,
+		DefaultRails = { 4.5, 4.5 },
+		MaxStepLength = 24,
+		MaxYawStepDeg = 5,
+		MaxPitchStepDeg = 2,
+		MaxBankStepDeg = 3,
+		Theme = theme,
+		Solve = { A = "PassingA", B = "PassingB", Climb = { "TunnelIn", "Tunnel", "TunnelOut" } },
+		Pieces = {
+			{ Name = "LineExit", Segment = "VentStraight", Kind = "StraightRamp", Length = 60, Pitch = { 0, 0 }, Width = { 30, 30 }, Rails = { 5, 5 }, Arrows = true },
+			{ Name = "VentStraight", Segment = "VentStraight", Length = 220, Pitch = { 0, 2 }, Width = { 30, 26 }, Rails = { 6, 6 } },
+			{ Name = "BowlAIn", Segment = "BasaltBowlA", Kind = "STurn", Length = 50, Yaw = 15, Pitch = { 2, 2 }, Bank = { 0, 14 }, Width = { 26, 28 }, Rails = { 7, 4.5 } },
+			{ Name = "BowlA", Segment = "BasaltBowlA", Length = 150, Yaw = 60, Pitch = { 2, 2 }, Bank = { 14, 14 }, Width = { 28, 28 }, Rails = { 8, 4.5 } },
+			{ Name = "BowlAOut", Segment = "BasaltBowlA", Length = 50, Yaw = 15, Pitch = { 2, 2 }, Bank = { 14, 0 }, Width = { 28, 26 }, Rails = { 7, 4.5 } },
+			{ Name = "ChicaneA", Segment = "RockChicane", Kind = "BumperField", Length = 50, Yaw = -20, Pitch = { 2, 2 }, Bank = { 0, -8 }, Width = { 26, 26 }, Rails = { 4.5, 6 } },
+			{ Name = "ChicaneB", Segment = "RockChicane", Length = 50, Yaw = -20, Pitch = { 2, 2 }, Bank = { -8, 0 }, Width = { 26, 26 }, Rails = { 4.5, 6 } },
+			{ Name = "ChicaneC", Segment = "RockChicane", Length = 50, Yaw = 20, Pitch = { 2, 2 }, Bank = { 0, 8 }, Width = { 26, 26 }, Rails = { 6, 4.5 } },
+			{ Name = "ChicaneD", Segment = "RockChicane", Length = 50, Yaw = 20, Pitch = { 2, 2 }, Bank = { 8, 0 }, Width = { 26, 26 }, Rails = { 6, 4.5 } },
+			{ Name = "PassingA", Segment = "PassingA", Kind = "Passing", Length = 59.54, Pitch = { 2, 2 }, Width = { 26, 26 }, Arrows = true },
+			{ Name = "VentSplitIn", Segment = "VentSplit", Kind = "SplitLane", Length = 24, Pitch = { 2, 2 }, Width = { 26, 34 } },
+			{ Name = "VentSplit", Segment = "VentSplit", Length = 120, Pitch = { 2, 2 }, Width = { 34, 34 }, Rails = { 6, 6 }, Divider = { From = 4, To = 116, Height = 4.5 } },
+			{ Name = "VentSplitOut", Segment = "VentSplit", Length = 24, Pitch = { 2, 2 }, Width = { 34, 26 } },
+			{ Name = "BowlBIn", Segment = "BasaltBowlB", Kind = "STurn", Length = 50, Yaw = 15, Pitch = { 2, 2 }, Bank = { 0, 14 }, Width = { 26, 28 }, Rails = { 7, 4.5 } },
+			{ Name = "BowlB", Segment = "BasaltBowlB", Length = 150, Yaw = 60, Pitch = { 2, 2 }, Bank = { 14, 14 }, Width = { 28, 28 }, Rails = { 8, 4.5 } },
+			{ Name = "BowlBOut", Segment = "BasaltBowlB", Length = 50, Yaw = 15, Pitch = { 2, 2 }, Bank = { 14, 0 }, Width = { 28, 26 }, Rails = { 7, 4.5 } },
+			{ Name = "Corridor", Segment = "MaintenanceCorridor", Kind = "SwingingHammer", Length = 160, Pitch = { 2, 2 }, Width = { 26, 26 }, Rails = { 6, 6 }, Roof = true },
+			{ Name = "PassingB", Segment = "PassingB", Kind = "Passing", Length = 325.4, Pitch = { 2, 2 }, Width = { 26, 26 }, Arrows = true },
+			{ Name = "BrakeSplitIn", Segment = "BrakeSplit", Kind = "SplitLane", Length = 24, Yaw = 10, Pitch = { 2, 2 }, Bank = { 0, 6 }, Width = { 26, 34 } },
+			{ Name = "BrakeSplit", Segment = "BrakeSplit", Length = 140, Yaw = 70, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 4, To = 136, Height = 4.5 } },
+			{ Name = "BrakeSplitOut", Segment = "BrakeSplit", Length = 24, Yaw = 10, Pitch = { 2, 2 }, Bank = { 6, 0 }, Width = { 34, 26 } },
+			{ Name = "TunnelIn", Segment = "RidgeTunnel", Kind = "GuidedAscent", Length = 40, Pitch = { 2, -6.761 }, Width = { 26, 28 }, Rails = { 6, 6 }, Roof = true },
+			{ Name = "Tunnel", Segment = "RidgeTunnel", Length = 470, Pitch = { -6.761, -6.761 }, Width = { 28, 28 }, Rails = { 6, 6 }, Roof = true },
+			{ Name = "TunnelOut", Segment = "RidgeTunnel", Length = 40, Pitch = { -6.761, 0 }, Width = { 28, 28 }, Rails = { 6, 6 }, Roof = true },
+			{ Name = "FinalTurnA", Segment = "FinalTurn", Kind = "Finish", Length = 45, Yaw = 45, Pitch = { 0, 0 }, Bank = { 0, 10 }, Width = { 28, 28 }, Rails = { 7, 4.5 } },
+			{ Name = "FinalTurnB", Segment = "FinalTurn", Length = 45, Yaw = 45, Pitch = { 0, 0 }, Bank = { 10, 0 }, Width = { 28, 30 }, Rails = { 7, 4.5 } },
+			{ Name = "MainStraight", Segment = "MainStraight", Kind = "Start", Length = 200, Pitch = { 0, 0 }, Width = { 30, 30 }, Rails = { 5, 5 }, Arrows = true },
+		},
+		Spawn = { Piece = "MainStraight", At = 152 },
+		StartLine = { Piece = "LineExit", At = 0 },
+		FinishLine = { Piece = "LineExit", At = 0 },
+		Checkpoints = {
+			{ Name = "Bowl A", Piece = "BowlAIn", At = 2 },
+			{ Name = "Chicane", Piece = "ChicaneA", At = 2 },
+			{ Name = "Passing", Piece = "PassingA", At = 4 },
+			{ Name = "Vent Split", Piece = "VentSplitIn", At = 2 },
+			{ Name = "Bowl B", Piece = "BowlBIn", At = 2 },
+			{ Name = "Corridor", Piece = "Corridor", At = 6 },
+			{ Name = "Brake Split", Piece = "BrakeSplitIn", At = 2 },
+			{ Name = "Tunnel", Piece = "TunnelIn", At = 2 },
+			{ Name = "Tunnel Top", Piece = "Tunnel", At = 280 },
+			{ Name = "Final Turn", Piece = "FinalTurnA", At = 2 },
+		},
+		Grid = { Piece = "MainStraight", Rows = { 190, 183.5, 177, 170.5 }, Columns = { -9.3, -3.1, 3.1, 9.3 } },
+		StartGate = { Piece = "MainStraight", At = 197, Height = 5 },
+		Features = {},
+		Hazards = {
+			{ Kind = "Fan", Id = "Geyser1", Style = "Geyser", Piece = "VentStraight", From = 30, To = 200, Direction = 1, Accel = 22, OnSeconds = 1.4, OffSeconds = 2.4, TelegraphSeconds = 0.8 },
+			{ Kind = "PulseBumper", Id = "RockA", Style = "Rock", Piece = "ChicaneB", At = 25, Offset = -5, Radius = 3, Height = 4.5 },
+			{ Kind = "PulseBumper", Id = "RockB", Style = "Rock", Piece = "ChicaneD", At = 25, Offset = 5, Radius = 3, Height = 4.5, PhaseOffset = 1.4 },
+			-- vent split: inside (left) one big vent to time | outside (right) three small ones
+			{ Kind = "PulseBumper", Id = "VentBig", Style = "Rock", Piece = "VentSplit", At = 60, Offset = -9, Radius = 3.4, Height = 4.5 },
+			{ Kind = "PulseBumper", Id = "VentS1", Style = "Rock", Piece = "VentSplit", At = 30, Offset = 7, Radius = 2.2, Height = 4.5, PhaseOffset = 0.5 },
+			{ Kind = "PulseBumper", Id = "VentS2", Style = "Rock", Piece = "VentSplit", At = 62, Offset = 11, Radius = 2.2, Height = 4.5, PhaseOffset = 1.6 },
+			{ Kind = "PulseBumper", Id = "VentS3", Style = "Rock", Piece = "VentSplit", At = 94, Offset = 7, Radius = 2.2, Height = 4.5, PhaseOffset = 2.7 },
+			{ Kind = "Hammer", Id = "Piston1", Style = "Piston", Piece = "Corridor", At = 80, Amplitude = 8, Period = 3.2, HeadSize = 3.4 },
+			{ Kind = "Conveyor", Id = "Magma1", Style = "Magma", Piece = "PassingB", From = 30, To = 110, Direction = -1, Accel = 16 },
+			{ Kind = "Boost", Id = "Lift1", Piece = "TunnelIn", From = 14, To = 40, Offset = -6, Width = 13, Accel = 17 },
+			{ Kind = "Boost", Id = "Lift2", Piece = "Tunnel", From = 0, To = 67, Offset = -6, Width = 13, Accel = 17 },
+			{ Kind = "Boost", Id = "Lift3", Piece = "Tunnel", From = 67, To = 134, Offset = -6, Width = 13, Accel = 17 },
+			{ Kind = "Boost", Id = "Lift4", Piece = "Tunnel", From = 134, To = 200, Offset = -6, Width = 13, Accel = 17 },
+			{ Kind = "Boost", Id = "Lift5", Piece = "Tunnel", From = 200, To = 267, Offset = -6, Width = 13, Accel = 17 },
+			{ Kind = "Boost", Id = "Lift6", Piece = "Tunnel", From = 267, To = 334, Offset = -6, Width = 13, Accel = 17 },
+			{ Kind = "Boost", Id = "Lift7", Piece = "Tunnel", From = 334, To = 400, Offset = -6, Width = 13, Accel = 17 },
+			{ Kind = "Boost", Id = "Lift9", Piece = "Tunnel", From = 400, To = 470, Offset = -6, Width = 13, Accel = 17 },
+			{ Kind = "Boost", Id = "Lift8", Piece = "TunnelOut", From = 0, To = 26, Offset = -6, Width = 13, Accel = 17 },
+		},
+		ChaosGates = {
+			{ Id = "Gate1", Piece = "BowlA", At = 75, Offset = -7, Width = 9 },
+			{ Id = "Gate2", Piece = "PassingA", At = 30, Offset = 6, Width = 9 },
+			{ Id = "Gate3", Piece = "PassingB", At = 20, Offset = -6, Width = 9 },
+		},
+		WarningStrips = {
+			{ Piece = "BrakeSplitIn", From = 0, To = 20 },
+		},
+		Signs = {
+			{ Piece = "VentStraight", At = 10, Text = "VENTS - WATCH THE GLOW", Lift = 9 },
+			{ Piece = "BowlAIn", At = 0, Text = "BASALT BOWL", Lift = 9 },
+			{ Piece = "VentSplitIn", At = 0, Text = "INSIDE: ONE BIG VENT  |  OUTSIDE: SMALL VENTS", Lift = 9 },
+			{ Piece = "Corridor", At = 10, Text = "MAINTENANCE CORRIDOR - PISTON", Lift = 9 },
+			{ Piece = "BrakeSplitIn", At = 0, Text = "INSIDE: BRAKE HARD  |  OUTSIDE: LONG EXIT", Lift = 9 },
+			{ Piece = "TunnelIn", At = 10, Text = "RIDGE TUNNEL - BOOST LANE LEFT", Lift = 9 },
+		},
+		Gates = {
+			{ Kind = "Start", Piece = "LineExit", At = 0, Text = "START  /  FINISH" },
+		},
+		Validation = { MinSegments = 10, MaxSegments = 16, MinLength = 2200, MaxLength = 3600 },
+		ArrowSpacing = 18,
+		MaxRaceSeconds = 480,
+	}
+end
+
 TrackDefinitions.LegacyWorlds = { TrackDefinitions.NeonFoundry, TrackDefinitions.SkyCarnival, TrackDefinitions.VolcanoVault }
 TrackDefinitions.Circuits = {
 	NeonFoundry_A4 = TrackDefinitions.NeonFoundryCircuit,
 	SkyCarnival_B1 = TrackDefinitions.SkyCarnivalCircuit,
+	VolcanoVault_B1 = TrackDefinitions.VolcanoVaultCircuit,
 }
 TrackDefinitions.Worlds = {}
 for _, legacy in ipairs(TrackDefinitions.LegacyWorlds) do

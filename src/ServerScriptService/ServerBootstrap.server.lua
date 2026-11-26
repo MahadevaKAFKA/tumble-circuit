@@ -130,6 +130,7 @@ local hubs = HubService.new({ track = track, marbles = marbles, remotes = remote
 round.hubs = hubs
 -- B3: telemetry, cosmetics, quests, leaderboards
 local telemetry = TelemetryService.new()
+round.telemetry = telemetry -- brief 3: per-sector recoveries / seam launches after each race
 local cosmetics = CosmeticService.new({ data = playerData, marbles = marbles, remotes = remotes, telemetry = telemetry })
 marbles.lookResolver = function(player)
 	return cosmetics:LookFor(player)

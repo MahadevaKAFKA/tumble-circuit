@@ -97,8 +97,8 @@ local la, lb, c = x[1], x[2], x[3]
 residual(la, lb, c)
 print(string.format("-- %s closure: %s.Length = %.2f, %s.Length = %.2f, climb pitch C = %.3f deg", name, solve.A, la, solve.B, lb, c))
 local main = byName[def.Grid.Piece].Length -- the grid sits at the end of the main straight
-print(string.format("Grid Rows = { %.2f, %.2f, %.2f, %.2f }  StartGate At = %.2f  Spawn At = %.2f", main - 10, main - 16, main - 22, main - 28, main - 3, main - 48))
-def.Grid.Rows = { main - 10, main - 16, main - 22, main - 28 }
+print(string.format("Grid Rows = { %.2f, %.2f, %.2f, %.2f }  StartGate At = %.2f  Spawn At = %.2f", main - 10, main - 16.5, main - 23, main - 29.5, main - 3, main - 48))
+def.Grid.Rows = { main - 10, main - 16.5, main - 23, main - 29.5 }
 def.StartGate.At = main - 3
 def.Spawn.At = main - 48
 local layout = TD.Generate(def, PC.Ball.Radius)

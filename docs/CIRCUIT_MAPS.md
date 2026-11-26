@@ -5,20 +5,20 @@ Times are a **1-D rolling MODEL** (full throttle, boost lanes, no hazards, braki
 
 ## Neon Foundry (`NeonFoundry_A4`, layout v3, 3 laps)
 
-Lap **2963 studs** · 10 checkpoint sectors per lap · height range 58 studs · closure error 0.004 studs · model lap 70.9 s standing / 69.8 s flying · model race 211 s · race clock 480 s (provisional) · finish grace after the leader 90 s
+Lap **2963 studs** · 10 checkpoint sectors per lap · height range 57 studs · closure error 0.004 studs · model lap 71.0 s standing / 69.8 s flying · model race 211 s · race clock 480 s (provisional) · finish grace after the leader 90 s
 
 | # | Sector (gate to gate) | From S | Length | Elev Δ | Model s | Inside this sector | Gate respawn (x, y, z) |
 |---|---|---|---|---|---|---|---|
 | 1 | START / FINISH → Turbine Bank | 0 | 262 | -4 | 6.2 | kicker | -6, 420, -0 |
 | 2 | Turbine Bank → Bumper Field | 262 | 321 | -12 | 7.5 | - | -268, 416, -0 |
-| 3 | Bumper Field → Split A | 583 | 516 | -11 | 12.3 | PulseBumper, **route choice** | -311, 405, -228 |
-| 4 | Split A → Inspection Hall | 1099 | 176 | -6 | 3.6 | Sweeper, boost lane | 135, 394, -486 |
-| 5 | Inspection Hall → Hairpin | 1275 | 135 | -13 | 3.0 | - | 176, 388, -641 |
-| 6 | Hairpin → Conveyor Lines | 1410 | 219 | -1 | 5.2 | - | 130, 376, -767 |
-| 7 | Conveyor Lines → Split B | 1629 | 318 | -6 | 7.6 | Conveyor, **route choice** | 243, 376, -823 |
-| 8 | Split B → Hammer | 1947 | 176 | -7 | 4.1 | risk gap (right lane), kicker | 486, 370, -618 |
-| 9 | Hammer → Ascent | 2123 | 78 | -2 | 1.9 | Hammer | 542, 364, -459 |
-| 10 | Ascent → Final Turn | 2201 | 493 | +58 | 11.8 | boost lane | 536, 362, -382 |
+| 3 | Bumper Field → Split A | 583 | 516 | -10 | 12.3 | PulseBumper, **route choice** | -311, 405, -228 |
+| 4 | Split A → Inspection Hall | 1099 | 176 | -6 | 3.6 | Sweeper, boost lane | 135, 395, -486 |
+| 5 | Inspection Hall → Hairpin | 1275 | 135 | -13 | 3.0 | - | 176, 389, -641 |
+| 6 | Hairpin → Conveyor Lines | 1410 | 219 | -1 | 5.2 | - | 130, 377, -767 |
+| 7 | Conveyor Lines → Split B | 1630 | 318 | -6 | 7.6 | Conveyor, **route choice** | 243, 377, -823 |
+| 8 | Split B → Hammer | 1948 | 176 | -7 | 4.1 | risk gap (right lane), kicker | 486, 371, -618 |
+| 9 | Hammer → Ascent | 2123 | 78 | -2 | 1.9 | Hammer | 542, 365, -459 |
+| 10 | Ascent → Final Turn | 2201 | 493 | +57 | 11.8 | boost lane | 536, 363, -382 |
 | 11 | Final Turn → START / FINISH | 2695 | 268 | +0 | 6.5 | - | 260, 420, -12 |
 
 Gates are directional: a gate counts only when race distance sweeps forward across it inside the corridor (CheckpointService), in order, on every lap. Branch lanes share one progress scale (projection onto the centreline).
@@ -40,5 +40,25 @@ Lap **3305 studs** · 10 checkpoint sectors per lap · height range 92 studs · 
 | 9 | Drum → Helix | 1936 | 130 | -2 | 2.5 | Trampoline | 2522, 470, -204 |
 | 10 | Helix → Helix Top | 2066 | 558 | +50 | 13.4 | boost lane | 2392, 468, -204 |
 | 11 | Helix Top → START / FINISH | 2625 | 681 | +43 | 16.5 | boost lane | 2443, 518, -147 |
+
+Gates are directional: a gate counts only when race distance sweeps forward across it inside the corridor (CheckpointService), in order, on every lap. Branch lanes share one progress scale (projection onto the centreline).
+
+## Volcano Vault (`VolcanoVault_B1`, layout v2, 3 laps)
+
+Lap **2723 studs** · 10 checkpoint sectors per lap · height range 60 studs · closure error 0.005 studs · model lap 65.6 s standing / 64.4 s flying · model race 194 s · race clock 480 s (provisional) · finish grace after the leader 90 s
+
+| # | Sector (gate to gate) | From S | Length | Elev Δ | Model s | Inside this sector | Gate respawn (x, y, z) |
+|---|---|---|---|---|---|---|---|
+| 1 | START / FINISH → Bowl A | 0 | 282 | -4 | 6.7 | Fan | -2606, 440, -0 |
+| 2 | Bowl A → Chicane | 282 | 250 | -9 | 5.9 | - | -2888, 436, -0 |
+| 3 | Chicane → Passing | 532 | 202 | -8 | 4.7 | PulseBumper | -3038, 427, -165 |
+| 4 | Passing → Vent Split | 734 | 58 | -3 | 1.4 | **route choice** | -3104, 420, -351 |
+| 5 | Vent Split → Bowl B | 791 | 168 | -6 | 4.0 | PulseBumper | -3104, 418, -409 |
+| 6 | Bowl B → Corridor | 959 | 254 | -10 | 5.9 | - | -3104, 412, -577 |
+| 7 | Corridor → Brake Split | 1213 | 482 | -17 | 11.4 | Hammer, Conveyor, **route choice** | -2935, 403, -726 |
+| 8 | Brake Split → Tunnel | 1694 | 188 | -7 | 4.4 | - | -2454, 387, -726 |
+| 9 | Tunnel → Tunnel Top | 1882 | 320 | +35 | 7.1 | boost lane | -2343, 380, -599 |
+| 10 | Tunnel Top → Final Turn | 2202 | 234 | +27 | 6.0 | boost lane | -2343, 416, -281 |
+| 11 | Final Turn → START / FINISH | 2436 | 288 | -0 | 7.0 | - | -2343, 440, -49 |
 
 Gates are directional: a gate counts only when race distance sweeps forward across it inside the corridor (CheckpointService), in order, on every lap. Branch lanes share one progress scale (projection onto the centreline).
