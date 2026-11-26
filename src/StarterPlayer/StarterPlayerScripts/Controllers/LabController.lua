@@ -2,11 +2,14 @@
 	LabController (C) — the CAPSULE LAB modal: tabs CAPSULE, SHARD SHOP, SEASON.
 	Everything is earned: capsules cost earned Coins, Shards come from duplicates and the season,
 	the season track is free. Nothing here costs Robux and there is no paid button.
-	- CAPSULE: full odds before opening (tier and EVERY item, from CapsuleOdds with the server's
-	  own pity counters), "Epic+ within N" / "Legendary+ within N", duplicate terms, Coins, the
-	  last 20 openings. OPEN sends a fresh request id plus the counters you were shown; if the
-	  server's differ it refuses and the panel refreshes. Reveal: 1.5 s, SKIP any time, instant
-	  with reduced motion; no spinning reel, no near-miss.
+	- CAPSULE (owner request 2026-11-26): four capsules, one per kind (Marble / Trail / Burst /
+	  Emote), each with its full contents and exact odds for THIS open (tiers and every item,
+	  from CapsuleOdds with the server's own pity counters). OPEN sends a fresh request id, the
+	  counters you were shown and the capsule id. Opening animation: the capsule shakes and
+	  opens, then a reel scrolls and settles on the server's result. The reel is display
+	  only and never engineered: filler items are independent draws from the shown odds, and
+	  the three tiles either side of the result are never rarer than the result (no near-miss
+	  staging). SKIP at any time; reduced motion shows the result at once.
 	- SHARD SHOP: choose exactly the item you want; owned ones are marked and can't be bought.
 	- SEASON: the configured season's name and end date (UTC), 30 free levels, CLAIM.
 ]]
@@ -28,18 +31,68 @@ Lab.__index = Lab
 
 Lab.RevealSeconds = 1.5
 
-local function pools()
+local function pools(boxId)
+	local box = CapsuleOdds.Box(boxId)
 	local out = {}
 	for _, tier in ipairs(CapsuleOdds.Tiers) do
-		out[tier] = Catalog.MarblesOfRarity(tier)
+		out[tier] = Catalog.ItemsOfRarity(box.Kind, tier)
 	end
 	return out
 end
+Lab.Pools = pools
+
+Lab.ReelTiles = 44
+Lab.ReelLanding = 37 -- the result's tile index
+Lab.ReelSeconds = 5.2
+Lab.BoxColors = {
+	Marble = Color3.fromRGB(39, 215, 245),
+	Trail = Color3.fromRGB(160, 120, 255),
+	Burst = Color3.fromRGB(255, 196, 96),
+	Emote = Color3.fromRGB(110, 231, 186),
+}
+
+-- Pure: the reel's tiles for a result. Fillers are independent draws from the box's odds
+-- (rng() in [0,1)); the 3 tiles either side of the landing tile never outrank the result.
+function Lab.ReelItems(boxId, resultId, resultTier, epicMisses, legendaryMisses, rng)
+	local p = pools(boxId)
+	local tiers = CapsuleOdds.EffectiveTiers(p, epicMisses, legendaryMisses)
+	local rank = CapsuleOdds.Rank
+	local function draw(maxRank)
+		for _ = 1, 20 do
+			local u, acc, chosen = rng(), 0, nil
+			for _, tier in ipairs(CapsuleOdds.Tiers) do
+				if (tiers[tier] or 0) > 0 then
+					acc = acc + tiers[tier]
+					chosen = tier
+					if u < acc then
+						break
+					end
+				end
+			end
+			if chosen and rank[chosen] <= maxRank then
+				local ids = p[chosen]
+				return ids[math.min(#ids, math.floor(rng() * #ids) + 1)], chosen
+			end
+		end
+		return resultId, resultTier
+	end
+	local items = {}
+	for i = 1, Lab.ReelTiles do
+		if i == Lab.ReelLanding then
+			items[i] = { id = resultId, tier = resultTier }
+		else
+			local near = math.abs(i - Lab.ReelLanding) <= 3
+			local id, tier = draw(near and rank[resultTier] or 99)
+			items[i] = { id = id, tier = tier }
+		end
+	end
+	return items
+end
 
 -- Pure: the odds lines the panel shows for these counters (tier lines + item lines)
-function Lab.OddsLines(epicMisses, legendaryMisses)
-	local tiers, branch = CapsuleOdds.TierTable(epicMisses, legendaryMisses)
-	local p = pools()
+function Lab.OddsLines(epicMisses, legendaryMisses, boxId)
+	local p = pools(boxId)
+	local tiers, branch = CapsuleOdds.EffectiveTiers(p, epicMisses, legendaryMisses)
 	local tierLines = {}
 	for _, tier in ipairs(CapsuleOdds.Tiers) do
 		local n = #p[tier]
@@ -77,7 +130,7 @@ function Lab.new(deps)
 	UIKit.label(panel, { Position = UDim2.fromOffset(24, 12), Size = UDim2.fromOffset(330, 40), Font = Enum.Font.GothamBlack, TextColor3 = palette.Mint, Text = "CAPSULE LAB", TextXAlignment = Enum.TextXAlignment.Left })
 	local close = UIKit.button(panel, { Name = "Close", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 12), Size = UDim2.fromOffset(130, 46), Text = "DONE" }, palette.Mint)
 	maid:Give(close.Activated:Connect(function()
-		self:_finishReveal()
+		self:_abortReveal()
 		self.CloseRequested:Fire()
 	end))
 	self.tabButtons = {}
@@ -127,7 +180,7 @@ end
 function Lab:ShowTab(tab)
 	self.tab = tab
 	for name, page in pairs(self.pages) do
-		page.Visible = name == tab
+		UIKit.Show(page, name == tab, "FromRight", 0.2)
 	end
 	for name, b in pairs(self.tabButtons) do
 		b.TextColor3 = name == tab and palette.Mint or palette.White
@@ -138,95 +191,237 @@ end
 function Lab:_buildCapsule(panel)
 	local page = UIKit.new("Frame", { Name = "CapsulePage", Position = UDim2.fromOffset(0, 64), Size = UDim2.new(1, 0, 1, -64), BackgroundTransparency = 1 }, panel)
 	self.pages.Capsule = page
-	UIKit.label(page, { Position = UDim2.fromOffset(24, 0), Size = UDim2.fromOffset(420, 24), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = "FULL ODDS (THIS OPEN)", TextXAlignment = Enum.TextXAlignment.Left })
-	self.tierLabels = {}
-	for i = 1, 5 do
-		self.tierLabels[i] = UIKit.label(page, { Position = UDim2.fromOffset(24, 26 + (i - 1) * 24), Size = UDim2.fromOffset(440, 22), Font = Enum.Font.GothamBold, TextColor3 = Catalog.RarityColors[CapsuleOdds.Tiers[i]], Text = "", TextXAlignment = Enum.TextXAlignment.Left })
+	self.boxId = "Marble"
+	-- capsule list (left)
+	self.boxTiles = {}
+	for i, box in ipairs(CapsuleOdds.Boxes) do
+		local tile = UIKit.button(page, { Name = "CapsuleBox", Position = UDim2.fromOffset(24, (i - 1) * 118), Size = UDim2.fromOffset(200, 108), Text = "" }, palette.White)
+		local crate = UIKit.new("Frame", { Name = "Crate", Position = UDim2.fromOffset(10, 18), Size = UDim2.fromOffset(60, 60), BackgroundColor3 = Lab.BoxColors[box.Id], BorderSizePixel = 0 }, tile)
+		UIKit.corner(crate, 0.15)
+		UIKit.new("Frame", { Position = UDim2.fromScale(0, 0.42), Size = UDim2.fromScale(1, 0.16), BackgroundColor3 = palette.Ink, BorderSizePixel = 0 }, crate)
+		UIKit.label(tile, { Position = UDim2.fromOffset(78, 18), Size = UDim2.fromOffset(116, 40), TextWrapped = true, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Name })
+		UIKit.label(tile, { Position = UDim2.fromOffset(78, 62), Size = UDim2.fromOffset(116, 22), Font = Enum.Font.GothamBold, TextColor3 = palette.Yellow, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Cost .. " COINS" })
+		self.boxTiles[box.Id] = tile
+		self.maid:Give(tile.Activated:Connect(function()
+			if not self.opening then
+				self.boxId = box.Id
+				self:_renderCapsule()
+			end
+		end))
 	end
-	self.branchLabel = UIKit.label(page, { Position = UDim2.fromOffset(24, 148), Size = UDim2.fromOffset(440, 22), Font = Enum.Font.Gotham, TextColor3 = palette.Mint, Text = "", TextXAlignment = Enum.TextXAlignment.Left })
-	self.itemList = UIKit.new("ScrollingFrame", { Name = "ItemOdds", Position = UDim2.fromOffset(24, 174), Size = UDim2.fromOffset(440, 250), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.2, BorderSizePixel = 0, ScrollBarThickness = 8, CanvasSize = UDim2.fromOffset(0, 35 * 20 + 8) }, page)
-	self.itemLabels = {}
-	for i = 1, 35 do
-		self.itemLabels[i] = UIKit.label(self.itemList, { Position = UDim2.fromOffset(8, 4 + (i - 1) * 20), Size = UDim2.fromOffset(410, 18), Font = Enum.Font.Gotham, Text = "", TextXAlignment = Enum.TextXAlignment.Left })
+	-- selected capsule (right)
+	local right = UIKit.panel(page, { Position = UDim2.fromOffset(240, 0), Size = UDim2.fromOffset(636, 500), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.1 })
+	self.boxTitle = UIKit.label(right, { Position = UDim2.fromOffset(16, 8), Size = UDim2.fromOffset(330, 32), Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+	self.walletLabel = UIKit.label(right, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 12), Size = UDim2.fromOffset(280, 24), Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
+	self.pityLabel = UIKit.label(right, { Position = UDim2.fromOffset(16, 42), Size = UDim2.fromOffset(604, 20), Font = Enum.Font.Gotham, TextColor3 = palette.Yellow, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+	self.tierLine = UIKit.label(right, { Position = UDim2.fromOffset(16, 64), Size = UDim2.fromOffset(604, 20), Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+	self.branchLabel = UIKit.label(right, { Position = UDim2.fromOffset(16, 86), Size = UDim2.fromOffset(604, 18), Font = Enum.Font.Gotham, TextColor3 = palette.Mint, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+	UIKit.label(right, { Position = UDim2.fromOffset(16, 108), Size = UDim2.fromOffset(604, 18), Font = Enum.Font.GothamBlack, TextColor3 = palette.Cyan, TextXAlignment = Enum.TextXAlignment.Left, Text = "CONTENTS - EVERY ITEM AND ITS CHANCE ON THIS OPEN" })
+	self.contents = UIKit.new("ScrollingFrame", { Name = "Contents", Position = UDim2.fromOffset(16, 130), Size = UDim2.fromOffset(604, 222), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 6, CanvasSize = UDim2.fromOffset(0, 0) }, right)
+	self.contentTiles = {}
+	for i = 1, 40 do
+		local col, row = (i - 1) % 5, math.floor((i - 1) / 5)
+		local tile = UIKit.new("Frame", { Position = UDim2.fromOffset(col * 118, row * 72), Size = UDim2.fromOffset(112, 66), BackgroundColor3 = palette.Navy, BorderSizePixel = 0, Visible = false }, self.contents)
+		UIKit.corner(tile, 0.12)
+		local bar = UIKit.new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 6), BorderSizePixel = 0 }, tile)
+		local name = UIKit.label(tile, { Position = UDim2.fromOffset(4, 4), Size = UDim2.new(1, -8, 0, 34), TextWrapped = true, Font = Enum.Font.GothamBold, Text = "" })
+		local odds = UIKit.label(tile, { Position = UDim2.fromOffset(4, 40), Size = UDim2.new(1, -8, 0, 16), Font = Enum.Font.Gotham, Text = "" })
+		self.contentTiles[i] = { frame = tile, bar = bar, name = name, odds = odds }
 	end
-	UIKit.label(page, { Position = UDim2.fromOffset(24, 430), Size = UDim2.fromOffset(440, 80), Font = Enum.Font.Gotham, TextWrapped = true, TextTransparency = 0.1, TextXAlignment = Enum.TextXAlignment.Left, Text = "Every marble in a rarity is equally likely, including ones you own. Duplicate = Shards: Common 5, Rare 20, Epic 65, Legendary 200, Mythic 600. Free capsules use earned Coins only - nothing here costs Robux." })
-
-	local right = UIKit.panel(page, { Position = UDim2.fromOffset(484, 0), Size = UDim2.fromOffset(392, 500), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.1 })
-	self.pityLabel = UIKit.label(right, { Position = UDim2.fromOffset(14, 8), Size = UDim2.fromOffset(364, 48), Font = Enum.Font.GothamBold, TextWrapped = true, TextColor3 = palette.Yellow, Text = "" })
-	self.walletLabel = UIKit.label(right, { Position = UDim2.fromOffset(14, 58), Size = UDim2.fromOffset(364, 24), Font = Enum.Font.GothamBold, Text = "" })
-	self.openButton = UIKit.button(right, { Name = "OpenCapsule", Position = UDim2.fromOffset(14, 88), Size = UDim2.fromOffset(364, 52), Text = "OPEN FREE CAPSULE" }, palette.Mint)
+	self.openButton = UIKit.button(right, { Name = "OpenCapsule", Position = UDim2.fromOffset(16, 362), Size = UDim2.fromOffset(300, 52), Text = "OPEN" }, palette.Mint)
 	self.maid:Give(self.openButton.Activated:Connect(function()
 		self:Open()
 	end))
-	self.statusLabel = UIKit.label(right, { Position = UDim2.fromOffset(14, 144), Size = UDim2.fromOffset(364, 22), Font = Enum.Font.Gotham, TextColor3 = palette.Mint, Text = "" })
-	-- reveal
-	self.reveal = UIKit.panel(right, { Name = "Reveal", Position = UDim2.fromOffset(14, 170), Size = UDim2.fromOffset(364, 110), BackgroundColor3 = palette.Navy, Visible = false })
-	self.revealStroke = UIKit.new("UIStroke", { Color = palette.White, Thickness = 3 }, self.reveal)
-	self.revealText = UIKit.label(self.reveal, { Position = UDim2.fromOffset(10, 8), Size = UDim2.new(1, -110, 1, -16), Font = Enum.Font.GothamBlack, TextScaled = true, TextWrapped = true, Text = "" })
-	self.skipButton = UIKit.button(self.reveal, { Name = "SkipReveal", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(90, 44), Text = "SKIP" }, palette.White)
-	self.maid:Give(self.skipButton.Activated:Connect(function()
-		self:_finishReveal()
-	end))
-	UIKit.label(right, { Position = UDim2.fromOffset(14, 286), Size = UDim2.fromOffset(364, 22), Font = Enum.Font.GothamBlack, TextColor3 = palette.Cyan, Text = "LAST 20 OPENED", TextXAlignment = Enum.TextXAlignment.Left })
-	self.historyList = UIKit.new("ScrollingFrame", { Position = UDim2.fromOffset(14, 310), Size = UDim2.fromOffset(364, 180), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 6, CanvasSize = UDim2.fromOffset(0, 20 * 20 + 4) }, right)
+	self.statusLabel = UIKit.label(right, { Position = UDim2.fromOffset(326, 362), Size = UDim2.fromOffset(294, 52), Font = Enum.Font.Gotham, TextWrapped = true, TextColor3 = palette.Mint, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+	UIKit.label(right, { Position = UDim2.fromOffset(16, 420), Size = UDim2.fromOffset(604, 18), Font = Enum.Font.GothamBlack, TextColor3 = palette.Cyan, TextXAlignment = Enum.TextXAlignment.Left, Text = "LAST 20 OPENED (ALL CAPSULES)" })
+	local history = UIKit.new("ScrollingFrame", { Name = "History", Position = UDim2.fromOffset(16, 440), Size = UDim2.fromOffset(604, 42), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 5, CanvasSize = UDim2.fromOffset(0, CapsuleOdds.HistorySize * 20) }, right)
 	self.historyLabels = {}
-	for i = 1, 20 do
-		self.historyLabels[i] = UIKit.label(self.historyList, { Position = UDim2.fromOffset(4, (i - 1) * 20), Size = UDim2.fromOffset(340, 18), Font = Enum.Font.Gotham, Text = "", TextXAlignment = Enum.TextXAlignment.Left })
+	for i = 1, CapsuleOdds.HistorySize do
+		self.historyLabels[i] = UIKit.label(history, { Position = UDim2.fromOffset(0, (i - 1) * 20), Size = UDim2.fromOffset(590, 18), Font = Enum.Font.Gotham, Text = "", TextXAlignment = Enum.TextXAlignment.Left })
 	end
+	UIKit.label(right, { Position = UDim2.fromOffset(16, 484), Size = UDim2.fromOffset(604, 14), Font = Enum.Font.Gotham, TextTransparency = 0.3, TextXAlignment = Enum.TextXAlignment.Left, Text = "Earned Coins only - never Robux. Duplicates become Shards for the Shard Shop." })
+
+	-- opening overlay (covers the whole Lab panel)
+	local overlay = UIKit.new("Frame", { Name = "Opening", Size = UDim2.fromScale(1, 1), BackgroundColor3 = palette.Ink, BackgroundTransparency = 0.05, Visible = false, ZIndex = 20, Active = true }, panel)
+	UIKit.corner(overlay, 0.04)
+	self.overlay = overlay
+	local crate = UIKit.new("Frame", { Name = "Crate", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromOffset(150, 120), BackgroundColor3 = palette.Cyan, BorderSizePixel = 0, ZIndex = 21 }, overlay)
+	UIKit.corner(crate, 0.1)
+	UIKit.new("Frame", { Position = UDim2.fromScale(0, 0.44), Size = UDim2.fromScale(1, 0.12), BackgroundColor3 = palette.Ink, BorderSizePixel = 0, ZIndex = 22 }, crate)
+	local lid = UIKit.new("Frame", { Name = "Lid", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, 4), Size = UDim2.new(1, 16, 0, 26), BackgroundColor3 = palette.White, BorderSizePixel = 0, ZIndex = 23 }, crate)
+	UIKit.corner(lid, 0.3)
+	self.crate, self.lid = crate, lid
+	local reel = UIKit.new("Frame", { Name = "Reel", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromOffset(860, 150), BackgroundColor3 = palette.Navy, BorderSizePixel = 0, ClipsDescendants = true, Visible = false, ZIndex = 21 }, overlay)
+	UIKit.corner(reel, 0.06)
+	self.reel = reel
+	self.strip = UIKit.new("Frame", { Name = "Strip", Size = UDim2.new(0, Lab.ReelTiles * 124, 1, 0), BackgroundTransparency = 1, ZIndex = 22 }, reel)
+	self.reelTiles = {}
+	for i = 1, Lab.ReelTiles do
+		local tile = UIKit.new("Frame", { Position = UDim2.fromOffset((i - 1) * 124 + 2, 10), Size = UDim2.fromOffset(120, 130), BackgroundColor3 = palette.NavyFloor, BorderSizePixel = 0, ZIndex = 23 }, self.strip)
+		UIKit.corner(tile, 0.08)
+		local bar = UIKit.new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 10), BorderSizePixel = 0, ZIndex = 24 }, tile)
+		local name = UIKit.label(tile, { Position = UDim2.fromOffset(6, 30), Size = UDim2.new(1, -12, 0, 56), TextWrapped = true, Font = Enum.Font.GothamBlack, ZIndex = 24, Text = "" })
+		self.reelTiles[i] = { frame = tile, bar = bar, name = name }
+	end
+	UIKit.new("Frame", { Name = "Marker", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0), Size = UDim2.new(0, 4, 1, 0), BackgroundColor3 = palette.Yellow, BorderSizePixel = 0, ZIndex = 30 }, reel)
+	self.resultLabel = UIKit.label(overlay, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.45, 90), Size = UDim2.fromOffset(700, 70), Font = Enum.Font.GothamBlack, TextWrapped = true, Text = "", ZIndex = 25 })
+	self.skipButton = UIKit.button(overlay, { Name = "SkipReveal", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -18), Size = UDim2.fromOffset(200, 48), Text = "SKIP", ZIndex = 26 }, palette.White)
+	self.maid:Give(self.skipButton.Activated:Connect(function()
+		if self.revealResult then
+			self:_finishReveal()
+		else
+			self:_closeOverlay()
+		end
+	end))
 end
 
 function Lab:_renderCapsule()
 	local st = self.state
+	local box = CapsuleOdds.Box(self.boxId)
+	for id, tile in pairs(self.boxTiles) do
+		tile.BackgroundTransparency = id == box.Id and 0 or 0.55
+		local stroke = tile:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			stroke.Color = id == box.Id and Lab.BoxColors[id] or palette.White
+		end
+	end
+	self.boxTitle.Text = box.Name
+	self.boxTitle.TextColor3 = Lab.BoxColors[box.Id]
 	if not st then
 		self.pityLabel.Text = "Loading your capsule data..."
 		self.openButton.AutoButtonColor = false
 		return
 	end
-	local tierLines, itemLines, branch = Lab.OddsLines(st.epicMisses, st.legendaryMisses)
-	for i, label in ipairs(self.tierLabels) do
-		label.Text = tierLines[i] or ""
+	local p = pools(box.Id)
+	local tiers, branch = CapsuleOdds.EffectiveTiers(p, st.epicMisses, st.legendaryMisses)
+	local parts = {}
+	for _, tier in ipairs(CapsuleOdds.Tiers) do
+		parts[#parts + 1] = string.upper(tier) .. " " .. CapsuleOdds.Percent(tiers[tier] or 0)
 	end
-	for i, label in ipairs(self.itemLabels) do
-		label.Text = itemLines[i] or ""
-	end
-	self.branchLabel.Text = branch == "LegendaryPity" and "Legendary+ guaranteed on this open" or branch == "EpicPity" and "Epic+ guaranteed on this open" or "Standard odds"
+	self.tierLine.Text = table.concat(parts, "   ")
+	self.branchLabel.Text = branch == "LegendaryPity" and "Legendary+ guaranteed on this open (or this capsule's best tier)" or branch == "EpicPity" and "Epic+ guaranteed on this open (or this capsule's best tier)" or "Standard odds"
 	local epicIn, legIn = CapsuleOdds.Within(st.epicMisses, st.legendaryMisses)
-	self.pityLabel.Text = string.format("Epic+ within %d open%s  -  Legendary+ within %d open%s  (no Mythic guarantee)", epicIn, epicIn == 1 and "" or "s", legIn, legIn == 1 and "" or "s")
-	self.walletLabel.Text = string.format("COINS %d   -   SHARDS %d   -   cost %d Coins", st.coins, st.shards, st.cost)
-	local can = st.coins >= st.cost and st.canSave and not self.pending
+	self.pityLabel.Text = string.format("Epic+ within %d open%s  -  Legendary+ within %d open%s  (shared by all capsules; no Mythic guarantee)", epicIn, epicIn == 1 and "" or "s", legIn, legIn == 1 and "" or "s")
+	self.walletLabel.Text = string.format("COINS %d  -  SHARDS %d", st.coins, st.shards)
+	local items = CapsuleOdds.ItemOdds(p, st.epicMisses, st.legendaryMisses)
+	table.sort(items, function(a, b)
+		local ra, rb = CapsuleOdds.Rank[a.tier], CapsuleOdds.Rank[b.tier]
+		if ra ~= rb then
+			return ra > rb
+		end
+		return a.id < b.id
+	end)
+	for i, tile in ipairs(self.contentTiles) do
+		local entry = items[i]
+		tile.frame.Visible = entry ~= nil
+		if entry then
+			local item = Catalog.Get(entry.id)
+			tile.name.Text = item and item.Name or entry.id
+			tile.odds.Text = CapsuleOdds.Percent(entry.p) .. (self.owned[entry.id] and "  OWNED" or "")
+			tile.bar.BackgroundColor3 = Catalog.RarityColors[entry.tier] or palette.White
+		end
+	end
+	self.contents.CanvasSize = UDim2.fromOffset(0, math.ceil(#items / 5) * 72)
+	local can = st.coins >= box.Cost and st.canSave and not self.pending and not self.opening
 	self.openButton.AutoButtonColor = can
 	self.openButton.BackgroundTransparency = can and 0 or 0.6
-	self.openButton.Text = st.canSave and string.format("OPEN FREE CAPSULE  (%d COINS)", st.cost) or "SAVING UNAVAILABLE - PAUSED"
+	self.openButton.Text = st.canSave and string.format("OPEN  (%d COINS)", box.Cost) or "SAVING UNAVAILABLE - PAUSED"
 	for i, label in ipairs(self.historyLabels) do
 		local h = st.history[i]
 		local item = h and Catalog.Get(h.id)
-		label.Text = item and string.format("%s - %s%s", item.Name, h.tier, h.dup and string.format(" (dup +%d Shards)", h.shards) or "") or (i == 1 and "Nothing opened yet" or "")
+		local boxName = h and CapsuleOdds.Box(h.box).Name or ""
+		label.Text = item and string.format("%s - %s - %s%s", boxName, item.Name, h.tier, h.dup and string.format(" (dup +%d Shards)", h.shards) or "") or (i == 1 and "Nothing opened yet" or "")
 		label.TextColor3 = h and Catalog.RarityColors[h.tier] or palette.White
 	end
 end
 
+local function tween(inst, seconds, props, style, direction)
+	local t = game:GetService("TweenService"):Create(inst, TweenInfo.new(seconds, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out), props)
+	t:Play()
+	return t
+end
+
+function Lab:_closeOverlay()
+	self.opening = false
+	self.overlay.Visible = false
+	self:_renderCapsule()
+end
+
+-- Leaving the Lab mid-animation: stop it, and say what was won so nothing is missed.
+function Lab:_abortReveal()
+	if self.reelTween then
+		self.reelTween:Cancel()
+		self.reelTween = nil
+	end
+	self.animToken, self.boxToken = nil, nil
+	if self.revealResult then
+		self.toast(self.revealResult, 3)
+		self.revealResult = nil
+	end
+	if self.overlay and self.overlay.Visible then
+		self:_closeOverlay()
+	end
+end
+
+-- 0.9 s: the capsule shakes, then the lid pops off (plays while the server answers)
+function Lab:_playBoxOpen()
+	local box = CapsuleOdds.Box(self.boxId)
+	self.crate.BackgroundColor3 = Lab.BoxColors[box.Id]
+	self.crate.Visible, self.crate.Rotation = true, 0
+	self.lid.Position, self.lid.Rotation, self.lid.BackgroundTransparency = UDim2.new(0.5, 0, 0, 4), 0, 0
+	self.reel.Visible = false
+	self.resultLabel.Text = box.Name
+	self.resultLabel.TextColor3 = Lab.BoxColors[box.Id]
+	self.skipButton.Text = "CANCEL VIEW"
+	self.overlay.Visible = true
+	UIKit.Enter(self.crate, "Pop", 0.3)
+	if self.reducedMotion then
+		return
+	end
+	local token = {}
+	self.boxToken = token
+	task.spawn(function()
+		for i = 1, 6 do
+			if self.boxToken ~= token then
+				return
+			end
+			tween(self.crate, 0.07, { Rotation = (i % 2 == 0) and 7 or -7 })
+			task.wait(0.07)
+		end
+		if self.boxToken ~= token then
+			return
+		end
+		tween(self.crate, 0.08, { Rotation = 0 })
+		tween(self.lid, 0.35, { Position = UDim2.new(0.5, 0, 0, -80), Rotation = 28, BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	end)
+end
+
 function Lab:Open()
 	local st = self.state
+	local box = CapsuleOdds.Box(self.boxId)
 	if not st then
 		self.toast("Capsule data not loaded yet - nothing was spent", 2)
 		self.remotes.RequestCapsuleState:FireServer()
 		return
 	end
-	if self.pending then
+	if self.pending or self.opening then
 		return
 	end
-	if st.coins < st.cost then
-		self.toast(string.format("You need %d Coins (earned by racing)", st.cost), 2)
+	if st.coins < box.Cost then
+		self.toast(string.format("You need %d Coins (earned by racing)", box.Cost), 2)
 		return
 	end
 	local requestId = HttpService:GenerateGUID(false)
-	self.pending = { id = requestId, at = os.clock() }
+	self.pending = { id = requestId, at = os.clock(), box = box.Id, epic = st.epicMisses, legendary = st.legendaryMisses }
+	self.opening = true
 	self.statusLabel.Text = "Opening..."
 	self:_renderCapsule()
-	self.remotes.RequestOpenCapsule:FireServer(requestId, st.version, st.epicMisses, st.legendaryMisses)
+	self:_playBoxOpen()
+	self.remotes.RequestOpenCapsule:FireServer(requestId, st.version, st.epicMisses, st.legendaryMisses, box.Id)
 	task.delay(8, function()
 		if self.pending and self.pending.id == requestId then
 			self.pending = nil
+			self:_closeOverlay()
 			self.statusLabel.Text = "No answer from the server. If it went through, it's in your history."
 			self.remotes.RequestCapsuleState:FireServer()
 		end
@@ -237,44 +432,94 @@ function Lab:_onResult(data)
 	if type(data) ~= "table" or not self.pending or data.requestId ~= self.pending.id then
 		return -- a duplicate or late response
 	end
+	local pending = self.pending
 	self.pending = nil
 	if not data.ok then
+		self:_closeOverlay()
 		self.statusLabel.Text = tostring(data.reason or "Not opened")
 		self.remotes.RequestCapsuleState:FireServer()
 		return
 	end
 	local item = Catalog.Get(data.id)
 	if not item then
+		self:_closeOverlay()
 		self.statusLabel.Text = "Opened - see your history"
 		return
 	end
-	self.revealResult = string.format("%s\n%s%s", string.upper(item.Name), string.upper(data.tier), data.dup and string.format("  (duplicate: +%d SHARDS)", data.shards) or "  NEW!")
+	self.revealResult = string.format("%s  -  %s%s", string.upper(item.Name), string.upper(data.tier), data.dup and string.format("   (duplicate: +%d SHARDS)", data.shards) or "   NEW!")
 	self.revealColor = Catalog.RarityColors[data.tier]
-	self.reveal.Visible = true
 	self.statusLabel.Text = ""
-	if self.reducedMotion then
-		self:_finishReveal()
+	if not self.panel.Visible then
+		self:_abortReveal() -- the Lab was closed while the server answered: a toast instead
 		return
 	end
-	self.revealText.Text = "..."
-	self.revealStroke.Color = palette.White
+	if self.reducedMotion or not self.overlay.Visible then
+		self:_finishReveal() -- reduced motion, or the player chose CANCEL VIEW: result at once
+		return
+	end
+	-- reel: fill, place the result on the landing tile, scroll and settle
+	local rng = Random.new()
+	local items = Lab.ReelItems(pending.box, data.id, data.tier, pending.epic, pending.legendary, function()
+		return rng:NextNumber()
+	end)
+	for i, tile in ipairs(self.reelTiles) do
+		local entry = items[i]
+		local it = Catalog.Get(entry.id)
+		tile.name.Text = it and it.Name or ""
+		tile.bar.BackgroundColor3 = Catalog.RarityColors[entry.tier] or palette.White
+		tile.frame.Size = UDim2.fromOffset(120, 130)
+	end
 	local token = {}
-	self.revealToken = token
-	task.delay(Lab.RevealSeconds, function()
-		if self.revealToken == token then
-			self:_finishReveal()
+	self.animToken = token
+	task.delay(self.reducedMotion and 0 or 0.55, function()
+		if self.animToken ~= token then
+			return
 		end
+		self.boxToken = nil
+		self.crate.Visible = false
+		self.reel.Visible = true
+		UIKit.Enter(self.reel, "Pop", 0.25)
+		self.resultLabel.Text = ""
+		self.skipButton.Text = "SKIP"
+		self.strip.Position = UDim2.fromOffset(0, 0)
+		local center = 430 -- half the reel width
+		local landing = (Lab.ReelLanding - 1) * 124 + 2 + 60
+		local jitter = rng:NextNumber(-40, 40) -- where inside the tile the marker stops (display only)
+		self.reelStopX = center - landing - jitter
+		self.reelTween = tween(self.strip, Lab.ReelSeconds, { Position = UDim2.fromOffset(self.reelStopX, 0) }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+		task.delay(Lab.ReelSeconds, function()
+			if self.animToken == token then
+				self:_finishReveal()
+			end
+		end)
 	end)
 end
 
 function Lab:_finishReveal()
 	if self.revealResult then
-		self.revealText.Text = self.revealResult
-		self.revealText.TextColor3 = self.revealColor or palette.White
-		self.revealStroke.Color = self.revealColor or palette.White
+		if self.reelTween then
+			self.reelTween:Cancel()
+			self.reelTween = nil
+		end
+		local landing = (Lab.ReelLanding - 1) * 124 + 2 + 60
+		self.strip.Position = UDim2.fromOffset(self.reelStopX or (430 - landing), 0)
+		self.reelStopX = nil
+		self.crate.Visible = false
+		self.reel.Visible = true
+		self.overlay.Visible = true
+		local tile = self.reelTiles[Lab.ReelLanding]
+		if not self.reducedMotion then
+			tween(tile.frame, 0.25, { Size = UDim2.fromOffset(120, 136) }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		end
+		self.resultLabel.Text = self.revealResult
+		self.resultLabel.TextColor3 = self.revealColor or palette.White
+		UIKit.Punch(self.resultLabel, 1.25, 0.35)
+		self.skipButton.Text = "DONE"
 		self.revealResult = nil
+	else
+		self:_closeOverlay()
 	end
-	self.revealToken = nil
+	self.animToken = nil
 end
 
 ---------------------------------------------------------------------------------------------
@@ -381,7 +626,7 @@ end
 
 function Lab:RegisterLayers(ui)
 	ui:Register("Lab", function(visible)
-		self.panel.Visible = visible
+		UIKit.Show(self.panel, visible, "Pop")
 		if visible then
 			self:ShowTab(self.tab)
 			self.remotes.RequestCapsuleState:FireServer()

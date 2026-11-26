@@ -21,6 +21,7 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
+local UIKit = require(script.Parent:WaitForChild("UIKit"))
 
 local HUD = {}
 HUD.__index = HUD
@@ -434,7 +435,12 @@ end
 
 function HUD:Toast(text, seconds)
 	self.toast.Text = text
-	self.toast.Visible = true
+	if not self.toast.Visible then
+		self.toast.Visible = true
+		UIKit.Enter(self.toast, "FromBelow", 0.2)
+	else
+		UIKit.Punch(self.toast, 1.08, 0.18) -- a new message while one is showing
+	end
 	self.toastUntil = os.clock() + (seconds or 2)
 end
 

@@ -163,6 +163,8 @@ end
 function RaceHUD:FlashCheckpoint(index, total)
 	self.flash.Text = string.format("CHECKPOINT %d / %d", index, total)
 	self.flash.Visible = true
+	UIKit.Punch(self.flash, 1.35, 0.35)
+	UIKit.Punch(self.checkpoint, 1.4, 0.3)
 	self.flashUntil = os.clock() + 1.4
 end
 
@@ -170,6 +172,7 @@ function RaceHUD:Flash(text, color, seconds)
 	self.flash.Text = text
 	self.flash.TextColor3 = color or palette.Violet
 	self.flash.Visible = true
+	UIKit.Punch(self.flash, 1.3, 0.3)
 	self.flashUntil = os.clock() + (seconds or 1.4)
 end
 
@@ -325,10 +328,14 @@ function RaceHUD:Update(ctx)
 	end
 	self.countdown.Visible = countdownText ~= nil
 	if countdownText then
+		if countdownText ~= self.lastCountdown then
+			UIKit.Punch(self.countdown, countdownText == "GO!" and 1.8 or 1.55, 0.4) -- each number lands with a punch
+		end
 		UIKit.setText(self.countdown, countdownText)
 		self.countdown.TextColor3 = countdownText == "GO!" and palette.Mint or palette.Yellow
 	end
 
+	self.lastCountdown = countdownText
 	if self.flash.Visible and os.clock() > self.flashUntil then
 		self.flash.Visible = false
 	end

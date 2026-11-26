@@ -337,7 +337,7 @@ function PlayerDataSchema.Migrate(raw)
 		d.capsule.legendaryMisses = misses(c.legendaryMisses, CapsuleOdds.LegendaryPityAfter)
 		for _, h in ipairs(type(c.history) == "table" and c.history or {}) do
 			if type(h) == "table" and type(h.id) == "string" and Catalog.Get(h.id) and #d.capsule.history < CapsuleOdds.HistorySize then
-				d.capsule.history[#d.capsule.history + 1] = { id = h.id, tier = Catalog.Get(h.id).Rarity, dup = h.dup == true, shards = type(h.shards) == "number" and math.max(0, math.floor(h.shards)) or 0, at = type(h.at) == "number" and h.at or 0, req = type(h.req) == "string" and #h.req <= 40 and h.req or nil }
+				d.capsule.history[#d.capsule.history + 1] = { id = h.id, tier = Catalog.Get(h.id).Rarity, dup = h.dup == true, shards = type(h.shards) == "number" and math.max(0, math.floor(h.shards)) or 0, at = type(h.at) == "number" and h.at or 0, req = type(h.req) == "string" and #h.req <= 40 and h.req or nil, box = CapsuleOdds.BoxById[Catalog.Get(h.id).Kind] and Catalog.Get(h.id).Kind or "Marble" }
 			end
 		end
 		for _, r in ipairs(type(c.requests) == "table" and c.requests or {}) do

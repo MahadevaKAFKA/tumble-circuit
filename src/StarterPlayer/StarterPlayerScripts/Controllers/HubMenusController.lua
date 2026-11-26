@@ -464,19 +464,19 @@ end
 ---------------------------------------------------------------------------------------------
 function HubMenus:RegisterLayers(ui)
 	ui:Register("Garage", function(visible)
-		self.garage.Visible = visible
+		UIKit.Show(self.garage, visible, "Pop")
 		if visible then
 			self:_renderGarage()
 		end
 	end)
 	ui:Register("Quests", function(visible)
-		self.questPanel.Visible = visible
+		UIKit.Show(self.questPanel, visible, "Pop")
 		if visible then
 			self:_renderQuests()
 		end
 	end)
 	ui:Register("Boards", function(visible)
-		self.boardPanel.Visible = visible
+		UIKit.Show(self.boardPanel, visible, "Pop")
 		if visible then
 			self:RequestBoard()
 		end

@@ -9,16 +9,35 @@
 	  Legendary pity after 59 opens in a row without Legendary or better, the next open is
 	                 Legendary 95% / Mythic 5%               (= the 60th open is always Legendary+)
 	  Legendary pity wins when both apply. There is no guaranteed Mythic.
-	Item: uniform among every catalog marble of the drawn tier (owned ones included: a duplicate
-	becomes Shards). Item odds = tier odds / items in that tier.
+	Item: uniform among every non-exclusive catalog item of the box's kind and the drawn tier
+	(owned ones included: a duplicate becomes Shards). Item odds = tier odds / items in that tier.
+	A box whose kind has no item in a tier drops that tier and rescales the rest (EffectiveTiers).
 	Counters after an open: an Epic+ result resets epicMisses, otherwise +1; a Legendary+ result
 	resets legendaryMisses, otherwise +1.
 ]]
 
 local CapsuleOdds = {}
 
-CapsuleOdds.Version = 1
-CapsuleOdds.Cost = 600 -- earned Coins only
+CapsuleOdds.Version = 2 -- v2 (2026-11-26): one capsule per item kind
+CapsuleOdds.Cost = 600 -- earned Coins only (the Marble capsule; see Boxes)
+
+-- One capsule per item kind (owner request 2026-11-26). Earned Coins only, never Robux. Each
+-- box draws only its own kind; a tier with no items of that kind is removed and the remaining
+-- tiers are scaled up to 100% (shown exactly like that in the Lab before opening). The pity
+-- counters are shared by all boxes.
+CapsuleOdds.Boxes = {
+	{ Id = "Marble", Kind = "Marble", Name = "MARBLE CAPSULE", Cost = 600 },
+	{ Id = "Trail", Kind = "Trail", Name = "TRAIL CAPSULE", Cost = 450 },
+	{ Id = "Burst", Kind = "Burst", Name = "BURST CAPSULE", Cost = 350 },
+	{ Id = "Emote", Kind = "Emote", Name = "EMOTE CAPSULE", Cost = 300 },
+}
+CapsuleOdds.BoxById = {}
+for _, box in ipairs(CapsuleOdds.Boxes) do
+	CapsuleOdds.BoxById[box.Id] = box
+end
+function CapsuleOdds.Box(id)
+	return CapsuleOdds.BoxById[id or ""] or CapsuleOdds.BoxById.Marble
+end
 CapsuleOdds.Tiers = { "Common", "Rare", "Epic", "Legendary", "Mythic" }
 CapsuleOdds.Base = { Common = 0.55, Rare = 0.30, Epic = 0.11, Legendary = 0.035, Mythic = 0.005 }
 CapsuleOdds.EpicPity = { Common = 0, Rare = 0, Epic = 0.85, Legendary = 0.13, Mythic = 0.02 }
@@ -48,9 +67,41 @@ function CapsuleOdds.Within(epicMisses, legendaryMisses)
 	return CapsuleOdds.EpicPityAfter + 1 - (epicMisses or 0), CapsuleOdds.LegendaryPityAfter + 1 - (legendaryMisses or 0)
 end
 
+-- The tier table for THESE pools: tiers with no items are dropped and the rest scaled to 100%.
+-- If every tier the table allows is empty (e.g. Legendary pity in a box without Legendary or
+-- Mythic items), the box's highest non-empty tier is certain. Same as TierTable when every
+-- tier has items (the Marble capsule).
+function CapsuleOdds.EffectiveTiers(pools, epicMisses, legendaryMisses)
+	local base, branch = CapsuleOdds.TierTable(epicMisses, legendaryMisses)
+	local total, out = 0, {}
+	for _, tier in ipairs(CapsuleOdds.Tiers) do
+		local p = (#(pools[tier] or {}) > 0) and (base[tier] or 0) or 0
+		out[tier] = p
+		total = total + p
+	end
+	if total <= 0 then
+		local best = nil
+		for _, tier in ipairs(CapsuleOdds.Tiers) do
+			if #(pools[tier] or {}) > 0 then
+				best = tier
+			end
+		end
+		for _, tier in ipairs(CapsuleOdds.Tiers) do
+			out[tier] = tier == best and 1 or 0
+		end
+		return out, branch
+	end
+	if math.abs(total - 1) > 1e-12 then
+		for _, tier in ipairs(CapsuleOdds.Tiers) do
+			out[tier] = out[tier] / total
+		end
+	end
+	return out, branch
+end
+
 -- Per-item odds for the given pools ({ [tier] = {ids...} }); returns list { id, tier, p }
 function CapsuleOdds.ItemOdds(pools, epicMisses, legendaryMisses)
-	local tiers = CapsuleOdds.TierTable(epicMisses, legendaryMisses)
+	local tiers = CapsuleOdds.EffectiveTiers(pools, epicMisses, legendaryMisses)
 	local out = {}
 	for _, tier in ipairs(CapsuleOdds.Tiers) do
 		local ids = pools[tier] or {}
@@ -63,7 +114,7 @@ end
 
 -- Pure roll from two uniform numbers in [0, 1): u picks the tier, v the item in it.
 function CapsuleOdds.RollWith(u, v, pools, epicMisses, legendaryMisses)
-	local tiers, branch = CapsuleOdds.TierTable(epicMisses, legendaryMisses)
+	local tiers, branch = CapsuleOdds.EffectiveTiers(pools, epicMisses, legendaryMisses)
 	local acc, chosen = 0, nil
 	for _, tier in ipairs(CapsuleOdds.Tiers) do
 		local p = tiers[tier] or 0

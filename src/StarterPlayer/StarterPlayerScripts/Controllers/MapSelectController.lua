@@ -187,7 +187,7 @@ end
 
 function MapSelect:RegisterLayers(ui)
 	ui:Register("MapSelect", function(visible)
-		self.panel.Visible = visible
+		UIKit.Show(self.panel, visible, "Pop")
 		if visible then
 			self:Render()
 		end

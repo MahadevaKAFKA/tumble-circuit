@@ -87,6 +87,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ModesController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceIntroController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ResultsController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SettingsController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ShopController.lua
@@ -118,6 +119,7 @@ ok    src/Tests/Unit/HubLifecycle.spec.lua
 ok    src/Tests/Unit/MapRegistry.spec.lua
 ok    src/Tests/Unit/MapSelection.spec.lua
 ok    src/Tests/Unit/MicroSkill.spec.lua
+ok    src/Tests/Unit/Motion.spec.lua
 ok    src/Tests/Unit/Persistence.spec.lua
 ok    src/Tests/Unit/ProtocolKeys.spec.lua
 ok    src/Tests/Unit/ReadyVote.spec.lua
@@ -137,8 +139,8 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 126.9 ms
-PRINT	[TumbleCircuit] server ready (A6.0, protocol v12)
+PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 135.3 ms
+PRINT	[TumbleCircuit] server ready (A6.0, protocol v13)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
 PASS  StarterPlayer/StarterPlayerScripts/ClientBootstrap.client main chunk completes
@@ -585,6 +587,15 @@ PASS  all 30 free rewards are real (items exist)
 PASS  v3 -> v4: Coins kept, shards 0, capsule + season defaults
 PASS  v4 sanitize: shards >= 0, pity counters clamped, history tier from the catalog
 PASS  v4 sanitize: season XP capped, claims unique and in range
+PASS  four capsules: Marble / Trail / Burst / Emote, earned Coins only
+PASS  every capsule's item odds sum to 100% and hold only its own kind (base and both pity tables)
+PASS  Emote capsule (no Legendary/Mythic emotes): those tiers removed, rest rescaled
+PASS  Legendary pity on a capsule with no Legendary: its best tier is guaranteed
+PASS  Trail capsule: charges 450, grants a Trail, history records the capsule
+PASS  Emote capsule: 300 Coins needed, refused at 299
+PASS  history entries keep which capsule they came from
+PASS  opening reel: result on the landing tile, own kind only, no rarer tile next to it (no near-miss)
+PASS  Lab odds for the Emote capsule show the rescaled table
 PASS  Capsule Lab shows 5 tier lines and all 35 item lines from the same odds
 PASS  Capsule Lab follows the server's counters (pity branch shown)
 info  100k base draws observed: Common 55.186%, Rare 29.924%, Epic 10.904%, Legendary 3.474%, Mythic 0.512%
@@ -765,7 +776,7 @@ info  Foundry dressing: 675 local parts (206 detail, hidden on Low)
 -- Protocol key specs --
 PASS  every Protocol attribute / reason / zone key used in code exists
 PASS  no Protocol table is defined twice (a second one silently replaces the first)
-info  100 protocol key uses scanned
+info  101 protocol key uses scanned
 
 -- UI overhaul specs --
 PASS  display preferences exist with the handoff defaults (100%, 95%, Standard, Follow map, ...)
@@ -838,6 +849,19 @@ PASS  UI 'Follow map' accents match the environment accents
 info  NeonFoundry_A4 backdrop parts: Low 428 / Standard 713 / High 731
 info  SkyCarnival_B1 backdrop parts: Low 3 / Standard 120 / High 220
 info  VolcanoVault_B1 backdrop parts: Low 5 / Standard 64 / High 68
+
+-- Motion specs (UI entrances, race entry) --
+PASS  grid drop-in: the last marble (16th) lands inside Preparing
+PASS  grid drop-in: front row first, delays never go backwards
+PASS  grid order: furthest along the route drops first, ties keep slot order
+PASS  intro camera swoop ends inside the countdown
+PASS  intro starts high above the grid and looks down toward the gate
+PASS  intro easing: 0 -> 1, smooth and never overshoots
+PASS  intro pose is safe for a vertical heading (no NaN)
+PASS  UI entrance: open / close / open leaves the panel exactly where it rests
+PASS  UI hide is instant and settled
+PASS  Reduced motion: entrances do nothing
+PASS  pop / punch always settle at scale 1
 
 -- A5 persistence specs --
 PASS  defaults are deterministic
@@ -952,4 +976,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-729 passed, 0 failed (+ 0 syntax failures)
+749 passed, 0 failed (+ 0 syntax failures)

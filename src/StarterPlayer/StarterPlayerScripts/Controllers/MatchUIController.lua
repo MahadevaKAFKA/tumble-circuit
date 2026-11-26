@@ -261,7 +261,7 @@ function MatchUI:UseCardLayout(adopt)
 	self.moreButton.Visible = false
 	self.moreMenu.Visible = false
 	maid:Give(menu.Activated:Connect(function()
-		drawer.Visible = not drawer.Visible
+		UIKit.Show(drawer, not drawer.Visible, "FromAbove", 0.2)
 		self.profileOpen = false
 		self:_renderProfileDrawer()
 	end))
@@ -293,7 +293,7 @@ end
 
 function MatchUI:_renderProfileDrawer()
 	if self.profileChip then
-		self.profileChip.Visible = self.profileOpen == true and not self.practicing
+		UIKit.Show(self.profileChip, self.profileOpen == true and not self.practicing, "FromAbove", 0.2)
 	end
 	if self.profilePill then
 		local p = self.lastProfile or {}
@@ -320,9 +320,9 @@ function MatchUI:SetPractice(objective)
 		return
 	end
 	self.practicing = practicing
-	self.practiceStrip.Visible = practicing
-	self.card.Visible = not practicing
-	self.profilePill.Visible = not practicing
+	UIKit.Show(self.practiceStrip, practicing, "FromAbove")
+	UIKit.Show(self.card, not practicing, "FromLeft")
+	UIKit.Show(self.profilePill, not practicing, "FromRight")
 	if practicing then
 		self.drawer.Visible = false
 	end
@@ -342,11 +342,16 @@ function MatchUI:SetLoadoutText(text)
 end
 
 function MatchUI:SetLobbyVisible(visible)
+	local was = self.lobby.Visible == true
 	self.lobby.Visible = visible
+	if visible and not was and self.cardMode and not self.practicing then
+		UIKit.Enter(self.card, "FromLeft") -- back from a race / results: the hub card slides in
+		UIKit.Enter(self.profilePill, "FromRight")
+	end
 end
 
 function MatchUI:SetSpectateVisible(visible)
-	self.spectateFrame.Visible = visible
+	UIKit.Show(self.spectateFrame, visible, "FromBelow")
 end
 
 -- Ask to race (true) or sit out (false) in the next round. Shown at once; the server's snapshot

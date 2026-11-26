@@ -17,6 +17,9 @@
 	  total pitch within FreeLook.Min/MaxPitchDeg). It is display only; the chase heading keeps
 	  following the route underneath, and the view eases back behind the marble ReturnDelaySeconds
 	  after the last look input. A new marble (Bind) resets it. Input lives in FreeLookController.
+	* Race intro (owner request 2026-11-26): PlayIntro(ball, seconds) starts from a high shot of
+	  the grid and eases down into the normal chase view over `seconds`. It only plays while
+	  that marble is the bound one; free look, another marble or CancelIntro() end it at once.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -84,6 +87,35 @@ function CameraController:Bind(ball, route, ignoreInstances)
 	if self.camera then
 		self.camera.CameraSubject = ball
 	end
+end
+
+-- Race intro swoop (RaceIntroController). Display only.
+function CameraController:PlayIntro(ball, seconds)
+	self.intro = { ball = ball, t = 0, seconds = math.max(0.1, seconds or 2) }
+end
+
+function CameraController:CancelIntro()
+	self.intro = nil
+end
+
+function CameraController:IsIntroPlaying()
+	return self.intro ~= nil
+end
+
+-- Pure: the intro's start pose for a focus point and heading (high, behind and to the side,
+-- looking down the grid toward the start gate).
+function CameraController.IntroStart(focus, heading)
+	local flat = Vector3.new(heading.X, 0, heading.Z)
+	flat = flat.Magnitude > 1e-3 and flat.Unit or Vector3.new(0, 0, -1)
+	local right = flat:Cross(UP)
+	local from = focus - flat * 6 + UP * 42 + right * 16
+	return CFrame.lookAt(from, focus + flat * 24, UP)
+end
+
+-- Pure: smootherstep easing 0..1
+function CameraController.IntroAlpha(t, seconds)
+	local x = math.clamp(t / seconds, 0, 1)
+	return x * x * x * (x * (x * 6 - 15) + 10)
 end
 
 -- Keep the last view while there is no marble (e.g. between a fall and the respawn).
@@ -272,7 +304,20 @@ function CameraController:Step(dt, progressS)
 	local aim = focus + viewHeading * cfg.AimAheadStuds
 	self.fov = Utility.lerp(self.fov, self.fovTarget, Utility.expAlpha(6, dt))
 	camera.FieldOfView = self.fov
-	camera.CFrame = CFrame.lookAt(cameraPosition, aim, UP)
+	local chase = CFrame.lookAt(cameraPosition, aim, UP)
+	local intro = self.intro
+	if intro and (intro.ball ~= ball or self.lookHeld) then
+		self.intro, intro = nil, nil
+	end
+	if intro then
+		intro.from = intro.from or CameraController.IntroStart(focus, self.heading)
+		intro.t = intro.t + dt
+		chase = intro.from:Lerp(chase, CameraController.IntroAlpha(intro.t, intro.seconds))
+		if intro.t >= intro.seconds then
+			self.intro = nil
+		end
+	end
+	camera.CFrame = chase
 	camera.Focus = CFrame.new(focus)
 end
 

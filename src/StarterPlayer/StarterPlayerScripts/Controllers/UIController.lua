@@ -41,7 +41,7 @@ UIController.Modals = {
 	Quests = { layer = "Quests", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "QuestClaim" } },
 	Boards = { layer = "Boards", allowedOn = { Lobby = true, Results = true, Spectate = true }, buttons = { "Close", "BoardWorld", "BoardKind" } },
 	-- C: Capsule Lab (free capsule, Shard Shop, free season)
-	Lab = { layer = "Lab", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "LabTab", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim" } },
+	Lab = { layer = "Lab", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "LabTab", "CapsuleBox", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim" } },
 	-- prompt 03: Map Selection (Visit Hub / Practice / Vote for Next Race)
 	MapSelect = { layer = "MapSelect", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "MapVisit", "MapPractice", "MapBallot", "MapPage" } },
 	-- D: the optional shop, lobby only (never during a race or on results)
@@ -57,7 +57,7 @@ UIController.Actions = {
 	"TimeTrial", "Party", "Invite", "MapVote", "QuitTrial", -- B1
 	"UnlockAbility", -- B2
 	"Garage", "Quests", "More", "Boards", "GarageTab", "GarageFilter", "GarageItem", "Equip", "Favorite", "QuestClaim", "BoardWorld", "BoardKind", -- B3
-	"Lab", "LabTab", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim", -- C
+	"Lab", "LabTab", "CapsuleBox", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim", -- C (CapsuleBox: 2026-11-26)
 	"Shop", "ShopItem", "ShopGet", "LaneClaim", -- D (optional shop)
 	"Maps", "MapVisit", "MapPractice", "MapBallot", "MapPage", -- promo pack 03 (Map Selection)
 	"SettingsTab", "SettingsReset", "HubDrawer", "ProfileDrawer", "ExitPractice", -- UI overhaul

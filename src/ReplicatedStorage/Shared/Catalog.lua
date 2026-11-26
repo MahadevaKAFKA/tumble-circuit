@@ -193,15 +193,20 @@ function Catalog.IsKind(id, kind)
 	return item ~= nil and item.Kind == kind
 end
 
--- Marbles of one rarity, in catalog order (capsules pick uniformly among these in Phase C)
-function Catalog.MarblesOfRarity(rarity)
+-- Items of one kind and rarity, in catalog order, never exclusives (capsule pools)
+function Catalog.ItemsOfRarity(kind, rarity)
 	local out = {}
-	for _, item in ipairs(Catalog.ByKind.Marble) do
+	for _, item in ipairs(Catalog.ByKind[kind] or {}) do
 		if item.Rarity == rarity and not item.Exclusive then
 			out[#out + 1] = item.Id
 		end
 	end
 	return out
+end
+
+-- Marbles of one rarity, in catalog order (capsules pick uniformly among these in Phase C)
+function Catalog.MarblesOfRarity(rarity)
+	return Catalog.ItemsOfRarity("Marble", rarity)
 end
 
 return Catalog

@@ -87,7 +87,7 @@ local modules = {
 }
 do
 	local ControllersFolder = StarterPlayer:WaitForChild("StarterPlayerScripts"):WaitForChild("Controllers")
-	for key, name in pairs({ UIController = "UIController", SettingsPure = "SettingsController", LoadoutPure = "StarterLoadoutController", ResultsPure = "ResultsController", SocialPure = "SocialController", MapSelectPure = "MapSelectController" }) do
+	for key, name in pairs({ UIController = "UIController", SettingsPure = "SettingsController", LoadoutPure = "StarterLoadoutController", ResultsPure = "ResultsController", SocialPure = "SocialController", MapSelectPure = "MapSelectController", RaceIntroPure = "RaceIntroController", CameraPure = "CameraController" }) do
 		local ok, mod = pcall(function()
 			return require(ControllersFolder:WaitForChild(name))
 		end)
@@ -152,6 +152,7 @@ report("Prompts 05/06 dressing specs", require(Unit:WaitForChild("Dressing.spec"
 report("Protocol key specs", require(Unit:WaitForChild("ProtocolKeys.spec")).run(modules))
 report("UI overhaul specs", require(Unit:WaitForChild("UIOverhaul.spec")).run(modules))
 report("Environment specs", require(Unit:WaitForChild("Environment.spec")).run(modules))
+report("Motion specs", require(Unit:WaitForChild("Motion.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

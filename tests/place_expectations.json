@@ -454,6 +454,8 @@
     "RequestBallot",
     "RequestDestination",
     "DestinationResult",
-    "TC_Atmosphere"
+    "TC_Atmosphere",
+    "TC_SelfOutline",
+    "Pop"
   ]
 }

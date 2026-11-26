@@ -1,6 +1,8 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
+**Active milestone:** owner request 2026-11-26: CS:GO-style capsules (one per item kind, with
+an opening reel), motion across the UI, and a race-entry animation (v31). Before that: hub
+obstruction fix (v30); UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
 settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
 02 registry (v21), 03 map selection / ballots (v22), 04 + 07 per-map hubs (v23, gated),
 05 + 06 Foundry look and Garage deck (v24, gated) done. Prompts 01–07 complete.
@@ -13,6 +15,50 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Capsules per item kind with an opening reel, UI motion, race entry (v31, private)
+
+Owner request: "rework the box menu into a cs:go style, with different boxes for each type of
+skin/trail you can get and with an opening animation of the box", "animations for everything"
+and "an animation of all players (balls) entering the race".
+
+- **Four capsules (Capsule Lab → CAPSULE):** Marble 600, Trail 450, Burst 350, Emote 300
+  Coins (earned only, never Robux). Each holds only its own kind. Pick a capsule on the left; the
+  right shows every item it can give with its exact chance on this open, plus the tier table.
+  A tier with no items of that kind (no Legendary or Mythic emotes) is removed and the rest are
+  scaled up; the Lab shows it that way. The pity counters are shared by all four capsules; when
+  a pity applies to a capsule without that tier, its best tier is guaranteed instead.
+  - Server: `CapsuleOdds` v2 (`Boxes`, `EffectiveTiers`), per-capsule pools in
+    `CapsuleService`, an unknown capsule id is refused (nothing charged), history records the
+    capsule. Protocol v13 (`RequestOpenCapsule` carries the capsule id).
+  - **Opening animation:** the capsule shakes and its lid pops off while the server answers,
+    then a reel of 44 tiles scrolls (5.2 s, easing out) and stops on the result, which punches
+    in with its rarity colour and NEW / +SHARDS. The server decides first; the reel only shows
+    it. Fillers are independent draws from the shown odds and the 3 tiles on each side of the
+    result are never rarer than it (no near-miss staging; tested). SKIP / CANCEL VIEW work at
+    any time, Reduced motion shows the result at once, and closing the Lab mid-reel shows the
+    result as a toast. MONETIZATION_COMPLIANCE.md updated.
+- **Motion (UIKit `Enter` / `Show` / `Punch` / `Stagger`):** every menu (Settings, Abilities,
+  Garage, Quests, Boards, Capsule Lab, Maps, Shop) pops in; Lab tabs slide; the hub card slides
+  in from the left and the profile pill from the right when you come back to the hub; the
+  MENU drawer and profile drawer drop in; the practice strip slides down; toasts rise in (and
+  punch when replaced); each 3-2-1-GO number lands with a punch; checkpoint flashes punch;
+  the results podium rises 3rd, 2nd, 1st. Entrances only: hiding is instant, so nothing
+  lingers or eats a tap. Reduced motion turns all of it off.
+- **Race entry (`RaceIntroController`, client only):** during Preparing every marble on the
+  grid (players and bots) drops in from 26 studs up with a bounce, front row first, and a ring
+  flashes where it lands; at the same time the camera swoops from a high shot of the grid down
+  into the chase view (`CameraController:PlayIntro`, 2.2 s; free look cancels it). The real
+  marbles never move (the server keeps them anchored until GO): each is hidden locally while a
+  non-colliding copy falls into its exact place. Every drop lands inside Preparing and a
+  failsafe re-shows each marble. Reduced motion turns it off.
+- **Tests:** 749 offline checks pass, including 11 new motion checks and 9 new capsule checks. The boot smoke's
+  event replay now really reaches the client handlers (before, proxy names dropped the child
+  name, so the replay matched nothing) and runs a full round: Lobby → Intermission → Preparing
+  → Countdown → Racing → Results → Lobby.
+- **Not verified in a Roblox runtime:** how the reel, the drops and the camera swoop look and
+  feel on the phone; TweenService on the welded marble copy; frame time during the drop-in
+  with a full grid.
 
 ## 2026-11-26 — UI overhaul, part 2: a backdrop per map (v29, private)
 

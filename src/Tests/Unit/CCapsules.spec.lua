@@ -237,7 +237,76 @@ function Spec.run(m)
 	local hostile = Schema.Migrate({ schemaVersion = 4, shards = -5, capsule = { epicMisses = 99, legendaryMisses = -3, history = { { id = "nope" }, { id = "cobalt", tier = "Mythic", shards = 1e9 } } }, season = { id = "S1", xp = 1e9, claimed = { 1, 1, 99 } } })
 	check("v4 sanitize: shards >= 0, pity counters clamped, history tier from the catalog", hostile.shards == 0 and hostile.capsule.epicMisses == O.EpicPityAfter and hostile.capsule.legendaryMisses == 0 and #hostile.capsule.history == 1 and hostile.capsule.history[1].tier == "Common")
 	check("v4 sanitize: season XP capped, claims unique and in range", hostile.season.xp == SC.Levels * SC.XpPerLevel and #hostile.season.claimed == 1)
+	------------------------------------------------------------------ one capsule per kind (2026-11-26)
+	local function boxPools(box)
+		local out = {}
+		for _, tier in ipairs(O.Tiers) do
+			out[tier] = C.ItemsOfRarity(box.Kind, tier)
+		end
+		return out
+	end
+	check("four capsules: Marble / Trail / Burst / Emote, earned Coins only", #O.Boxes == 4 and O.Box("Trail").Kind == "Trail" and O.Box("nope").Id == "Marble" and O.Box(nil).Cost == 600)
+	local boxesOk, boxDetail = true, nil
+	for _, box in ipairs(O.Boxes) do
+		local bp = boxPools(box)
+		for _, counters in ipairs({ { 0, 0 }, { 14, 0 }, { 0, 59 } }) do
+			local total, kindOk = 0, true
+			for _, entry in ipairs(O.ItemOdds(bp, counters[1], counters[2])) do
+				total = total + entry.p
+				kindOk = kindOk and C.Get(entry.id).Kind == box.Kind and not C.Get(entry.id).Exclusive
+			end
+			if math.abs(total - 1) > 1e-9 or not kindOk then
+				boxesOk, boxDetail = false, box.Id .. " " .. counters[1] .. "/" .. counters[2] .. " sum " .. total
+			end
+		end
+	end
+	check("every capsule's item odds sum to 100% and hold only its own kind (base and both pity tables)", boxesOk, boxDetail)
+	local ep = boxPools(O.Box("Emote"))
+	local et = O.EffectiveTiers(ep, 0, 0)
+	check("Emote capsule (no Legendary/Mythic emotes): those tiers removed, rest rescaled", (et.Legendary or 0) == 0 and (et.Mythic or 0) == 0 and math.abs(et.Common - 0.55 / 0.96) < 1e-9)
+	local etl = O.EffectiveTiers(ep, 0, 59)
+	check("Legendary pity on a capsule with no Legendary: its best tier is guaranteed", etl.Epic == 1)
+	local tb = profile(1000)
+	local tr = CS.OpenOn(tb, "box-trail", snap(tb), boxPools(O.Box("Trail")), function()
+		return 0.3
+	end, 5, O.Box("Trail"))
+	check("Trail capsule: charges 450, grants a Trail, history records the capsule", tr and tb.coins == 550 and tr.box == "Trail" and C.Get(tr.id).Kind == "Trail" and tb.capsule.history[1].box == "Trail")
+	local poorE = profile(299)
+	local ne, whyE = CS.OpenOn(poorE, "box-emote", snap(poorE), boxPools(O.Box("Emote")), function()
+		return 0.3
+	end, 6, O.Box("Emote"))
+	check("Emote capsule: 300 Coins needed, refused at 299", ne == nil and string.find(whyE, "300") ~= nil and poorE.coins == 299)
+	local resan = Schema.Migrate({ schemaVersion = 4, capsule = { history = { { id = "tangerine", tier = "Common" } } } })
+	check("history entries keep which capsule they came from", resan.capsule.history[1].box == C.Get("tangerine").Kind)
+
 	local Lab = m.LabPure
+	if Lab and Lab.ReelItems then
+		local reelOk, rd = true, nil
+		for _, box in ipairs(O.Boxes) do
+			local bp = boxPools(box)
+			for _, tier in ipairs(O.Tiers) do
+				if #bp[tier] > 0 then
+					for seed = 1, 30 do
+						local items = Lab.ReelItems(box.Id, bp[tier][1], tier, 0, 0, lcg(seed * 7 + 1))
+						if #items ~= Lab.ReelTiles or items[Lab.ReelLanding].id ~= bp[tier][1] then
+							reelOk, rd = false, "landing"
+						end
+						for i, it in ipairs(items) do
+							if C.Get(it.id).Kind ~= box.Kind then
+								reelOk, rd = false, "kind " .. box.Id
+							end
+							if i ~= Lab.ReelLanding and math.abs(i - Lab.ReelLanding) <= 3 and O.Rank[it.tier] > O.Rank[tier] then
+								reelOk, rd = false, "near-miss " .. box.Id .. " " .. tier
+							end
+						end
+					end
+				end
+			end
+		end
+		check("opening reel: result on the landing tile, own kind only, no rarer tile next to it (no near-miss)", reelOk, rd)
+		local tiersE = Lab.OddsLines(0, 0, "Emote")
+		check("Lab odds for the Emote capsule show the rescaled table", #tiersE == 5 and string.find(tiersE[4], "LEGENDARY  0%%  %(each of 0") ~= nil)
+	end
 	if Lab then
 		local tiers, items, branch = Lab.OddsLines(0, 0)
 		check("Capsule Lab shows 5 tier lines and all 35 item lines from the same odds", #tiers == 5 and #items == 35 and branch == "Base" and string.find(tiers[5], "0.500%%") ~= nil)

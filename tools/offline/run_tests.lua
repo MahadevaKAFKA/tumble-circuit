@@ -111,6 +111,8 @@ H.stubServices = { Players = {}, RunService = {}, TweenService = {}, UserInputSe
 modules.MapSelectPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/MapSelectController")
 modules.UIKitPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/UIKit")
 modules.TouchControlsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/TouchControls")
+modules.RaceIntroPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/RaceIntroController")
+modules.CameraPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CameraController")
 H.stubServices = {}
 
 -- A5 UI text scan: every string literal in client code (comments stripped).
@@ -296,6 +298,7 @@ local suites = {
 	{ "Protocol key specs", root .. "/src/Tests/Unit/ProtocolKeys.spec.lua" },
 	{ "UI overhaul specs", root .. "/src/Tests/Unit/UIOverhaul.spec.lua" },
 	{ "Environment specs", root .. "/src/Tests/Unit/Environment.spec.lua" },
+	{ "Motion specs (UI entrances, race entry)", root .. "/src/Tests/Unit/Motion.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

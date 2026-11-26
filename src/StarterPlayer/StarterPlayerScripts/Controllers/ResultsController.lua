@@ -229,6 +229,8 @@ function Results:_animateIn()
 	end
 	self.cardScale.Scale = 0.85
 	TweenService:Create(self.cardScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	-- the podium rises 3rd, 2nd, then 1st
+	UIKit.Stagger({ self.podium[3].column, self.podium[2].column, self.podium[1].column }, "FromBelow", 0.12)
 end
 
 function Results:_countUp(from, to)

@@ -56,7 +56,8 @@ SPECIAL.GetAttribute = function() return function(_, name) needArg("GetAttribute
 SPECIAL.SetAttribute = function() return function(_, name, v) needArg("SetAttribute", name); ATTRS[name] = v end end
 for _, m in ipairs({ "GetAttributeChangedSignal", "GetPropertyChangedSignal", "FindFirstChild", "WaitForChild", "Connect", "FindFirstChildOfClass", "FindFirstChildWhichIsA", "IsA", "FireClient" }) do
   if m ~= "IsA" then
-    SPECIAL[m] = function(t) return function(_, a) needArg(m, a); return proxy(rawget(t, "__name") .. ":" .. m .. "()") end end
+    -- the child's name stays in the proxy name, so event replay can find e.g. RoundSnapshot
+    SPECIAL[m] = function(t) return function(_, a) needArg(m, a); return proxy(rawget(t, "__name") .. ":" .. m .. "(" .. tostring(a) .. ")") end end
   end
 end
 SPECIAL.IsA = function() return function(_, a) needArg("IsA", a); return false end end
@@ -202,6 +203,11 @@ local path = root .. "/src/" .. target
   end
   local function fire(pattern, ...)
     local args = { ... }
+    local hit = false
+    for _, h in ipairs(handlers) do
+      if h.key:find(pattern, 1, true) then hit = true end
+    end
+    if not hit then error("boot smoke: no handler connected for " .. pattern, 0) end
     for _, h in ipairs(handlers) do
       if h.key:find(pattern, 1, true) then
         local okH, errH = xpcall(function() h.fn(table.unpack(args)) end, debug.traceback)
@@ -212,6 +218,13 @@ local path = root .. "/src/" .. target
   return xpcall(function()
     fire("RoundSnapshot", snapshot("Lobby"))
     fire("RoundSnapshot", snapshot("Intermission"))
+    -- 2026-11-26: a full round (race-entry intro, countdown punch, results podium motion)
+    local me = { userId = 1, name = "Tester", place = 1, checkpoint = 0, finished = false }
+    fire("RoundSnapshot", snapshot("Preparing", { roundId = 1, racers = { me } }))
+    fire("RoundSnapshot", snapshot("Countdown", { roundId = 1, racers = { me } }))
+    fire("RoundSnapshot", snapshot("Racing", { roundId = 1, racers = { me }, raceStartedAt = os.time() }))
+    fire("RoundSnapshot", snapshot("Results", { roundId = 1, racers = { { userId = 1, name = "Tester", place = 1, checkpoint = 8, finished = true, seconds = 61.2 } } }))
+    fire("RoundSnapshot", snapshot("Lobby", { roundId = 1 }))
     fire("DestinationResult", { ok = true, reason = "ok", hubIndex = 1, mode = 1 })
     fire("DestinationResult", { ok = false, reason = "gated", hubIndex = 2, mode = 1 })
     for _, fn in ipairs(renderSteps) do

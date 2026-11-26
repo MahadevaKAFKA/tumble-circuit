@@ -75,6 +75,7 @@ local UIController = require(Controllers:WaitForChild("UIController"))
 local SettingsController = require(Controllers:WaitForChild("SettingsController"))
 local StarterLoadoutController = require(Controllers:WaitForChild("StarterLoadoutController"))
 local ResultsController = require(Controllers:WaitForChild("ResultsController"))
+local RaceIntroController = require(Controllers:WaitForChild("RaceIntroController"))
 local DevPanelController = require(Controllers:WaitForChild("DevPanelController"))
 local SocialController = require(Controllers:WaitForChild("SocialController"))
 local ModesController = require(Controllers:WaitForChild("ModesController"))
@@ -338,6 +339,15 @@ local abilities = maid:Give(AbilityController.new({
 	end,
 }))
 local vfx = maid:Give(VFXController.new(marblesFolder))
+-- owner request 2026-11-26: every marble drops onto the grid + a camera swoop (visual only)
+local raceIntro = maid:Give(RaceIntroController.new({
+	marblesFolder = marblesFolder,
+	cameraController = cameraController,
+	forward = function()
+		local layout = layouts[ZONES.Race]
+		return layout and layout.Route and RouteTracker.SmoothHorizontalTangentAtS(layout.Route, 0, 12) or nil
+	end,
+}))
 hazards:SetShieldQuery(function()
 	return abilities:IsShielded()
 end)
@@ -843,6 +853,7 @@ maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 	modes:ApplySnapshot(snap)
 	mapSelect:ApplySnapshot(snap)
 	results:ApplySnapshot(snap, player.UserId)
+	raceIntro:OnSnapshot(snap)
 	if snap.state ~= lastState then
 		if snap.state == S.Racing and myEntry() then
 			sound:Play("RunStart")
@@ -959,6 +970,8 @@ local function applySettings(s)
 	abilities:SetReducedMotion(s.reducedMotion == true)
 	results:SetReducedMotion(s.reducedMotion == true)
 	lab:SetReducedMotion(s.reducedMotion == true) -- C: instant capsule reveal
+	UIKit.SetReducedMotion(s.reducedMotion == true) -- menu / HUD entrances and punches
+	raceIntro:SetReducedMotion(s.reducedMotion == true) -- grid drop-in + camera swoop off
 	if cameraController:GetMode() ~= s.cameraMode then
 		hud:SetCameraMode(cameraController:SetMode(s.cameraMode))
 	end

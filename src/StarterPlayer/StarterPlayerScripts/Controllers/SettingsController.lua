@@ -82,6 +82,7 @@ function SettingsController.new(deps)
 	self.gui, self.maid = gui, maid
 	gui.Enabled = false
 	local panel = UIKit.panel(root, { Name = "Settings", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(680, 580), BackgroundTransparency = 0.04 })
+	self.panel = panel
 	UIKit.new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, panel)
 	UIKit.label(panel, { Position = UDim2.fromOffset(24, 14), Size = UDim2.new(1, -150, 0, 44), Font = Enum.Font.GothamBlack, TextColor3 = palette.Cyan, Text = "SETTINGS", TextXAlignment = Enum.TextXAlignment.Left })
 	local close = UIKit.button(panel, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 14), Size = UDim2.fromOffset(110, 48), Text = "CLOSE" }, palette.White)
@@ -246,6 +247,9 @@ end
 function SettingsController:SetVisible(visible)
 	if not visible and self.preview then
 		self:UndoReset() -- closing during a reset preview keeps the player's own settings
+	end
+	if visible and not self.gui.Enabled then
+		UIKit.Enter(self.panel, "Pop")
 	end
 	self.gui.Enabled = visible
 end

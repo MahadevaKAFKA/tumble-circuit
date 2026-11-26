@@ -231,6 +231,154 @@ function UIKit.screen(name, displayOrder)
 	return gui, root, maid
 end
 
+---------------------------------------------------------------------------------------------
+-- Motion (owner request 2026-11-26: "create animations for everything"). Entrances only:
+-- hiding is always instant, so a closed menu never lingers on screen or swallows a tap. With
+-- the Reduced motion setting nothing moves. Everything here is cosmetic and safe to call
+-- repeatedly: a slide remembers the element's resting position while it plays, so a quick
+-- open-close-open never leaves anything offset.
+UIKit.Motion = { reduced = false }
+local motionBase = setmetatable({}, { __mode = "k" })
+local motionTween = setmetatable({}, { __mode = "k" })
+
+function UIKit.SetReducedMotion(value)
+	UIKit.Motion.reduced = value == true
+end
+
+-- TweenService:Create(...):Play(); if TweenService is unavailable (offline specs) the end
+-- values are applied at once. style / direction: Enum items or their names ("Back", "Out").
+function UIKit.Tween(inst, seconds, props, style, direction)
+	local ok, ts = pcall(function()
+		return game:GetService("TweenService")
+	end)
+	if not ok or not ts or not ts.Create then
+		for key, value in pairs(props) do
+			inst[key] = value
+		end
+		return nil
+	end
+	if type(style) ~= "userdata" then
+		style = Enum.EasingStyle[style or "Quad"]
+	end
+	if type(direction) ~= "userdata" then
+		direction = Enum.EasingDirection[direction or "Out"]
+	end
+	local t = ts:Create(inst, TweenInfo.new(seconds, style, direction), props)
+	t:Play()
+	return t
+end
+
+-- The "Pop" UIScale of an element (made on first use). Nil when the element already has a
+-- different UIScale (buttons have "Press"): only one UIScale applies per object.
+function UIKit.PopScale(inst)
+	local s = inst:FindFirstChild("Pop")
+	if s then
+		return s
+	end
+	if inst:FindFirstChildOfClass("UIScale") then
+		return nil
+	end
+	return UIKit.new("UIScale", { Name = "Pop", Scale = 1 }, inst)
+end
+
+UIKit.SlideOffsets = {
+	FromLeft = { -70, 0 },
+	FromRight = { 70, 0 },
+	FromAbove = { 0, -48 },
+	FromBelow = { 0, 48 },
+}
+
+-- Snap an element to its resting position (cancels a running slide).
+function UIKit.Settle(inst)
+	local t, base = motionTween[inst], motionBase[inst]
+	motionTween[inst], motionBase[inst] = nil, nil
+	if t then
+		t:Cancel()
+	end
+	if base then
+		inst.Position = base
+	end
+end
+
+-- Entrance: "Pop" (scale 0.9 -> 1 with a little overshoot) or a slide (UIKit.SlideOffsets).
+function UIKit.Enter(inst, kind, seconds)
+	if UIKit.Motion.reduced or not inst then
+		return
+	end
+	seconds = seconds or 0.24
+	if kind == "Pop" then
+		local s = UIKit.PopScale(inst)
+		if s then
+			s.Scale = 0.9
+			UIKit.Tween(s, seconds, { Scale = 1 }, "Back", "Out")
+			return
+		end
+		kind = "FromBelow"
+	end
+	local off = UIKit.SlideOffsets[kind]
+	if not off then
+		return
+	end
+	local base = motionBase[inst] or inst.Position
+	local running = motionTween[inst]
+	motionTween[inst] = nil
+	if running then
+		running:Cancel()
+	end
+	motionBase[inst] = base
+	inst.Position = base + UDim2.fromOffset(off[1], off[2])
+	local t = UIKit.Tween(inst, seconds, { Position = base }, "Quint", "Out")
+	if not t then
+		motionBase[inst] = nil
+		return
+	end
+	motionTween[inst] = t
+	t.Completed:Connect(function()
+		if motionTween[inst] == t then
+			motionTween[inst], motionBase[inst] = nil, nil
+		end
+	end)
+end
+
+-- inst.Visible = visible, with an entrance when it turns on (and an instant, settled hide).
+function UIKit.Show(inst, visible, kind, seconds)
+	local was = inst.Visible == true
+	inst.Visible = visible
+	if visible and not was then
+		UIKit.Enter(inst, kind or "Pop", seconds)
+	elseif not visible and was then
+		UIKit.Settle(inst)
+	end
+end
+
+-- A short scale punch (countdown numbers, rewards): `peak` -> 1.
+function UIKit.Punch(inst, peak, seconds)
+	if UIKit.Motion.reduced or not inst then
+		return
+	end
+	local s = UIKit.PopScale(inst)
+	if s then
+		s.Scale = peak or 1.3
+		UIKit.Tween(s, seconds or 0.3, { Scale = 1 }, "Back", "Out")
+	end
+end
+
+-- Children appear one after another (lists, podium, grids): each slides in `step` s later.
+function UIKit.Stagger(list, kind, step)
+	if UIKit.Motion.reduced then
+		return
+	end
+	for i, inst in ipairs(list) do
+		if i == 1 then
+			UIKit.Enter(inst, kind)
+		else
+			task.delay((i - 1) * (step or 0.05), function()
+				UIKit.Enter(inst, kind)
+			end)
+		end
+	end
+end
+
 function UIKit.ordinal(n)
 	local suffix = "TH"
 	local lastTwo = n % 100

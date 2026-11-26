@@ -49,6 +49,7 @@ function Loadout.new(deps)
 	self.gui, self.maid = gui, maid
 	gui.Enabled = false
 	local panel = UIKit.panel(root, { Name = "Loadout", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(820, 560), BackgroundTransparency = 0.04 })
+	self.panel = panel
 	UIKit.new("UIStroke", { Color = palette.Violet, Thickness = 2 }, panel)
 	UIKit.label(panel, { Position = UDim2.fromOffset(24, 12), Size = UDim2.new(1, -190, 0, 40), Font = Enum.Font.GothamBlack, TextColor3 = palette.Violet, Text = "ABILITIES", TextXAlignment = Enum.TextXAlignment.Left })
 	UIKit.label(panel, { Position = UDim2.fromOffset(24, 54), Size = UDim2.new(1, -48, 0, 22), Font = Enum.Font.Gotham, Text = "Equip two for your next race. Locked: earn by level or Coins - TRY them in the hub first.", TextXAlignment = Enum.TextXAlignment.Left })
@@ -102,6 +103,9 @@ function Loadout:GetFirstButton()
 end
 
 function Loadout:SetVisible(visible)
+	if visible and not self.gui.Enabled then
+		UIKit.Enter(self.panel, "Pop")
+	end
 	self.gui.Enabled = visible
 end
 

@@ -237,15 +237,23 @@ local function newUDim(scale, offset)
 	return { Scale = scale or 0, Offset = offset or 0 }
 end
 shim.UDim = { new = newUDim }
+local UD2 = {}
+local function newUDim2(xs, xo, ys, yo)
+	return setmetatable({ X = newUDim(xs, xo), Y = newUDim(ys, yo) }, UD2)
+end
+UD2.__add = function(a, b)
+	return newUDim2(a.X.Scale + b.X.Scale, a.X.Offset + b.X.Offset, a.Y.Scale + b.Y.Scale, a.Y.Offset + b.Y.Offset)
+end
+UD2.__eq = function(a, b)
+	return a.X.Scale == b.X.Scale and a.X.Offset == b.X.Offset and a.Y.Scale == b.Y.Scale and a.Y.Offset == b.Y.Offset
+end
 shim.UDim2 = {
-	new = function(xs, xo, ys, yo)
-		return { X = newUDim(xs, xo), Y = newUDim(ys, yo) }
-	end,
+	new = newUDim2,
 	fromOffset = function(x, y)
-		return { X = newUDim(0, x), Y = newUDim(0, y) }
+		return newUDim2(0, x, 0, y)
 	end,
 	fromScale = function(x, y)
-		return { X = newUDim(x, 0), Y = newUDim(y, 0) }
+		return newUDim2(x, 0, y, 0)
 	end,
 }
 

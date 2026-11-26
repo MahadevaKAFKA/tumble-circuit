@@ -201,7 +201,7 @@ end
 
 function Shop:RegisterLayers(ui)
 	ui:Register("Shop", function(visible)
-		self.panel.Visible = visible
+		UIKit.Show(self.panel, visible, "Pop")
 		if visible then
 			self.remotes.RequestShopState:FireServer()
 			self:_render()

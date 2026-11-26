@@ -29,15 +29,21 @@ function CapsuleService.new(deps)
 	self.telemetry = deps.telemetry
 	self.maid = Utility.Maid.new()
 	self.counter = 0
-	self.pools = {}
-	for _, tier in ipairs(CapsuleOdds.Tiers) do
-		self.pools[tier] = Catalog.MarblesOfRarity(tier)
+	self.pools = {} -- [boxId][tier] = { ids }
+	for _, box in ipairs(CapsuleOdds.Boxes) do
+		local pools = {}
+		for _, tier in ipairs(CapsuleOdds.Tiers) do
+			pools[tier] = Catalog.ItemsOfRarity(box.Kind, tier)
+		end
+		self.pools[box.Id] = pools
 	end
 	return self
 end
 
 -- Pure transaction on profile data. rng = function() -> [0,1). Returns result table or nil, reason.
-function CapsuleService.OpenOn(data, requestId, snapshot, pools, rng, now)
+function CapsuleService.OpenOn(data, requestId, snapshot, pools, rng, now, box)
+	box = box or CapsuleOdds.Box("Marble")
+	local cost = box.Cost
 	local cap = data.capsule
 	for _, req in ipairs(cap.requests) do
 		if req == requestId then
@@ -52,14 +58,14 @@ function CapsuleService.OpenOn(data, requestId, snapshot, pools, rng, now)
 	if type(snapshot) ~= "table" or snapshot.version ~= CapsuleOdds.Version or snapshot.epic ~= cap.epicMisses or snapshot.legendary ~= cap.legendaryMisses then
 		return nil, "The odds changed - check them again before opening"
 	end
-	if data.coins < CapsuleOdds.Cost then
-		return nil, string.format("You need %d Coins", CapsuleOdds.Cost)
+	if data.coins < cost then
+		return nil, string.format("You need %d Coins", cost)
 	end
 	local tier, id, branch = CapsuleOdds.RollWith(rng(), rng(), pools, cap.epicMisses, cap.legendaryMisses)
 	if not id then
 		return nil, "Capsule unavailable"
 	end
-	data.coins = data.coins - CapsuleOdds.Cost
+	data.coins = data.coins - cost
 	cap.epicMisses, cap.legendaryMisses = CapsuleOdds.After(tier, cap.epicMisses, cap.legendaryMisses)
 	local owned = false
 	for _, ownedId in ipairs(data.cosmetics.owned) do
@@ -74,7 +80,7 @@ function CapsuleService.OpenOn(data, requestId, snapshot, pools, rng, now)
 	else
 		table.insert(data.cosmetics.owned, id)
 	end
-	table.insert(cap.history, 1, { id = id, tier = tier, dup = owned, shards = shards, at = now, req = requestId })
+	table.insert(cap.history, 1, { id = id, tier = tier, dup = owned, shards = shards, at = now, req = requestId, box = box.Id })
 	while #cap.history > CapsuleOdds.HistorySize do
 		table.remove(cap.history)
 	end
@@ -82,7 +88,7 @@ function CapsuleService.OpenOn(data, requestId, snapshot, pools, rng, now)
 	while #cap.requests > CapsuleOdds.HistorySize do
 		table.remove(cap.requests)
 	end
-	return { id = id, tier = tier, dup = owned, shards = shards, branch = branch }
+	return { id = id, tier = tier, dup = owned, shards = shards, branch = branch, box = box.Id, cost = cost }
 end
 
 -- Pure: buy `id` with Shards. Returns price or nil, reason.
@@ -137,19 +143,23 @@ function CapsuleService:_usable(player)
 	return true
 end
 
-function CapsuleService:Open(player, requestId, version, epic, legendary)
+function CapsuleService:Open(player, requestId, version, epic, legendary, boxId)
+	local box = CapsuleOdds.Box(boxId)
 	local ok, reason = self:_usable(player)
 	if ok and #requestId < 8 then
 		ok, reason = false, "Bad request"
+	end
+	if ok and boxId ~= nil and CapsuleOdds.BoxById[boxId] == nil then
+		ok, reason = false, "Unknown capsule" -- never charge for a capsule the player didn't pick
 	end
 	local result
 	if ok then
 		self.counter = self.counter + 1
 		local rng = Random.new((os.clock() * 1e6 + player.UserId * 7919 + self.counter * 104729) % 2147483647)
 		self.data:Update(player, function(data)
-			result, reason = CapsuleService.OpenOn(data, requestId, { version = version, epic = epic, legendary = legendary }, self.pools, function()
+			result, reason = CapsuleService.OpenOn(data, requestId, { version = version, epic = epic, legendary = legendary }, self.pools[box.Id], function()
 				return rng:NextNumber()
-			end, os.time())
+			end, os.time(), box)
 		end)
 	end
 	if result then
@@ -159,13 +169,13 @@ function CapsuleService:Open(player, requestId, version, epic, legendary)
 		end
 		if self.telemetry and not result.replay then
 			local profile = self.data:GetProfile(player)
-			self.telemetry:Economy(player, "Sink", "Coins", CapsuleOdds.Cost, profile and profile.data.coins or 0, "Capsule:Free")
+			self.telemetry:Economy(player, "Sink", "Coins", box.Cost, profile and profile.data.coins or 0, "Capsule:" .. box.Id)
 		end
 	end
 	if not result and self.anticheat and reason and string.find(reason, "odds") then
 		self.anticheat:Flag(player, "Capsule", reason) -- D3: repeated stale-snapshot opens
 	end
-	self.remotes.CapsuleResult:FireClient(player, { requestId = requestId, ok = result ~= nil, reason = reason, id = result and result.id, tier = result and result.tier, dup = result and result.dup, shards = result and result.shards, replay = result and result.replay })
+	self.remotes.CapsuleResult:FireClient(player, { requestId = requestId, ok = result ~= nil, reason = reason, id = result and result.id, tier = result and result.tier, dup = result and result.dup, shards = result and result.shards, replay = result and result.replay, box = box.Id })
 	self:SendState(player)
 	return result, reason
 end
@@ -205,8 +215,8 @@ function CapsuleService:Start()
 			end
 		end))
 	end
-	connect("RequestOpenCapsule", function(player, requestId, version, epic, legendary)
-		self:Open(player, requestId, version, epic, legendary)
+	connect("RequestOpenCapsule", function(player, requestId, version, epic, legendary, boxId)
+		self:Open(player, requestId, version, epic, legendary, boxId)
 	end)
 	connect("RequestShardBuy", function(player, id)
 		self:ShardBuy(player, id)
