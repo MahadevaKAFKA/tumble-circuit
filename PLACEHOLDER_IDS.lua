@@ -18,6 +18,11 @@ return {
 		-- Respawn = "rbxassetid://<id>",
 		-- Checkpoint = "rbxassetid://<id>",
 		-- UIClick = "rbxassetid://<id>",
+		-- 2026-11-26 speed feel (a looped roll + short distinct cues)
+		-- Roll = "rbxassetid://<id>", -- looped; pitch and volume follow speed
+		-- Boost = "rbxassetid://<id>",
+		-- Shield = "rbxassetid://<id>",
+		-- Land = "rbxassetid://<id>",
 	},
 	Music = {
 		-- Practice = "rbxassetid://<id>",
@@ -32,6 +37,8 @@ return {
 		-- BurstLightning = <id>,
 		-- EmoteRematch = <id>,
 		-- SeasonPremium_S1 = <id>, -- season-keyed: only Season 1's premium lane
+		-- LaunchSpringSnap = <id>, -- 2026-11-26 launch animations
+		-- LaunchAfterimage = <id>,
 	},
 	-- D: Founder's Style Pack (a permanent Game Pass)
 	GamePasses = {
@@ -41,5 +48,5 @@ return {
 	-- AND code that does not exist in this build (there is no paid capsule route at all).
 	ENABLE_PAID_CAPSULES = false,
 	-- Keys the code may ask for. Tests check that anything you fill in is well-formed.
-	KnownSoundKeys = { "RunStart", "Finish", "BumperKick", "Respawn", "UIClick", "Checkpoint" },
+	KnownSoundKeys = { "RunStart", "Finish", "BumperKick", "Respawn", "UIClick", "Checkpoint", "Roll", "Boost", "Shield", "Land" },
 }

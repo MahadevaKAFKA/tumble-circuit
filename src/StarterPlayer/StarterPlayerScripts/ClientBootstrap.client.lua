@@ -76,6 +76,8 @@ local SettingsController = require(Controllers:WaitForChild("SettingsController"
 local StarterLoadoutController = require(Controllers:WaitForChild("StarterLoadoutController"))
 local ResultsController = require(Controllers:WaitForChild("ResultsController"))
 local RaceIntroController = require(Controllers:WaitForChild("RaceIntroController"))
+local SpeedFeelController = require(Controllers:WaitForChild("SpeedFeelController"))
+local MotionFeel = require(Shared:WaitForChild("MotionFeel"))
 local DevPanelController = require(Controllers:WaitForChild("DevPanelController"))
 local SocialController = require(Controllers:WaitForChild("SocialController"))
 local ModesController = require(Controllers:WaitForChild("ModesController"))
@@ -340,20 +342,31 @@ local abilities = maid:Give(AbilityController.new({
 }))
 local vfx = maid:Give(VFXController.new(marblesFolder))
 -- owner request 2026-11-26: every marble drops onto the grid + a camera swoop (visual only)
+-- owner brief 2026-11-26: the free speed trail on every marble, speed streaks (visual only)
+local speedFeel = maid:Give(SpeedFeelController.new({ marblesFolder = marblesFolder }))
+-- the launch-ramp race intro (stand-ins + scripted camera; the server owns all timing)
 local raceIntro = maid:Give(RaceIntroController.new({
 	marblesFolder = marblesFolder,
 	cameraController = cameraController,
-	forward = function()
-		local layout = layouts[ZONES.Race]
-		return layout and layout.Route and RouteTracker.SmoothHorizontalTangentAtS(layout.Route, 0, 12) or nil
+	speedFeel = speedFeel,
+	getLayout = function()
+		return layouts[ZONES.Race]
+	end,
+	getMapId = function()
+		return activeWorldId
 	end,
 }))
 hazards:SetShieldQuery(function()
 	return abilities:IsShielded()
 end)
 local reducedMotion = false
+local speedEffectsOn = true -- Settings > Driving > SPEED FOV + STREAKS
+local finishedMarbles = {} -- marble names that crossed the finish (their trails clear)
 maid:Give(abilities.OutcomeReceived:Connect(function(outcome)
 	vfx:OnOutcome(outcome)
+	if outcome.userId == player.UserId and (outcome.abilityId == "Boost" or outcome.abilityId == "Shield") then
+		sound:Play(outcome.abilityId) -- short distinct cues (silent until an audio id is set)
+	end
 end))
 maid:Give(abilities.TrickPressed:Connect(function()
 	vfx:Trick(player.UserId)
@@ -682,6 +695,7 @@ local function spectateUser(userId)
 	spectate.ball = ball
 	spectate.tracker:Reset()
 	cameraController:Bind(ball, layouts[ZONES.Race].Route, cameraIgnore)
+	speedFeel:ClearAll() -- a new camera target: no ribbons carried over
 	refreshGates()
 	return true
 end
@@ -854,6 +868,12 @@ maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 	mapSelect:ApplySnapshot(snap)
 	results:ApplySnapshot(snap, player.UserId)
 	raceIntro:OnSnapshot(snap)
+	finishedMarbles = {}
+	for _, entry in ipairs(snap.racers or {}) do
+		if entry.finished then
+			finishedMarbles[Protocol.MarbleName(entry.userId)] = true -- trails clear at the finish
+		end
+	end
 	if snap.state ~= lastState then
 		if snap.state == S.Racing and myEntry() then
 			sound:Play("RunStart")
@@ -944,6 +964,7 @@ local function applyGraphics(mode)
 		bloom.Enabled = not low
 	end
 	vfx:SetQuality(low and "Low" or "High")
+	speedFeel:SetQuality(low and "Low" or (mode == "High" and "High" or "Standard"))
 end
 -- the map whose accent "Follow map" uses: your hub's map in a hub, the race map on the course
 local function accentMapId()
@@ -971,7 +992,12 @@ local function applySettings(s)
 	results:SetReducedMotion(s.reducedMotion == true)
 	lab:SetReducedMotion(s.reducedMotion == true) -- C: instant capsule reveal
 	UIKit.SetReducedMotion(s.reducedMotion == true) -- menu / HUD entrances and punches
-	raceIntro:SetReducedMotion(s.reducedMotion == true) -- grid drop-in + camera swoop off
+	raceIntro:SetReducedMotion(s.reducedMotion == true) -- the launch intro goes straight to the grid
+	raceIntro:SetSkip(s.introSkip == true)
+	speedFeel:SetReducedMotion(s.reducedMotion == true)
+	speedFeel:SetVisibility(s.trailVisibility)
+	speedFeel:SetSpeedEffects(s.speedEffects ~= false)
+	speedEffectsOn = s.speedEffects ~= false
 	if cameraController:GetMode() ~= s.cameraMode then
 		hud:SetCameraMode(cameraController:SetMode(s.cameraMode))
 	end
@@ -1352,6 +1378,7 @@ end
 
 loadStage = "starting"
 local lastAccentMap, lastHubName = nil, nil
+local airborneSince = nil -- landing cue
 RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, function(dt)
 	applyZoneProfile()
 	-- UI overhaul: "Follow map" accent + hub name on the card follow where you are
@@ -1487,9 +1514,24 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 		end
 	end
 	local multiplier = motor:GetSpeedMultiplier()
-	cameraController:SetFovTarget(reducedMotion and GameConfig.Camera.FieldOfView or GameConfig.Camera.FieldOfView + (multiplier - 1) * 40)
+	-- speed feel (2026-11-26): up to +8 deg FOV near top speed (off: Reduced Motion / setting)
+	local speedFraction = speed / MotionFeel.ReferenceSpeed
+	local kick = speedEffectsOn and MotionFeel.FovKick(speedFraction, reducedMotion) or 0
+	cameraController:SetFovTarget(reducedMotion and GameConfig.Camera.FieldOfView or GameConfig.Camera.FieldOfView + (multiplier - 1) * 40 + kick)
 	freeLook:Update(dt)
+	raceIntro:Step() -- stand-in poses first: the scripted intro shot follows the pack
 	cameraController:Step(dt, cameraS)
+	speedFeel:Step(dt, { camera = workspace.CurrentCamera, braking = input.brake == true, finished = finishedMarbles })
+	if ball and ball.Parent then
+		local grounded = motor:IsGrounded()
+		sound:SetRoll(speedFraction, grounded)
+		if grounded and airborneSince and os.clock() - airborneSince > 0.35 then
+			sound:Play("Land") -- a real landing after a jump or drop
+		end
+		airborneSince = (not grounded) and (airborneSince or os.clock()) or nil
+	else
+		sound:SetRoll(0, false)
+	end
 	abilities:Update()
 	vfx:Step()
 	if currentZone == ZONES.Race and state == S.Racing and me and not me.finished then

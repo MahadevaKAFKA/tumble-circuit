@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Catalog = require(Shared:WaitForChild("Catalog"))
 local MarbleLook = require(Shared:WaitForChild("MarbleLook"))
+local MotionFeel = require(Shared:WaitForChild("MotionFeel"))
 local QuestConfig = require(Shared:WaitForChild("QuestConfig"))
 local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 local Utility = require(Shared:WaitForChild("Utility"))
@@ -24,8 +25,8 @@ local palette = UIKit.Palette
 local HubMenus = {}
 HubMenus.__index = HubMenus
 
-HubMenus.Tabs = { "Marble", "Trail", "Burst", "Emote" }
-HubMenus.TabLabels = { Marble = "MARBLES", Trail = "TRAILS", Burst = "BURSTS", Emote = "EMOTES" }
+HubMenus.Tabs = { "Marble", "Trail", "Burst", "Emote", "Launch" }
+HubMenus.TabLabels = { Marble = "MARBLES", Trail = "TRAILS", Burst = "BURSTS", Emote = "EMOTES", Launch = "LAUNCH" }
 HubMenus.Filters = { "All", "Owned", "Favorites", "Common", "Rare", "Epic", "Legendary", "Mythic" }
 
 -- Pure: items for a tab + filter, catalog order. state = { owned = set, favorites = set }
@@ -113,7 +114,9 @@ function HubMenus.new(deps)
 	end))
 	self.EquippedChanged = Utility.Signal.new()
 	maid:Give(RunService.RenderStepped:Connect(function(dt)
-		if self.previewModel and self.garage.Visible then
+		if self.previewLaunch and self.garage.Visible then
+			self:_stepLaunchPreview()
+		elseif self.previewModel and self.garage.Visible then
 			self.previewAngle = (self.previewAngle or 0) + dt * 0.9
 			self.previewModel:PivotTo(CFrame.Angles(0.35, self.previewAngle, 0))
 		end
@@ -136,7 +139,7 @@ function HubMenus:_buildGarage(root)
 		self.maid:Give(b.Activated:Connect(function()
 			self.tab, self.filter = kind, "All"
 			local first = Catalog.ByKind[kind][1]
-			self.selected = (kind == "Marble" and self.cosmetics.equipped.marble) or (kind == "Trail" and self.cosmetics.equipped.trail) or (kind == "Burst" and self.cosmetics.equipped.burst) or (first and first.Id)
+			self.selected = (kind == "Marble" and self.cosmetics.equipped.marble) or (kind == "Trail" and self.cosmetics.equipped.trail) or (kind == "Burst" and self.cosmetics.equipped.burst) or (kind == "Launch" and self.cosmetics.equipped.launch) or (first and first.Id)
 			self:_renderGarage()
 		end))
 		self.tabButtons[kind] = b
@@ -211,16 +214,89 @@ function HubMenus:_isEquipped(item)
 	return eq[string.lower(item.Kind)] == item.Id
 end
 
+-- Launch Animations preview: your equipped marble does the real launch pose (MotionFeel) on a
+-- little ramp, looping. Same maths as the race intro, so what you see is what you get (the
+-- Comet Arc's ember streak is drawn only in the race: trails don't render in a viewport).
+HubMenus.PreviewPath = { start = Vector3.new(-24, 12, 0), lip = Vector3.new(-6, 4.5, 0), slot = Vector3.new(14, 0, 0), delay = 0 }
+HubMenus.PreviewCamera = CFrame.lookAt(Vector3.new(-2, 7, 64), Vector3.new(-2, 4, 0))
+
+function HubMenus:_previewLaunchItem(item)
+	local model = Instance.new("Model")
+	local path = HubMenus.PreviewPath
+	local function part(props)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		for k, v in pairs(props) do
+			p[k] = v
+		end
+		p.Parent = model
+		return p
+	end
+	local deckLen = (path.lip - path.start).Magnitude + 6
+	local mid = (path.start + path.lip) / 2 - Vector3.new(0, 2.5, 0)
+	part({ Size = Vector3.new(deckLen, 1, 10), CFrame = CFrame.lookAt(mid, mid + (path.lip - path.start), Vector3.new(0, 1, 0)) * CFrame.Angles(0, math.pi / 2, 0), Color = palette.NavyFloor, Material = Enum.Material.SmoothPlastic })
+	part({ Size = Vector3.new(26, 1, 10), CFrame = CFrame.new(path.slot - Vector3.new(0, 2.5, 0)), Color = palette.Navy, Material = Enum.Material.SmoothPlastic })
+	local function marble(transparency)
+		local ball = part({ Shape = Enum.PartType.Ball, Size = Vector3.new(4, 4, 4), CFrame = CFrame.new(path.start) })
+		local holder = Instance.new("Model")
+		holder.Parent = model
+		ball.Parent = holder
+		holder.PrimaryPart = ball
+		MarbleLook.Apply(ball, Catalog.Get(self.cosmetics.equipped.marble or Catalog.Defaults.marble), function(_, shellPart)
+			shellPart.Anchored = true
+			shellPart.Parent = holder
+		end, nil)
+		if transparency then
+			for _, d in ipairs(holder:GetDescendants()) do
+				if d:IsA("BasePart") then
+					d.Transparency = math.max(d.Transparency, transparency)
+				end
+			end
+		end
+		return holder
+	end
+	local style = MotionFeel.LaunchStyle(item.Id)
+	local echoes = {}
+	for i, lag in ipairs(style.echoes or {}) do
+		echoes[i] = { model = marble(i == 1 and 0.55 or 0.75), lag = lag }
+	end
+	self.previewLaunch = { model = model, ball = marble(nil), echoes = echoes, id = item.Id, t0 = os.clock() }
+	self.viewport.CurrentCamera.CFrame = HubMenus.PreviewCamera
+	self.viewport.CurrentCamera.FieldOfView = 40
+	model.Parent = self.viewport
+	self.previewModel = model
+end
+
+function HubMenus:_stepLaunchPreview()
+	local p = self.previewLaunch
+	local loop = MotionFeel.LaunchEnd(1) + 0.9
+	local t = (os.clock() - p.t0) % loop
+	local function place(holder, tt)
+		local pos, roll = MotionFeel.LaunchPose(HubMenus.PreviewPath, math.max(0, tt), p.id)
+		holder:PivotTo(CFrame.new(pos) * CFrame.Angles(0, 0, -roll))
+	end
+	place(p.ball, t)
+	for _, e in ipairs(p.echoes) do
+		place(e.model, t - e.lag)
+	end
+end
+
 function HubMenus:_preview(item)
 	if self.previewModel then
 		self.previewModel:Destroy()
 		self.previewModel = nil
 	end
+	if self.previewLaunch then
+		self.previewLaunch = nil
+		self.viewport.CurrentCamera.CFrame = CFrame.lookAt(Vector3.new(0, 1.4, 11), Vector3.new(0, 0, 0))
+	end
 	self.previewText.Visible = false
 	if not item then
 		return
 	end
-	if item.Kind == "Marble" or item.Kind == "Trail" then
+	if item.Kind == "Launch" then
+		self:_previewLaunchItem(item)
+	elseif item.Kind == "Marble" or item.Kind == "Trail" then
 		local model = Instance.new("Model")
 		local ball = Instance.new("Part")
 		ball.Shape = Enum.PartType.Ball
@@ -300,7 +376,8 @@ function HubMenus:_renderGarage()
 		self.detailName.Text = item.Name
 		self.detailRarity.Text = string.upper(item.Rarity)
 		self.detailRarity.TextColor3 = Catalog.RarityColors[item.Rarity]
-		self.detailStatus.Text = self:_isEquipped(item) and "Equipped" or owned and "Owned" or ("How to get it: " .. Catalog.HowToEarn(item.Id))
+		local status = self:_isEquipped(item) and "Equipped" or owned and "Owned" or ("How to get it: " .. Catalog.HowToEarn(item.Id))
+		self.detailStatus.Text = item.Blurb and (item.Blurb .. " " .. status) or status
 		local emote = item.Kind == "Emote"
 		self.equipButton.Visible = not emote
 		self.equipButton.Text = self:_isEquipped(item) and "EQUIPPED" or owned and "EQUIP" or "LOCKED"

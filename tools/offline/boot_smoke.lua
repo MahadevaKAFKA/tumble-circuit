@@ -220,7 +220,10 @@ local path = root .. "/src/" .. target
     fire("RoundSnapshot", snapshot("Intermission"))
     -- 2026-11-26: a full round (race-entry intro, countdown punch, results podium motion)
     local me = { userId = 1, name = "Tester", place = 1, checkpoint = 0, finished = false }
-    fire("RoundSnapshot", snapshot("Preparing", { roundId = 1, racers = { me } }))
+    fire("RoundSnapshot", snapshot("Preparing", { roundId = 1, racers = { me }, stateStartedAt = os.time() - 1 }))
+    for _, fn in ipairs(renderSteps) do
+      for _ = 1, 3 do fn(1 / 60) end -- mid launch intro: ramp built, scripted camera, trails
+    end
     fire("RoundSnapshot", snapshot("Countdown", { roundId = 1, racers = { me } }))
     fire("RoundSnapshot", snapshot("Racing", { roundId = 1, racers = { me }, raceStartedAt = os.time() }))
     fire("RoundSnapshot", snapshot("Results", { roundId = 1, racers = { { userId = 1, name = "Tester", place = 1, checkpoint = 8, finished = true, seconds = 61.2 } } }))

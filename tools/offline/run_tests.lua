@@ -52,6 +52,7 @@ local modules = {
 	HubBuilder = H.module("ServerStorage/ProceduralBuilders/HubBuilder"),
 	ThemedHubBuilder = H.module("ServerStorage/ProceduralBuilders/ThemedHubBuilder"),
 	RaceConfig = H.module("ReplicatedStorage/Shared/RaceConfig"),
+	MotionFeel = H.module("ReplicatedStorage/Shared/MotionFeel"),
 	RoundProtocol = H.module("ReplicatedStorage/Shared/RoundProtocol"),
 	RaceRules = H.module("ServerScriptService/Services/RaceRules"),
 	CheckpointService = H.module("ServerScriptService/Services/CheckpointService"),
@@ -112,6 +113,7 @@ modules.MapSelectPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers
 modules.UIKitPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/UIKit")
 modules.TouchControlsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/TouchControls")
 modules.RaceIntroPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/RaceIntroController")
+modules.SpeedFeelPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/SpeedFeelController")
 modules.CameraPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CameraController")
 H.stubServices = {}
 

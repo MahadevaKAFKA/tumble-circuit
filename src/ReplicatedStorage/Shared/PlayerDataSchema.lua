@@ -56,8 +56,14 @@ PlayerDataSchema.Settings = {
 	controlLayout = { kind = "enum", default = "Default", values = { "Default", "LeftHanded" } },
 	sceneryDetail = { kind = "enum", default = "Standard", values = { "Standard", "Low", "High" } },
 	perfOverlay = { kind = "boolean", default = false }, -- developer frame-time overlay (off for players)
+	-- 2026-11-26 driving feel: race intro skip, whose speed trails you see, FOV kick + streaks
+	introSkip = { kind = "boolean", default = false },
+	trailVisibility = { kind = "enum", default = "All", values = { "All", "Mine", "Off" } },
+	speedEffects = { kind = "boolean", default = true },
 }
-PlayerDataSchema.SettingOrder = { "reducedMotion", "cameraMode", "music", "sfx", "sensitivity", "graphicsMode", "muteEmotes" }
+PlayerDataSchema.SettingOrder = { "music", "sfx", "graphicsMode", "muteEmotes" }
+-- the DRIVING tab (2026-11-26): camera, steering and motion feedback in one place
+PlayerDataSchema.DrivingSettingOrder = { "cameraMode", "sensitivity", "reducedMotion", "speedEffects", "trailVisibility", "introSkip" }
 -- the Settings view's second tab (UI overhaul); perfOverlay is listed only for developers
 PlayerDataSchema.DisplaySettingOrder = { "hudScale", "panelOpacity", "hudDensity", "uiAccent", "highContrast", "controlLayout", "sceneryDetail", "perfOverlay" }
 
@@ -123,7 +129,7 @@ function PlayerDataSchema.DefaultCosmetics()
 		owned[i] = id
 	end
 	local d = Catalog.Defaults
-	return { owned = owned, equipped = { marble = d.marble, trail = d.trail, burst = d.burst, emotes = { d.emotes[1], d.emotes[2], d.emotes[3] } }, favorites = {} }
+	return { owned = owned, equipped = { marble = d.marble, trail = d.trail, burst = d.burst, launch = d.launch, emotes = { d.emotes[1], d.emotes[2], d.emotes[3] } }, favorites = {} }
 end
 
 -- v3: sanitize the cosmetics table (known ids only; starters always owned; equipped must be
@@ -144,7 +150,7 @@ function PlayerDataSchema.SanitizeCosmetics(raw)
 		end
 	end
 	local eq = type(raw.equipped) == "table" and raw.equipped or {}
-	for key, kind in pairs({ marble = "Marble", trail = "Trail", burst = "Burst" }) do
+	for key, kind in pairs({ marble = "Marble", trail = "Trail", burst = "Burst", launch = "Launch" }) do
 		if type(eq[key]) == "string" and set[eq[key]] and Catalog.IsKind(eq[key], kind) then
 			c.equipped[key] = eq[key]
 		end

@@ -11,6 +11,7 @@ ok    src/ReplicatedStorage/Shared/HazardTiming.lua
 ok    src/ReplicatedStorage/Shared/MapRegistry.lua
 ok    src/ReplicatedStorage/Shared/MarbleLook.lua
 ok    src/ReplicatedStorage/Shared/MarbleMotorController.lua
+ok    src/ReplicatedStorage/Shared/MotionFeel.lua
 ok    src/ReplicatedStorage/Shared/PhysicsConfig.lua
 ok    src/ReplicatedStorage/Shared/PlayerDataSchema.lua
 ok    src/ReplicatedStorage/Shared/ProgressionConfig.lua
@@ -93,6 +94,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SettingsController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ShopController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SocialController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SoundController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SpeedFeelController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/StarterLoadoutController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/TouchControls.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/UIController.lua
@@ -139,7 +141,7 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 135.3 ms
+PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 128.3 ms
 PRINT	[TumbleCircuit] server ready (A6.0, protocol v13)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
@@ -517,7 +519,7 @@ PASS  Bounce Burst: one bounded upward bounce on the next hit, only once
 -- B3 progression specs --
 PASS  35 marbles: 12 Common / 10 Rare / 7 Epic / 4 Legendary / 2 Mythic
 PASS  12 trails, 8 finish bursts, 8 emotes
-PASS  D exclusives: 3 Founder + 3 Season 1 premium, nothing else
+PASS  D exclusives: 3 Founder + 3 Season 1 premium + 2 direct-purchase launch animations, nothing else
 PASS  ids are stable lowercase slugs (not display names), <= 40 chars
 PASS  starters and defaults exist (Cobalt, Dust, Confetti, 3 emotes)
 PASS  level rewards every 5 levels (5..50), all real items
@@ -851,13 +853,38 @@ info  SkyCarnival_B1 backdrop parts: Low 3 / Standard 120 / High 220
 info  VolcanoVault_B1 backdrop parts: Low 5 / Standard 64 / High 68
 
 -- Motion specs (UI entrances, race entry) --
-PASS  grid drop-in: the last marble (16th) lands inside Preparing
-PASS  grid drop-in: front row first, delays never go backwards
-PASS  grid order: furthest along the route drops first, ties keep slot order
-PASS  intro camera swoop ends inside the countdown
-PASS  intro starts high above the grid and looks down toward the gate
-PASS  intro easing: 0 -> 1, smooth and never overshoots
-PASS  intro pose is safe for a vertical heading (no NaN)
+PASS  speed reference = the existing speed cap (TerminalSpeed)
+PASS  trail knots: 0 below 15%, 4 at 35%, 12 at 65%, 24 at cap
+PASS  trail curve interpolates (50% between 4 and 12)
+PASS  at the cap the trail grows to ~24 studs, fully visible
+PASS  below 15% of cap (8 studs/s): no trail
+PASS  a marble spinning in place has no trail (measured movement, not spin)
+PASS  a teleport (200 studs in a frame) clears the history
+PASS  a 0.5 s dropout resets instead of drawing a long ribbon
+PASS  hysteresis: 16% of cap doesn't switch it on, 15% doesn't switch it off
+PASS  braking shortens the trail (< half of the cap length)
+PASS  lifetime draws the length at the current speed, bounded
+PASS  FOV kick: 0 at cruise, +8 deg at the cap, 0 under Reduced Motion
+PASS  speed streaks only near top speed
+PASS  launch intro (start delay + 4 staggered rows) ends inside Preparing
+PASS  timeline order: wide 0-0.6, ramp to 1.1, jump to 1.75, landing to 2.05
+PASS  ramp sits behind and above the grid, sloping down toward it
+PASS  every launch style starts at the top and ends exactly on the real grid slot
+PASS  the arc reaches the slot at Land (no snap at the swap)
+PASS  styles differ only in arc height (Spring higher than Comet)
+PASS  unknown or missing style falls back to the free default
+PASS  the stand-in rolls forward as it travels
+PASS  roll is scaled to whole turns: the stand-in ends in the real marble's orientation
+PASS  grid frame: centre of the back row, grid forward
+PASS  slot lookup: back row = row 2, lateral offset kept; front = row 1
+PASS  each map has a themed ramp; unknown maps get the default
+PASS  trail budget High: you + the 12 nearest rivals within 220 studs
+PASS  trail budget Low: your own trail only
+PASS  trail visibility: Mine shows only yours, Off shows none
+PASS  free default trail without equipping; an equipped trail restyles it (colours + profile)
+PASS  camera intro pose is high above the grid, looking down the course
+PASS  camera easing 0 -> 1 without overshoot
+PASS  scripted camera API exists (launch intro shots)
 PASS  UI entrance: open / close / open leaves the panel exactly where it rests
 PASS  UI hide is instant and settled
 PASS  Reduced motion: entrances do nothing
@@ -976,4 +1003,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-749 passed, 0 failed (+ 0 syntax failures)
+774 passed, 0 failed (+ 0 syntax failures)

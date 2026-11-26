@@ -220,7 +220,7 @@ function VFXController:_trailsLocal(now)
 	if not folder then
 		return
 	end
-	local on = not (self.low or self.reducedMotion)
+	local on = false -- SpeedFeelController owns trails; an old server trail stays off
 	for _, ball in ipairs(folder:GetChildren()) do
 		local trail = ball:FindFirstChild("TC_Trail")
 		if trail and trail.Enabled ~= on then
@@ -230,6 +230,8 @@ function VFXController:_trailsLocal(now)
 end
 
 function VFXController:Step()
+	-- (2026-11-26) equipped trails are drawn by SpeedFeelController; this only keeps any old
+	-- server-built trail switched off
 	self:_trailsLocal(os.clock())
 	local t = workspace:GetServerTimeNow()
 	for i = #self.effects, 1, -1 do

@@ -42,7 +42,7 @@ function Spec.run(m)
 			exclusives = exclusives + 1
 		end
 	end
-	check("D exclusives: 3 Founder + 3 Season 1 premium, nothing else", exclusives == 6)
+	check("D exclusives: 3 Founder + 3 Season 1 premium + 2 direct-purchase launch animations, nothing else", exclusives == 8 and C.Items.launch_spring.Exclusive == "Shop" and C.Items.launch_afterimage.Exclusive == "Shop")
 	local idsOk = true
 	for id, item in pairs(C.Items) do
 		if not string.match(id, "^[a-z0-9_]+$") or item.Id ~= id or #id > 40 then

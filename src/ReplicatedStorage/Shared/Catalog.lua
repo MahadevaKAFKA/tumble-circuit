@@ -6,9 +6,12 @@
 	non-colliding welded shells (MarbleLook) — radius, mass, grip and collision never change.
 	Original procedural looks from native materials; no external assets.
 
-	How items are earned in Phase B: starters (owned by everyone), level rewards every 5 levels.
-	Everything else says how it will be earned (free Coin capsules / Shard Shop arrive in Phase C);
-	there is no buy button and no Robux anywhere.
+	How items are earned: starters (owned by everyone), level rewards every 5 levels, earned-Coin
+	capsules and the Shard Shop. A few looks are optional direct purchases (ShopConfig); while
+	their product id is nil they say "not on sale yet" and cannot be bought.
+	2026-11-26: trails have a Profile (Ribbon / Thin / Wide / Twin): the shape of the speed
+	trail and of the trail's masked silhouette in the capsule reveal. New kind "Launch": how
+	your stand-in lands in the race-start ramp intro (same duration, slot and timing for all).
 ]]
 
 local Catalog = {}
@@ -73,18 +76,27 @@ local M = {
 }
 
 local T = {
-	{ "dust", "Dust", "Common", { rgb(200, 190, 170), rgb(120, 110, 100) } },
-	{ "comet", "Comet", "Common", { rgb(255, 255, 255), rgb(39, 215, 245) } },
-	{ "neon_cyan", "Neon Cyan", "Common", { rgb(39, 215, 245), rgb(39, 215, 245) } },
-	{ "neon_coral", "Neon Coral", "Common", { rgb(255, 107, 112), rgb(255, 107, 112) } },
-	{ "bubble", "Bubble", "Rare", { rgb(200, 240, 255), rgb(255, 200, 240) } },
-	{ "smoke", "Smoke", "Rare", { rgb(120, 125, 135), rgb(40, 42, 50) } },
-	{ "frost", "Frost", "Rare", { rgb(220, 250, 255), rgb(120, 200, 255) } },
-	{ "ember", "Ember", "Epic", { rgb(255, 212, 90), rgb(255, 60, 30) } },
-	{ "sparkle", "Sparkle", "Epic", { rgb(255, 255, 255), rgb(255, 212, 90) } },
-	{ "rainbow", "Rainbow", "Legendary", { rgb(255, 107, 112), rgb(110, 231, 186) } },
-	{ "starlight", "Starlight", "Legendary", { rgb(255, 255, 220), rgb(160, 120, 255) } },
-	{ "aurora", "Aurora", "Mythic", { rgb(110, 231, 186), rgb(160, 120, 255) } },
+	{ "dust", "Dust", "Common", { rgb(200, 190, 170), rgb(120, 110, 100) }, "Ribbon" },
+	{ "comet", "Comet", "Common", { rgb(255, 255, 255), rgb(39, 215, 245) }, "Thin" },
+	{ "neon_cyan", "Neon Cyan", "Common", { rgb(39, 215, 245), rgb(39, 215, 245) }, "Ribbon" },
+	{ "neon_coral", "Neon Coral", "Common", { rgb(255, 107, 112), rgb(255, 107, 112) }, "Ribbon" },
+	{ "bubble", "Bubble", "Rare", { rgb(200, 240, 255), rgb(255, 200, 240) }, "Wide" },
+	{ "smoke", "Smoke", "Rare", { rgb(120, 125, 135), rgb(40, 42, 50) }, "Wide" },
+	{ "frost", "Frost", "Rare", { rgb(220, 250, 255), rgb(120, 200, 255) }, "Thin" },
+	{ "ember", "Ember", "Epic", { rgb(255, 212, 90), rgb(255, 60, 30) }, "Twin" },
+	{ "sparkle", "Sparkle", "Epic", { rgb(255, 255, 255), rgb(255, 212, 90) }, "Thin" },
+	{ "rainbow", "Rainbow", "Legendary", { rgb(255, 107, 112), rgb(110, 231, 186) }, "Wide" },
+	{ "starlight", "Starlight", "Legendary", { rgb(255, 255, 220), rgb(160, 120, 255) }, "Twin" },
+	{ "aurora", "Aurora", "Mythic", { rgb(110, 231, 186), rgb(160, 120, 255) }, "Twin" },
+}
+Catalog.TrailProfiles = { "Ribbon", "Thin", "Wide", "Twin" }
+
+-- Launch animations (2026-11-26). Look only: every style takes the same time to the same slot.
+local LA = {
+	{ "ramp", "Ramp Launch", "Common", "The default jump with a landing ring." },
+	{ "comet", "Comet Arc", "Rare", "A low, fast arc behind a narrow ember streak; sticks the landing." },
+	{ "spring", "Spring Snap", "Epic", "A high arc and an elastic rebound on the slot." },
+	{ "afterimage", "Afterimage Drop", "Epic", "Two translucent echoes follow your marble down." },
 }
 
 local B = {
@@ -111,7 +123,8 @@ local E = {
 }
 
 Catalog.Items = {} -- [id] = item
-Catalog.ByKind = { Marble = {}, Trail = {}, Burst = {}, Emote = {} }
+Catalog.ByKind = { Marble = {}, Trail = {}, Burst = {}, Emote = {}, Launch = {} }
+Catalog.Kinds = { "Marble", "Trail", "Burst", "Emote", "Launch" }
 local function add(kind, id, name, rarity, extra)
 	assert(Catalog.Items[id] == nil, "duplicate catalog id " .. id)
 	local item = { Id = id, Kind = kind, Name = name, Rarity = rarity }
@@ -126,7 +139,7 @@ for _, m in ipairs(M) do
 	add("Marble", m[1], m[2], m[3], { Look = m[4] })
 end
 for _, t in ipairs(T) do
-	add("Trail", "trail_" .. t[1], t[2], t[3], { Colors = t[4] })
+	add("Trail", "trail_" .. t[1], t[2], t[3], { Colors = t[4], Profile = t[5] })
 end
 for _, b in ipairs(B) do
 	add("Burst", "burst_" .. b[1], b[2], b[3])
@@ -134,15 +147,21 @@ end
 for _, e in ipairs(E) do
 	add("Emote", "emote_" .. e[1], e[2], e[3], { Icon = e[4] })
 end
+for _, l in ipairs(LA) do
+	add("Launch", "launch_" .. l[1], l[2], l[3], { Blurb = l[4] })
+end
+-- Spring Snap and Afterimage Drop: optional direct purchases (ShopConfig), never random
+Catalog.Items.launch_spring.Exclusive = "Shop"
+Catalog.Items.launch_afterimage.Exclusive = "Shop"
 
 -- D: Founder's Style Pack exclusives (a permanent Game Pass). Never in capsules, the Shard
 -- Shop, level rewards or the season; visual only like everything else.
-add("Trail", "trail_founder_gold", "Founder Gold", "Legendary", { Colors = { rgb(255, 230, 150), rgb(255, 170, 40) }, Exclusive = "Founder" })
+add("Trail", "trail_founder_gold", "Founder Gold", "Legendary", { Colors = { rgb(255, 230, 150), rgb(255, 170, 40) }, Profile = "Twin", Exclusive = "Founder" })
 add("Emote", "emote_founder_wave", "Founder wave!", "Legendary", { Icon = "*", Exclusive = "Founder" })
 add("Emote", "emote_founder_salute", "Salute!", "Legendary", { Icon = "^", Exclusive = "Founder" })
 -- D: Season 1 premium lane (season-keyed purchase; only claimable during Season 1)
 add("Marble", "s1_launch_comet", "Launch Comet", "Epic", { Look = { color = rgb(20, 30, 70), material = "SmoothPlastic", pattern = "Orbit", accent = rgb(255, 212, 90), accent2 = rgb(39, 215, 245), glow = true }, Exclusive = "SeasonPremium:S1" })
-add("Trail", "trail_s1_launch", "Launch Streak", "Epic", { Colors = { rgb(39, 215, 245), rgb(255, 212, 90) }, Exclusive = "SeasonPremium:S1" })
+add("Trail", "trail_s1_launch", "Launch Streak", "Epic", { Colors = { rgb(39, 215, 245), rgb(255, 212, 90) }, Profile = "Thin", Exclusive = "SeasonPremium:S1" })
 add("Burst", "burst_s1_launch", "Launch Burst", "Epic", { Exclusive = "SeasonPremium:S1" })
 
 Catalog.Defaults = {
@@ -150,9 +169,10 @@ Catalog.Defaults = {
 	trail = "trail_dust",
 	burst = "burst_confetti",
 	emotes = { "emote_gg", "emote_nice_save", "emote_oops" },
+	launch = "launch_ramp",
 }
 -- Owned by everyone from the start
-Catalog.Starters = { "cobalt", "trail_dust", "burst_confetti", "emote_gg", "emote_nice_save", "emote_oops" }
+Catalog.Starters = { "cobalt", "trail_dust", "burst_confetti", "emote_gg", "emote_nice_save", "emote_oops", "launch_ramp" }
 
 -- Level rewards: every 5 levels (master section 9). Claimed once, server-side.
 Catalog.LevelRewards = {
@@ -173,6 +193,8 @@ function Catalog.HowToEarn(id)
 	local item = Catalog.Items[id]
 	if item and item.Exclusive == "Founder" then
 		return "Founder's Style Pack (optional, in SHOP when on sale)"
+	elseif item and item.Exclusive == "Shop" then
+		return "Direct purchase in SHOP (optional; not on sale yet)"
 	elseif item and item.Exclusive then
 		return "Season 1 premium lane (optional, in SHOP when on sale)"
 	end
@@ -181,7 +203,10 @@ function Catalog.HowToEarn(id)
 			return string.format("Level %d reward", level)
 		end
 	end
-	return "Free Coin capsules & Shard Shop (coming in Phase C)"
+	if item and item.Kind == "Launch" then
+		return "Shard Shop (Shards come from duplicates and the season)"
+	end
+	return "Coin capsules in the CAPSULE LAB, or pick it in the Shard Shop"
 end
 
 function Catalog.Get(id)

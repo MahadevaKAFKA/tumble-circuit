@@ -132,12 +132,16 @@ local function createBall(player, cframe, zone, frozen, look, hubId)
 	-- BallRoot's size, physics and collision above never change). Default = Cobalt.
 	local marbleItem = look and Catalog.Get(look.marble) or Catalog.Get(Catalog.Defaults.marble)
 	local trailItem = look and look.trail and Catalog.Get(look.trail) or nil
+	-- 2026-11-26: the trail is drawn by every client (SpeedFeelController: a speed-driven ribbon
+	-- that never twists with the spin); the server only says which trail and launch style
 	MarbleLook.Apply(ball, marbleItem, function(root, part, offset)
 		part.CFrame = offset
 		weldVisual(root, part)
-	end, trailItem)
+	end, nil)
 	ball:SetAttribute("TC_Look", marbleItem and marbleItem.Id or nil)
 	ball:SetAttribute("TC_Burst", look and look.burst or Catalog.Defaults.burst)
+	ball:SetAttribute("TC_Trail", trailItem and trailItem.Id or Catalog.Defaults.trail)
+	ball:SetAttribute("TC_Launch", look and look.launch or Catalog.Defaults.launch)
 	local plate = BotFactory.AddNameplate(ball, player.DisplayName, palette.White)
 	-- Your own name never floats in front of your chase camera. Hidden by the engine for the owner
 	-- (owner playtest 2026-11-25: the client-side hide missed and the name sat mid-screen).
@@ -240,9 +244,11 @@ function MarbleCharacterService:RefreshLook(player)
 	MarbleLook.Apply(ball, marbleItem, function(root, part, offset)
 		part.CFrame = offset
 		weldVisual(root, part)
-	end, look.trail and Catalog.Get(look.trail) or nil)
+	end, nil)
 	ball:SetAttribute("TC_Look", marbleItem.Id)
 	ball:SetAttribute("TC_Burst", look.burst or Catalog.Defaults.burst)
+	ball:SetAttribute("TC_Trail", look.trail and Catalog.Get(look.trail) and look.trail or Catalog.Defaults.trail)
+	ball:SetAttribute("TC_Launch", look.launch or Catalog.Defaults.launch)
 end
 
 function MarbleCharacterService:SpawnMarble(player, reason)

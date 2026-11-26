@@ -21,6 +21,9 @@ ShopConfig.Offers = {
 	{ sku = "emote_rematch", kind = "DevProduct", idKey = "EmoteRematch", grants = { "emote_rematch" }, label = "Rematch? emote", category = "Emote", term = "Permanent" },
 	{ sku = "founder_pack", kind = "GamePass", idKey = "FounderPack", grants = { "trail_founder_gold", "emote_founder_wave", "emote_founder_salute" }, label = "Founder's Style Pack", category = "Pack", term = "Permanent", extra = "Founder tag on your name and podium" },
 	{ sku = "season_premium_s1", kind = "DevProduct", idKey = "SeasonPremium_S1", entitlement = "SeasonPremium:S1", grants = {}, label = "Season 1 premium lane", category = "Season", term = "Season 1 only", extra = "3 extra looks to claim at season levels 10 / 20 / 30, until Season 1 ends" },
+	-- 2026-11-26: Launch Animations (look only: same duration, slot and timing as the free one)
+	{ sku = "launch_spring", kind = "DevProduct", idKey = "LaunchSpringSnap", grants = { "launch_spring" }, label = "Spring Snap launch", category = "Launch", term = "Permanent" },
+	{ sku = "launch_afterimage", kind = "DevProduct", idKey = "LaunchAfterimage", grants = { "launch_afterimage" }, label = "Afterimage Drop launch", category = "Launch", term = "Permanent" },
 }
 
 ShopConfig.BySku = {}

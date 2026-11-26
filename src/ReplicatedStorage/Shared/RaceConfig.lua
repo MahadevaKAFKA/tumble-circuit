@@ -7,7 +7,7 @@ local RaceConfig = {}
 
 RaceConfig.Timers = {
 	IntermissionSeconds = 15,
-	PreparingSeconds = 2, -- racers placed on the grid, frozen
+	PreparingSeconds = 2.5, -- racers placed on the grid, frozen (2026-11-26: 2 -> 2.5 for the launch-ramp intro, which ends at 2.35)
 	CountdownSeconds = 3, -- 3-2-1, then GO opens the gate
 	MaxRaceSeconds = 180, -- Racing only; loading/countdown excluded
 	ResultsSeconds = 12,

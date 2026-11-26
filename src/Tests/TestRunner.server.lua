@@ -65,6 +65,7 @@ local modules = {
 	AbilityRules = require(Services:WaitForChild("AbilityRules")),
 	Catalog = require(Shared:WaitForChild("Catalog")),
 	MarbleLook = require(Shared:WaitForChild("MarbleLook")),
+	MotionFeel = require(Shared:WaitForChild("MotionFeel")),
 	QuestConfig = require(Shared:WaitForChild("QuestConfig")),
 	CosmeticService = require(Services:WaitForChild("CosmeticService")),
 	LeaderboardService = require(Services:WaitForChild("LeaderboardService")),
@@ -87,7 +88,7 @@ local modules = {
 }
 do
 	local ControllersFolder = StarterPlayer:WaitForChild("StarterPlayerScripts"):WaitForChild("Controllers")
-	for key, name in pairs({ UIController = "UIController", SettingsPure = "SettingsController", LoadoutPure = "StarterLoadoutController", ResultsPure = "ResultsController", SocialPure = "SocialController", MapSelectPure = "MapSelectController", RaceIntroPure = "RaceIntroController", CameraPure = "CameraController" }) do
+	for key, name in pairs({ UIController = "UIController", SettingsPure = "SettingsController", LoadoutPure = "StarterLoadoutController", ResultsPure = "ResultsController", SocialPure = "SocialController", MapSelectPure = "MapSelectController", RaceIntroPure = "RaceIntroController", CameraPure = "CameraController", SpeedFeelPure = "SpeedFeelController" }) do
 		local ok, mod = pcall(function()
 			return require(ControllersFolder:WaitForChild(name))
 		end)

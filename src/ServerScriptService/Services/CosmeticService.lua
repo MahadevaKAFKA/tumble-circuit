@@ -22,7 +22,7 @@ local Utility = require(Shared:WaitForChild("Utility"))
 local CosmeticService = {}
 CosmeticService.__index = CosmeticService
 
-local KIND_KEY = { Marble = "marble", Trail = "trail", Burst = "burst", Emote = "emotes" }
+local KIND_KEY = { Marble = "marble", Trail = "trail", Burst = "burst", Emote = "emotes", Launch = "launch" }
 
 function CosmeticService.new(deps)
 	local self = setmetatable({}, CosmeticService)
@@ -97,7 +97,7 @@ function CosmeticService:LookFor(player)
 	if not c then
 		return nil
 	end
-	return { marble = c.equipped.marble, trail = c.equipped.trail, burst = c.equipped.burst }
+	return { marble = c.equipped.marble, trail = c.equipped.trail, burst = c.equipped.burst, launch = c.equipped.launch }
 end
 
 function CosmeticService:EmoteFor(player, slot)
@@ -192,7 +192,7 @@ function CosmeticService:Equip(player, kind, id, slot)
 	end)
 	if ok then
 		self.data:SaveSoon(player)
-		if kind == "Marble" or kind == "Trail" or kind == "Burst" then
+		if kind == "Marble" or kind == "Trail" or kind == "Burst" or kind == "Launch" then
 			self.marbles:RefreshLook(player)
 		end
 	else

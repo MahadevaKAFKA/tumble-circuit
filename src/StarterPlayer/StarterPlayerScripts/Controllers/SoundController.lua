@@ -49,11 +49,44 @@ function SoundController:Play(name)
 	return true
 end
 
+-- 2026-11-26 speed feel: a looped roll whose pitch and volume follow speed (0..1 of the cap),
+-- silent in the air and when no "Roll" id is configured. surface = "Track" / "Air".
+function SoundController:SetRoll(fraction, grounded)
+	local id = self.ids.Roll
+	if type(id) ~= "string" or not string.match(id, "^rbxassetid://%d+$") then
+		return false
+	end
+	local roll = self.roll
+	if not roll then
+		roll = Instance.new("Sound")
+		roll.Name = "TC_Roll"
+		roll.SoundId = id
+		roll.Looped = true
+		roll.Volume = 0
+		roll.Parent = SoundService
+		self.roll = roll
+	end
+	local f = math.clamp(fraction or 0, 0, 1.2)
+	local target = (grounded and f > 0.05) and (0.15 + 0.45 * f) * GameConfig.Audio.MasterVolume * (self.sfx or 0.8) or 0
+	roll.Volume = roll.Volume + (target - roll.Volume) * 0.15
+	roll.PlaybackSpeed = 0.8 + 0.55 * f
+	if roll.Volume > 0.01 and not roll.IsPlaying then
+		roll:Play()
+	elseif roll.Volume <= 0.01 and roll.IsPlaying then
+		roll:Stop()
+	end
+	return true
+end
+
 function SoundController:Destroy()
 	for _, sound in pairs(self.cache) do
 		sound:Destroy()
 	end
 	self.cache = {}
+	if self.roll then
+		self.roll:Destroy()
+		self.roll = nil
+	end
 end
 
 return SoundController

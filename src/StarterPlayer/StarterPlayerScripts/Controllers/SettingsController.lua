@@ -39,8 +39,11 @@ local LABELS = {
 	controlLayout = "CONTROL LAYOUT",
 	sceneryDetail = "SCENERY DETAIL",
 	perfOverlay = "FRAME-TIME OVERLAY (DEV)",
+	introSkip = "SKIP RACE INTRO",
+	trailVisibility = "SPEED TRAILS",
+	speedEffects = "SPEED FOV + STREAKS",
 }
-local VALUE_TEXT = { FollowMap = "FOLLOW MAP", LeftHanded = "LEFT-HANDED" }
+local VALUE_TEXT = { FollowMap = "FOLLOW MAP", LeftHanded = "LEFT-HANDED", All = "EVERYONE", Mine = "MINE ONLY" }
 
 local function describe(key, value)
 	local spec = PlayerDataSchema.Settings[key]
@@ -100,7 +103,7 @@ function SettingsController.new(deps)
 		end))
 		return b
 	end
-	self.tabButtons = { Game = tabButton("Game", 24, "GAME"), Display = tabButton("Display", 184, "DISPLAY") }
+	self.tabButtons = { Driving = tabButton("Driving", 24, "DRIVING"), Display = tabButton("Display", 184, "DISPLAY"), Game = tabButton("Game", 344, "SOUND & MORE") }
 	local function buildTab(name, order)
 		local page = UIKit.new("Frame", { Name = name, BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 116), Size = UDim2.new(1, 0, 1, -170) }, panel)
 		self.tabs[name] = page
@@ -112,8 +115,9 @@ function SettingsController.new(deps)
 			end
 		end
 	end
-	buildTab("Game", PlayerDataSchema.SettingOrder)
+	buildTab("Driving", PlayerDataSchema.DrivingSettingOrder)
 	buildTab("Display", PlayerDataSchema.DisplaySettingOrder)
+	buildTab("Game", PlayerDataSchema.SettingOrder)
 	-- RESET DISPLAY -> live preview of the defaults, then KEEP / UNDO
 	self.resetButton = UIKit.button(panel, { Name = "SettingsReset", Position = UDim2.new(0, 24, 1, -52), Size = UDim2.fromOffset(240, 42), Text = "RESET DISPLAY" }, palette.Yellow)
 	self.keepButton = UIKit.button(panel, { Name = "SettingsReset", Position = UDim2.new(0, 24, 1, -52), Size = UDim2.fromOffset(200, 42), Text = "KEEP DEFAULTS", Visible = false }, palette.Mint)
@@ -128,7 +132,7 @@ function SettingsController.new(deps)
 		self:UndoReset()
 	end))
 	self.note = UIKit.label(panel, { Position = UDim2.new(0, 380, 1, -50), Size = UDim2.new(1, -400, 0, 38), Font = Enum.Font.Gotham, TextColor3 = palette.White, TextTransparency = 0.25, TextWrapped = true, Text = "" })
-	self:ShowTab("Game")
+	self:ShowTab("Driving")
 	self:_render()
 	return self
 end
@@ -174,7 +178,9 @@ function SettingsController:ShowTab(name)
 		button.BackgroundTransparency = tabName == name and 0 or 0.6
 	end
 	self.resetButton.Visible = name == "Display" and self.preview == nil
-	self.note.Text = name == "Game" and "No music or sound files yet - your levels are saved for when they arrive." or "Display settings change only your screen. They are saved to your profile."
+	self.note.Text = name == "Game" and "No music or sound files yet - your levels are saved for when they arrive."
+		or name == "Driving" and "Camera, steering and motion feedback. Reduced motion also removes the FOV kick and the intro."
+		or "Display settings change only your screen. They are saved to your profile."
 end
 
 -- Pure: which display keys a reset changes (current values that differ from the defaults)

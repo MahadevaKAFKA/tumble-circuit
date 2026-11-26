@@ -543,7 +543,7 @@ function Lab:_renderShards()
 	end
 	self.shardTiles = {}
 	local i = 0
-	for _, kind in ipairs({ "Marble", "Trail", "Burst", "Emote" }) do
+	for _, kind in ipairs(Catalog.Kinds) do
 		for _, item in ipairs(Catalog.ByKind[kind]) do
 			if not item.Exclusive then -- D: Founder / season-premium items are not in the Shard Shop
 			i = i + 1

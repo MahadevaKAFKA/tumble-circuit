@@ -89,7 +89,14 @@ function CameraController:Bind(ball, route, ignoreInstances)
 	end
 end
 
--- Race intro swoop (RaceIntroController). Display only.
+-- Scripted shots (race launch intro): fn(chaseCFrame, dt) -> CFrame or nil (nil = back to the
+-- chase camera). Display only; the chase state keeps updating underneath, so the handoff
+-- lands exactly on the normal view.
+function CameraController:SetScripted(fn)
+	self.scripted = fn
+end
+
+-- Race intro swoop (v31). Display only.
 function CameraController:PlayIntro(ball, seconds)
 	self.intro = { ball = ball, t = 0, seconds = math.max(0.1, seconds or 2) }
 end
@@ -315,6 +322,14 @@ function CameraController:Step(dt, progressS)
 		chase = intro.from:Lerp(chase, CameraController.IntroAlpha(intro.t, intro.seconds))
 		if intro.t >= intro.seconds then
 			self.intro = nil
+		end
+	end
+	if self.scripted then
+		local ok, shot = pcall(self.scripted, chase, dt)
+		if ok and shot then
+			chase = shot
+		else
+			self.scripted = nil -- a failed or finished shot never leaves the camera stuck
 		end
 	end
 	camera.CFrame = chase

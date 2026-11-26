@@ -1,7 +1,9 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
-**Active milestone:** owner request 2026-11-26: CS:GO-style capsules (one per item kind, with
-an opening reel), motion across the UI, and a race-entry animation (v31). Before that: hub
+**Active milestone:** owner brief 2026-11-26 "Animation, UI and Economy"
+(docs/ANIMATION_UI_ECONOMY_BRIEF.md, plan + baseline in docs/ANIMATION_UI_ECONOMY_PLAN.md):
+M1 baseline done, M2 speed feel + launch ramp (v32). Before that: CS:GO-style capsules, UI
+motion and a race-entry drop-in (v31). Before that: hub
 obstruction fix (v30); UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
 settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
 02 registry (v21), 03 map selection / ballots (v22), 04 + 07 per-map hubs (v23, gated),
@@ -15,6 +17,49 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Brief M2: speed trail for everyone, speed FOV/streaks, launch-ramp intro, Launch Animations (v32, private)
+
+- **Free speed trail on every marble** (`SpeedFeelController`, maths in `Shared/MotionFeel`):
+  no equipping needed. Length follows *measured* speed (position delta, smoothed) against the
+  existing cap (80 studs/s): 0 below 15%, 4 studs at 35%, 12 at 65%, 24 at the cap, eased up
+  and down with hysteresis (on at 17%, off at 13%); braking shortens and fades it. A marble
+  spinning in place has none; a teleport, respawn, grid snap or a 0.3 s gap clears it, as do
+  finishing, changing trail and switching the camera target. The ribbon's attachments follow
+  the marble's position (never its spin), so it doesn't twist. An equipped trail restyles
+  it (colours + a new shape profile: Ribbon / Thin / Wide / Twin). Budget: High = you + 12
+  nearest rivals within 220 studs, Standard = 6 within 140, Low = your own short trail only.
+  The server no longer builds a fixed Trail on the ball; it sets `TC_Trail` / `TC_Launch`.
+- **Camera / feedback:** up to +8 degrees FOV from 55% to 95% of the cap (smoothed both ways),
+  faint screen-edge speed streaks from 80% of the cap (never over the centre), a looped roll
+  sound whose pitch/volume follow speed and short Boost / Shield / landing cues. Sounds stay
+  silent until audio ids are set (`PLACEHOLDER_IDS.Sounds.Roll/Boost/Shield/Land`; none are
+  invented). Reduced Motion removes the FOV kick, streaks and the intro.
+- **Launch-ramp intro** (`RaceIntroController`, replaces the v31 drop-in): a map-themed ramp
+  is built locally behind the grid; stand-ins (copies of the real grid marbles, so equipped
+  looks show) sit at the top: wide shot 0-0.6 s, burst + ramp 0.6-1.1 s, jump with a low
+  side camera from 0.95 s, each lands exactly on its own real grid slot at 1.75 s, flourish
+  and hand-off to the chase view by 2.05 s (+0.1 s for the back row). Then the normal shared
+  countdown. **Preparing is now 2.5 s (was 2.0)**, so start-to-control is 5.5 s after
+  Preparing begins (was 5.0). Authority unchanged: the real marbles stay anchored by the
+  server, the stand-ins have no collision/query/touch, the intro clock is the server's
+  Preparing timestamp (a late client joins mid-way, a very late one skips it). SKIP INTRO
+  (button), Settings > Driving > Skip race intro, and Reduced Motion go straight to the grid.
+- **Launch Animations (Garage > LAUNCH):** Ramp Launch (free, everyone owns it), Comet Arc
+  (Rare, Shard Shop: low arc + ember streak, sticks the landing), Spring Snap and Afterimage
+  Drop (Epic, optional direct purchases in ShopConfig, product ids nil = not on sale). All
+  take the same time to the same slot; only the arc height and landing flourish differ. The
+  Garage previews each one live with your equipped marble (same maths as the race).
+- **Settings:** new DRIVING tab (camera, steering sensitivity, reduced motion, speed FOV +
+  streaks, speed trails Everyone / Mine only / Off, skip race intro); SOUND & MORE holds
+  music, SFX, graphics, emote mute.
+- **Tests:** 774 offline checks pass (Motion.spec rewritten: trail curve and guards, FOV,
+  launch timeline, same end pose for every style, budgets). The boot smoke runs the client
+  through a mid-intro frame (ramp built, scripted camera, trails).
+- **Not measured / not verified in a Roblox runtime:** input latency, phone frame time,
+  section splits (no runtime here; the perf overlay is the tool on the phone), how the trail
+  reads at a sharp turn, the intro's look on each map, two clients with different graphics.
+  Physics untouched, so records stay comparable.
 
 ## 2026-11-26 — Capsules per item kind with an opening reel, UI motion, race entry (v31, private)
 
