@@ -81,6 +81,7 @@ local modules = {
 	MapLoader = require(Services:WaitForChild("MapLoader")),
 	FeatureGates = require(Services:WaitForChild("FeatureGates")),
 	BallotRules = require(Services:WaitForChild("BallotRules")),
+	Dressing = require(Shared:WaitForChild("Dressing")),
 	HubRules = require(Services:WaitForChild("HubRules")),
 }
 do
@@ -146,6 +147,7 @@ report("D commerce / security specs", require(Unit:WaitForChild("DCommerce.spec"
 report("Prompt 02 map registry specs", require(Unit:WaitForChild("MapRegistry.spec")).run(modules))
 report("Prompt 03 map selection specs", require(Unit:WaitForChild("MapSelection.spec")).run(modules))
 report("Prompts 04/07 hub lifecycle specs", require(Unit:WaitForChild("HubLifecycle.spec")).run(modules))
+report("Prompts 05/06 dressing specs", require(Unit:WaitForChild("Dressing.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

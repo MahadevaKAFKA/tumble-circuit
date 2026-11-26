@@ -80,6 +80,7 @@ local SocialController = require(Controllers:WaitForChild("SocialController"))
 local ModesController = require(Controllers:WaitForChild("ModesController"))
 local HubMenusController = require(Controllers:WaitForChild("HubMenusController"))
 local MapSelectController = require(Controllers:WaitForChild("MapSelectController"))
+local DressingController = require(Controllers:WaitForChild("DressingController"))
 local LabController = require(Controllers:WaitForChild("LabController"))
 local ShopController = require(Controllers:WaitForChild("ShopController"))
 local Lighting = game:GetService("Lighting")
@@ -230,6 +231,18 @@ local layouts = {
 	[ZONES.Hub] = hubLayouts[MapRegistry.DefaultHubId],
 }
 local hazards = HazardController.new(course:FindFirstChild(activeWorldId) or course, motor, sound, layouts[ZONES.Race])
+-- prompts 05 / 06: local-only Foundry visual pass + Garage observation deck (NewHubs gate)
+local dressing = DressingController.new({
+	course = course,
+	foundryId = MapRegistry.DefaultMapId,
+	foundryLayout = worldLayouts[MapRegistry.DefaultMapId],
+	hubGeometry = defaultHub.Geometry,
+	hubId = MapRegistry.DefaultHubId,
+	chuteWidth = defaultHub.Chute.Pieces[1].Width[1],
+})
+maid:Give(function()
+	dressing:Destroy()
+end)
 motor:SetMarblesFolder(marblesFolder)
 local currentZone -- declared early: the environment push below only applies on the race course
 motor:SetEnvironmentAccel(function(position)
@@ -832,6 +845,7 @@ local function applyGraphics(mode)
 		bloom.Enabled = not low
 	end
 	vfx:SetQuality(low and "Low" or "High")
+	dressing:SetQuality(low) -- prompt 05: no panel breaks / spines / blades on Low
 end
 local function applySettings(s)
 	social:SetMuted(s.muteEmotes == true)
@@ -1126,7 +1140,14 @@ local function applyZoneProfile()
 	end
 	appliedProfile = name
 end
-maid:Give(player:GetAttributeChangedSignal(Protocol.PlayerAttributes.Features):Connect(applyZoneProfile))
+local function refreshDressing()
+	dressing:SetEnabled(myFeatures().NewHubs == true)
+end
+refreshDressing()
+maid:Give(player:GetAttributeChangedSignal(Protocol.PlayerAttributes.Features):Connect(function()
+	applyZoneProfile()
+	refreshDressing()
+end))
 
 -- MAPS selector pads (themed hubs): rolling onto one opens Map Selection once; leaving re-arms
 local selectorPads = {}
@@ -1143,16 +1164,18 @@ for _, entry in ipairs(MapRegistry.Hubs) do
 end
 local onPad = false
 local function checkSelectorPads(position)
-	if currentZone ~= ZONES.Hub or #selectorPads == 0 then
+	if currentZone ~= ZONES.Hub then
 		onPad = false
 		return
 	end
 	local inside = false
-	for _, pad in ipairs(selectorPads) do
-		if pad.hubId == currentHubId then
-			local d = position - pad.part.Position
-			if Vector3.new(d.X, 0, d.Z).Magnitude <= pad.radius and math.abs(d.Y) < 6 then
-				inside = true
+	for _, list in ipairs({ selectorPads, dressing:GetSelectorPads() }) do
+		for _, pad in ipairs(list) do
+			if pad.hubId == currentHubId and pad.part.Parent then
+				local d = position - pad.part.Position
+				if Vector3.new(d.X, 0, d.Z).Magnitude <= pad.radius and math.abs(d.Y) < 6 then
+					inside = true
+				end
 			end
 		end
 	end

@@ -3,6 +3,7 @@ ok    PLACEHOLDER_IDS.lua
 ok    src/ReplicatedStorage/Shared/AbilityConfig.lua
 ok    src/ReplicatedStorage/Shared/CapsuleOdds.lua
 ok    src/ReplicatedStorage/Shared/Catalog.lua
+ok    src/ReplicatedStorage/Shared/Dressing.lua
 ok    src/ReplicatedStorage/Shared/GameConfig.lua
 ok    src/ReplicatedStorage/Shared/HazardSim.lua
 ok    src/ReplicatedStorage/Shared/HazardTiming.lua
@@ -74,6 +75,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/AbilityController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/DevPanelController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/DressingController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HubMenusController.lua
@@ -106,6 +108,7 @@ ok    src/Tests/Unit/BotNavigation.spec.lua
 ok    src/Tests/Unit/CCapsules.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
 ok    src/Tests/Unit/DCommerce.spec.lua
+ok    src/Tests/Unit/Dressing.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
 ok    src/Tests/Unit/HubFreeRoam.spec.lua
@@ -722,6 +725,30 @@ PASS  queue continuity: one client leaves, the other's ballot and place stay
 PASS  a hub with a missing practice spawn is rejected at load (then not offered)
 PASS  every hub's visual profile exists (a missing one falls back to the night profile)
 
+-- Prompts 05/06 dressing specs --
+PASS  Foundry dressing builds (all sizes valid) and stays small (< 800 parts)
+PASS  metal panel breaks across the rolling surface
+PASS  industrial spine supports under the track
+PASS  amber warning edge marks at every hazard (both edges)
+PASS  violet checkpoint frames on every checkpoint (+ start / finish insets)
+PASS  a distant turbine landmark
+PASS  no support pierces a lower stretch of track
+PASS  the turbine stays well away from the route (>= 300 studs)
+PASS  cool-blue surface is lighter than the cobalt marble and the navy chassis
+PASS  emission only on small surfaces (no large neon parts added)
+PASS  observation deck: violet ring, edge lights, overlook, practice arch, MAPS kiosk, departures
+PASS  nothing in the practice entrance (the chute mouth stays clear)
+PASS  MAPS pad is a short roll from the spawn ring and on the deck
+PASS  the overlook faces the Neon Foundry and not the chute opening
+PASS  no edge light across the chute opening
+PASS  navigation panels are static text signs (readable on Low)
+PASS  dressing parts never collide, raycast, touch or cast shadows
+PASS  disabling restores every restyled part (colour and material)
+PASS  floor restyle changes colour only (physics stay the server's)
+PASS  race triggers are blocked inside hubs (hub progress returns before checkpoints)
+PASS  the dressing is behind the NewHubs gate
+info  Foundry dressing: 675 local parts (206 detail, hidden on Low)
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
 PASS  defaults carry every field (current schema)
@@ -835,4 +862,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-638 passed, 0 failed (+ 0 syntax failures)
+659 passed, 0 failed (+ 0 syntax failures)

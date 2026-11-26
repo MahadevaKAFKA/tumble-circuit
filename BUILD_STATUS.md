@@ -1,7 +1,8 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
 **Active milestone:** Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
-02 registry (v21), 03 map selection / ballots (v22), 04 + 07 per-map hubs (v23, gated) done.
+02 registry (v21), 03 map selection / ballots (v22), 04 + 07 per-map hubs (v23, gated),
+05 + 06 Foundry look and Garage deck (v24, gated) done. Prompts 01–07 complete.
 Baseline: docs/AUDIT_BASELINE.md.
 **State:** A1–A6 played and approved on the owner's phone. The owner reported on 2026-11-26
 that v16–v20 (B1–D) "work as intended". The real race times and two-player features have not
@@ -11,6 +12,58 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Prompts 05 + 06: Neon Foundry visual language, Orbital Garage deck (v24, private)
+
+- **All client-local and gated (NewHubs).** `Shared/Dressing` (pure specs) and
+  `DressingController` build the parts on the owner's client only.
+  - Nothing replicates, collides, is raycast, is touched or casts shadows.
+  - Race lines, checkpoints, physics and other players' views are unchanged.
+  - Turning the gate off removes every part and restores every restyled part exactly.
+- **Neon Foundry (05).**
+  - **Rolling surface:** the broad floor is recoloured cool blue (80, 118, 170). This is
+    colour only: friction and elasticity stay the server's, and it is lighter than the cobalt
+    marble so the marble keeps contrast.
+  - **Structure:**
+    - dark metal panel breaks every 24 studs;
+    - dark-navy spine supports with cross braces every 72 studs, each shortened so it never
+      pierces a lower switchback;
+    - a distant static turbine, more than 300 studs from the route.
+  - **Hazards and gates:**
+    - amber and ink warning blocks on both edges around every hazard;
+    - checkpoint gate pillars restyled as dark metal, with thin neon insets carrying the
+      colour (violet checkpoints, cyan start, mint finish) so emission sits on small surfaces.
+  - The cobalt marble with its coral and gold bands is unchanged. The existing cyan lane arrows
+    are kept.
+  - Low graphics drops the detail parts: panel breaks, spines, turbine blades. In total there
+    are 675 local parts, 206 of them detail.
+- **Orbital Garage deck (06).**
+  - **Look:** a crisp central violet ring, and cyan edge lights around the rim (none across the
+    chute).
+  - **Signs and stations:**
+    - an OVERLOOK window on the rim facing the Neon Foundry;
+    - a PRACTICE CHUTE arch over the entrance;
+    - a MAPS kiosk and selector pad beside the spawn ring (rolling onto it opens Map Selection);
+    - a RACE DEPARTURES sign with a painted lane.
+  - Navigation panels are static text, so they are readable on Low.
+  - **Unchanged:** the GARAGE, QUESTS, PARTY and TIME TRIAL buttons. The MAPS button is still
+    the direct mobile route. Race triggers stay blocked inside hubs: hub progress returns before
+    any checkpoint logic (checked in the spec).
+- **Results.**
+  - Offline: 659 passing, including 21 new in Dressing.spec covering counts, sizes, piercing,
+    turbine clearance, marble contrast, no large neon, a clear chute mouth, the pad position,
+    the overlook direction, the gate, collision-off and the restore path.
+  - Static: luau_check and place assembly (139 instances, 125 scripts).
+  - Runtime: **pending.**
+- **Owner capture** (prompt 05 asks for it): from the normal camera, on Low and on High (Settings
+  → Graphics), take screenshots of:
+  - a checkpoint gate;
+  - the long first descent;
+  - the bumper or sweeper approach;
+  - the banked drop.
+
+  Also repeat practice → hub → practice a few times and confirm the camera and steering stay
+  normal.
 
 ## 2026-11-26 — Prompts 04 + 07: a hub per map, Sky Carnival slice behind a gate (v23, private)
 
