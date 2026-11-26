@@ -456,6 +456,10 @@
     "DestinationResult",
     "TC_Atmosphere",
     "TC_SelfOutline",
-    "Pop"
+    "Pop",
+    "RequestRankedOptIn",
+    "RankState",
+    "RequestChallenge",
+    "ChallengeState"
   ]
 }
