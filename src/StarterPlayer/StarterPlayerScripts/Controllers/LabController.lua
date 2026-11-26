@@ -20,6 +20,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CapsuleOdds = require(Shared:WaitForChild("CapsuleOdds"))
+local QuestConfig = require(Shared:WaitForChild("QuestConfig"))
 local Catalog = require(Shared:WaitForChild("Catalog"))
 local SeasonConfig = require(Shared:WaitForChild("SeasonConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
@@ -32,21 +33,27 @@ local Lab = {}
 Lab.__index = Lab
 
 local function pools(boxId)
-	local box = CapsuleOdds.Box(boxId)
-	local out = {}
-	for _, tier in ipairs(CapsuleOdds.Tiers) do
-		out[tier] = Catalog.ItemsOfRarity(box.Kind, tier)
-	end
-	return out
+	return CapsuleOdds.PoolsFor(CapsuleOdds.Box(boxId), Catalog.ItemsOfRarity)
 end
 Lab.Pools = pools
 
 Lab.BoxColors = {
+	Starter = Color3.fromRGB(110, 231, 186),
 	Marble = Color3.fromRGB(39, 215, 245),
 	Trail = Color3.fromRGB(160, 120, 255),
-	Burst = Color3.fromRGB(255, 196, 96),
-	Emote = Color3.fromRGB(110, 231, 186),
+	Apex = Color3.fromRGB(255, 196, 96),
 }
+
+-- Pure: how far a case is in quests (brief: "show the exact cost, balance and a reachable
+-- quest plan"). One daily quest = QuestConfig.Rewards.Daily.coins.
+function Lab.QuestPlan(balance, cost, dailyCoins, weeklyCoins)
+	local missing = cost - (balance or 0)
+	if missing <= 0 then
+		return string.format("You have %d Coins - enough for this case.", balance)
+	end
+	local dailies = math.ceil(missing / dailyCoins)
+	return string.format("%d more Coins needed: about %d daily quest%s (%d Coins each) or %d weekly (%d each).", missing, dailies, dailies == 1 and "" or "s", dailyCoins, math.ceil(missing / weeklyCoins), weeklyCoins)
+end
 
 -- Pure: one filler entrant for the reveal, an independent draw from the capsule's shown odds
 -- (rng() in [0,1)). Display only: the reward was decided by the server before this runs.
@@ -202,8 +209,9 @@ function Lab:_buildCapsule(panel)
 		local crate = UIKit.new("Frame", { Name = "Crate", Position = UDim2.fromOffset(10, 18), Size = UDim2.fromOffset(60, 60), BackgroundColor3 = Lab.BoxColors[box.Id], BorderSizePixel = 0 }, tile)
 		UIKit.corner(crate, 0.15)
 		UIKit.new("Frame", { Position = UDim2.fromScale(0, 0.42), Size = UDim2.fromScale(1, 0.16), BackgroundColor3 = palette.Ink, BorderSizePixel = 0 }, crate)
-		UIKit.label(tile, { Position = UDim2.fromOffset(78, 18), Size = UDim2.fromOffset(116, 40), TextWrapped = true, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Name })
-		UIKit.label(tile, { Position = UDim2.fromOffset(78, 62), Size = UDim2.fromOffset(116, 22), Font = Enum.Font.GothamBold, TextColor3 = palette.Yellow, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Cost .. " COINS" })
+		UIKit.label(tile, { Position = UDim2.fromOffset(78, 10), Size = UDim2.fromOffset(116, 16), Font = Enum.Font.GothamBold, TextTransparency = 0.25, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Tier or "" })
+		UIKit.label(tile, { Position = UDim2.fromOffset(78, 28), Size = UDim2.fromOffset(116, 34), TextWrapped = true, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Name })
+		UIKit.label(tile, { Position = UDim2.fromOffset(78, 66), Size = UDim2.fromOffset(116, 22), Font = Enum.Font.GothamBold, TextColor3 = palette.Yellow, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Cost .. " COINS" })
 		self.boxTiles[box.Id] = tile
 		self.maid:Give(tile.Activated:Connect(function()
 			if not self.pending then
@@ -242,7 +250,7 @@ function Lab:_buildCapsule(panel)
 	for i = 1, CapsuleOdds.HistorySize do
 		self.historyLabels[i] = UIKit.label(history, { Position = UDim2.fromOffset(0, (i - 1) * 20), Size = UDim2.fromOffset(590, 18), Font = Enum.Font.Gotham, Text = "", TextXAlignment = Enum.TextXAlignment.Left })
 	end
-	UIKit.label(right, { Position = UDim2.fromOffset(16, 484), Size = UDim2.fromOffset(604, 14), Font = Enum.Font.Gotham, TextTransparency = 0.3, TextXAlignment = Enum.TextXAlignment.Left, Text = "Earned Coins only - never Robux. Duplicates become Shards for the Shard Shop." })
+	UIKit.label(right, { Position = UDim2.fromOffset(16, 484), Size = UDim2.fromOffset(604, 14), Font = Enum.Font.Gotham, TextTransparency = 0.3, TextXAlignment = Enum.TextXAlignment.Left, Text = "Coins come only from QUESTS - never Robux. Duplicates become Shards for the Shard Shop." })
 
 end
 
@@ -264,17 +272,18 @@ function Lab:_renderCapsule()
 		return
 	end
 	local p = pools(box.Id)
-	local tiers, branch = CapsuleOdds.EffectiveTiers(p, st.epicMisses, st.legendaryMisses)
+	local epic, legendary = self:_counters(box.Id)
+	local tiers, branch = CapsuleOdds.EffectiveTiers(p, epic, legendary)
 	local parts = {}
 	for _, tier in ipairs(CapsuleOdds.Tiers) do
 		parts[#parts + 1] = string.upper(tier) .. " " .. CapsuleOdds.Percent(tiers[tier] or 0)
 	end
 	self.tierLine.Text = table.concat(parts, "   ")
-	self.branchLabel.Text = branch == "LegendaryPity" and "Legendary+ guaranteed on this open (or this capsule's best tier)" or branch == "EpicPity" and "Epic+ guaranteed on this open (or this capsule's best tier)" or "Standard odds"
-	local epicIn, legIn = CapsuleOdds.Within(st.epicMisses, st.legendaryMisses)
-	self.pityLabel.Text = string.format("Epic+ within %d open%s  -  Legendary+ within %d open%s  (shared by all capsules; no Mythic guarantee)", epicIn, epicIn == 1 and "" or "s", legIn, legIn == 1 and "" or "s")
+	self.branchLabel.Text = branch == "LegendaryPity" and "Legendary+ guaranteed on this open (or this case's best tier)" or branch == "EpicPity" and "Epic+ guaranteed on this open (or this case's best tier)" or "Standard odds"
+	local epicIn, legIn = CapsuleOdds.Within(epic, legendary)
+	self.pityLabel.Text = string.format("Epic+ within %d open%s  -  Legendary+ within %d open%s  (this case's own counter; no Mythic guarantee)", epicIn, epicIn == 1 and "" or "s", legIn, legIn == 1 and "" or "s")
 	self.walletLabel.Text = string.format("COINS %d  -  SHARDS %d", st.coins, st.shards)
-	local items = CapsuleOdds.ItemOdds(p, st.epicMisses, st.legendaryMisses)
+	local items = CapsuleOdds.ItemOdds(p, epic, legendary)
 	table.sort(items, function(a, b)
 		local ra, rb = CapsuleOdds.Rank[a.tier], CapsuleOdds.Rank[b.tier]
 		if ra ~= rb then
@@ -287,7 +296,7 @@ function Lab:_renderCapsule()
 		tile.frame.Visible = entry ~= nil
 		if entry then
 			local item = Catalog.Get(entry.id)
-			tile.name.Text = item and item.Name or entry.id
+			tile.name.Text = item and ((box.Mixed and (string.upper(item.Kind == "Marble" and "Skin" or item.Kind) .. ": ") or "") .. item.Name) or entry.id
 			tile.odds.Text = CapsuleOdds.Percent(entry.p) .. (self.owned[entry.id] and "  OWNED" or "")
 			tile.bar.BackgroundColor3 = Catalog.RarityColors[entry.tier] or palette.White
 		end
@@ -297,10 +306,13 @@ function Lab:_renderCapsule()
 	self.openButton.AutoButtonColor = can
 	self.openButton.BackgroundTransparency = can and 0 or 0.6
 	self.openButton.Text = st.canSave and string.format("OPEN  (%d COINS)", box.Cost) or "SAVING UNAVAILABLE - PAUSED"
+	if not self.pending then
+		self.statusLabel.Text = Lab.QuestPlan(st.coins, box.Cost, QuestConfig.Rewards.Daily.coins, QuestConfig.Rewards.Weekly.coins)
+	end
 	for i, label in ipairs(self.historyLabels) do
 		local h = st.history[i]
 		local item = h and Catalog.Get(h.id)
-		local boxName = h and CapsuleOdds.Box(h.box).Name or ""
+		local boxName = h and CapsuleOdds.BoxName(h.box) or ""
 		label.Text = item and string.format("%s - %s - %s%s", boxName, item.Name, h.tier, h.dup and string.format(" (dup +%d Shards)", h.shards) or "") or (i == 1 and "Nothing opened yet" or "")
 		label.TextColor3 = h and Catalog.RarityColors[h.tier] or palette.White
 	end
@@ -322,10 +334,12 @@ function Lab:Open()
 		return
 	end
 	local requestId = HttpService:GenerateGUID(false)
-	self.pending = { id = requestId, at = os.clock(), box = box.Id, epic = st.epicMisses, legendary = st.legendaryMisses }
+	local epic, legendary = self:_counters(box.Id)
+	self.pending = { id = requestId, at = os.clock(), box = box.Id, epic = epic, legendary = legendary }
 	self.statusLabel.Text = "Opening..."
 	self:_renderCapsule()
-	self.remotes.RequestOpenCapsule:FireServer(requestId, st.version, st.epicMisses, st.legendaryMisses, box.Id)
+	local priceSeen = (st.prices and st.prices[box.Id]) or box.Cost
+	self.remotes.RequestOpenCapsule:FireServer(requestId, st.version, epic, legendary, box.Id, priceSeen)
 	task.delay(0.6, function()
 		if self.pending and self.pending.id == requestId then
 			self.reveal:ShowSyncing() -- a slow answer: say so, never a fake animation
@@ -347,11 +361,21 @@ function Lab:Open()
 	end)
 end
 
+-- a case's guarantee counters from the server's state (per case since 2026-11-26)
+function Lab:_counters(boxId)
+	local st = self.state
+	local p = st and st.pity and st.pity[boxId]
+	if p then
+		return p.e or 0, p.l or 0
+	end
+	return st and st.epicMisses or 0, st and st.legendaryMisses or 0
+end
+
 function Lab:_play(result, epic, legendary)
 	local box = CapsuleOdds.Box(result.box)
 	result.boxName = box.Name
 	local rng = Random.new()
-	local mixed = false -- one kind per capsule today (masks still show the category)
+	local mixed = box.Mixed == true -- Starter / Apex: the masks show each entrant's category
 	self.revealing = result.req or result.requestId
 	self.reveal:Play(result, function()
 		return Lab.Filler(box.Id, epic or 0, legendary or 0, function()
@@ -389,7 +413,8 @@ function Lab:_checkUnseen()
 		end
 		return
 	end
-	self:_play({ id = h.id, tier = h.tier, dup = h.dup, shards = h.shards, box = h.box, req = h.req }, self.state.epicMisses, self.state.legendaryMisses)
+	local e, l = self:_counters(h.box)
+	self:_play({ id = h.id, tier = h.tier, dup = h.dup, shards = h.shards, box = h.box, req = h.req }, e, l)
 end
 
 function Lab:_revealFinished(action, result)

@@ -18,25 +18,77 @@
 
 local CapsuleOdds = {}
 
-CapsuleOdds.Version = 2 -- v2 (2026-11-26): one capsule per item kind
-CapsuleOdds.Cost = 600 -- earned Coins only (the Marble capsule; see Boxes)
+CapsuleOdds.Version = 3 -- v3 (2026-11-26 economy): tiered cases, a guarantee counter per case
+CapsuleOdds.Cost = 650 -- the Skin case (see Boxes); kept for older callers
 
--- One capsule per item kind (owner request 2026-11-26). Earned Coins only, never Robux. Each
--- box draws only its own kind; a tier with no items of that kind is removed and the remaining
--- tiers are scaled up to 100% (shown exactly like that in the Lab before opening). The pity
--- counters are shared by all boxes.
+-- Cases (owner brief 2026-11-26, economy). Earned Coins only (Coins come only from quests),
+-- never Robux. Prices are in "daily quest equivalents" (one daily quest = 100 Coins; see
+-- docs/ANIMATION_UI_ECONOMY_PLAN.md for the 1 / 7 / 30-day model):
+--   STARTER  basic, 2.5 dailies   every kind, Common + Rare only (a mixed case: the reveal
+--                                 masks show each entrant's category)
+--   SKIN     specialist, 6.5      every marble skin, all rarities
+--   TRAIL    specialist, 5.5      every trail, all rarities
+--   APEX     high tier, 13        every kind, Epic / Legendary / Mythic only (a stronger pool)
+-- Tiers a case can't drop are removed and the rest scaled to 100% (shown like that before
+-- opening). Each case has its OWN guarantee counters (the Skin case keeps the old shared
+-- counters, so no saved progress is lost); a guarantee for a tier the case can't drop gives
+-- that case's best tier instead.
 CapsuleOdds.Boxes = {
-	{ Id = "Marble", Kind = "Marble", Name = "MARBLE CAPSULE", Cost = 600 },
-	{ Id = "Trail", Kind = "Trail", Name = "TRAIL CAPSULE", Cost = 450 },
-	{ Id = "Burst", Kind = "Burst", Name = "BURST CAPSULE", Cost = 350 },
-	{ Id = "Emote", Kind = "Emote", Name = "EMOTE CAPSULE", Cost = 300 },
+	{ Id = "Starter", Name = "STARTER CASE", Cost = 250, Tier = "BASIC", Kinds = { "Marble", "Trail", "Burst", "Emote" }, Rarities = { Common = true, Rare = true } },
+	{ Id = "Marble", Name = "SKIN CASE", Cost = 650, Tier = "SPECIALIST", Kinds = { "Marble" } },
+	{ Id = "Trail", Name = "TRAIL CASE", Cost = 550, Tier = "SPECIALIST", Kinds = { "Trail" } },
+	{ Id = "Apex", Name = "APEX CASE", Cost = 1300, Tier = "HIGH TIER", Kinds = { "Marble", "Trail", "Burst", "Emote" }, Rarities = { Epic = true, Legendary = true, Mythic = true } },
 }
+-- earlier boxes (v2), only so old history lines still have a name
+CapsuleOdds.LegacyNames = { Burst = "BURST CAPSULE", Emote = "EMOTE CAPSULE" }
 CapsuleOdds.BoxById = {}
 for _, box in ipairs(CapsuleOdds.Boxes) do
+	box.Kind = #box.Kinds == 1 and box.Kinds[1] or "Mixed"
+	box.Mixed = #box.Kinds > 1
 	CapsuleOdds.BoxById[box.Id] = box
 end
 function CapsuleOdds.Box(id)
 	return CapsuleOdds.BoxById[id or ""] or CapsuleOdds.BoxById.Marble
+end
+function CapsuleOdds.BoxName(id)
+	local box = CapsuleOdds.BoxById[id or ""]
+	return box and box.Name or CapsuleOdds.LegacyNames[id or ""] or "CASE"
+end
+
+-- Pools of a case: { [tier] = { ids } } in catalog order. itemsOfRarity(kind, tier) -> ids
+-- (Catalog.ItemsOfRarity: never exclusives).
+function CapsuleOdds.PoolsFor(box, itemsOfRarity)
+	local pools = {}
+	for _, tier in ipairs(CapsuleOdds.Tiers or { "Common", "Rare", "Epic", "Legendary", "Mythic" }) do
+		local ids = {}
+		if not box.Rarities or box.Rarities[tier] then
+			for _, kind in ipairs(box.Kinds) do
+				for _, id in ipairs(itemsOfRarity(kind, tier)) do
+					ids[#ids + 1] = id
+				end
+			end
+		end
+		pools[tier] = ids
+	end
+	return pools
+end
+
+-- A case's guarantee counters in a profile's capsule table (the Skin case = the v1/v2 fields)
+function CapsuleOdds.Counters(cap, boxId)
+	if boxId == nil or boxId == "Marble" then
+		return cap.epicMisses or 0, cap.legendaryMisses or 0
+	end
+	local p = cap.pity and cap.pity[boxId]
+	return p and p.e or 0, p and p.l or 0
+end
+
+function CapsuleOdds.SetCounters(cap, boxId, e, l)
+	if boxId == nil or boxId == "Marble" then
+		cap.epicMisses, cap.legendaryMisses = e, l
+		return
+	end
+	cap.pity = cap.pity or {}
+	cap.pity[boxId] = { e = e, l = l }
 end
 CapsuleOdds.Tiers = { "Common", "Rare", "Epic", "Legendary", "Mythic" }
 CapsuleOdds.Base = { Common = 0.55, Rare = 0.30, Epic = 0.11, Legendary = 0.035, Mythic = 0.005 }

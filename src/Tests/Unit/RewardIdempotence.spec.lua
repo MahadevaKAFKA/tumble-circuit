@@ -30,6 +30,28 @@ function Spec.run(m)
 	check("NaN / negative XP -> level 1", PC.LevelForXp(0 / 0) == 1 and PC.LevelForXp(-50) == 1)
 	check("TotalXpForLevel matches LevelForXp", PC.LevelForXp(PC.TotalXpForLevel(17)) == 17 and PC.LevelForXp(PC.TotalXpForLevel(17) - 1) == 16)
 
+	-------------------------------------------------------------------- shipped economy (2026-11-26)
+	local shipped = PC.RaceCoins
+	check("economy: races pay no Coins (Coins come only from quests)", shipped == false)
+	local function rr(place, count, opts)
+		opts = opts or {}
+		return PC.RaceReward({ finished = opts.finished ~= false, place = place, count = count, active = opts.active ~= false, checkpoint = opts.checkpoint, progressFraction = opts.progress, personalBest = opts.pb, botPractice = opts.bot, botRacesToday = opts.today })
+	end
+	local zero = true
+	for _, r in ipairs({ rr(1, 8), rr(8, 8), rr(5, 8, { finished = false, checkpoint = 2 }), rr(1, 8, { bot = true, today = 5 }) }) do
+		zero = zero and r.coins == 0
+		for _, l in ipairs(r.lines) do
+			zero = zero and l.coins == 0
+		end
+	end
+	check("1st, last, DNF and bot races: 0 Coins on every line; XP unchanged (1st = 160)", zero and rr(1, 8).xp == 160 and rr(5, 8, { finished = false, checkpoint = 2 }).xp == 20)
+	local econ = Schema.Defaults()
+	econ.coins = 1234 -- an existing balance
+	RR.Apply(econ, "E:1", { finished = true, place = 1, count = 8, seconds = 90, active = true, checkpoint = 8 }, { worldId = "NeonFoundry_A4", layoutVersion = 2, seedClass = 1, mode = "Race", utcDay = 1, minPlausibleSeconds = 8 })
+	check("a race keeps the existing Coin balance exactly and still pays XP / records", econ.coins == 1234 and econ.xp == 190 and econ.winCount == 1)
+	-- the documented race-Coin model below is checked with the flag on (if ever re-enabled)
+	PC.RaceCoins = true
+
 	-------------------------------------------------------------------- payouts
 	local function reward(place, count, opts)
 		opts = opts or {}
@@ -128,6 +150,7 @@ function Spec.run(m)
 	local back = serverB:Load("u_42")
 	check("rejoin after leaving at results: Coins kept, the same race can't pay again", back.data.coins == 200 and RR.Apply(back.data, "A:7", finish, ctx) == nil and back.data.coins == 200)
 	check("raceIds include the server id (unique across servers)", RR.RaceId("job-1", 3) ~= RR.RaceId("job-2", 3) and RR.RaceId("job-1", 3) ~= RR.RaceId("job-1", 4))
+	PC.RaceCoins = shipped
 	return results
 end
 

@@ -25,6 +25,10 @@
 	v5 (D) adds purchases = { journal = { purchaseId.. last 200 }, entitlements = { key = true },
 	premiumClaimed = { "S1:10".. } } — the durable receipt journal (Roblox keeps no per-user
 	history for developer products).
+	v6 (2026-11-26 economy) adds capsule.pity = { [caseId] = { e, l } } (the Skin case keeps
+	epicMisses / legendaryMisses, so nobody loses guarantee progress), quests.milestones
+	(QuestConfig), cosmetics.equipped.launch, history entries' seen flag and the new settings.
+	Coins, Shards, XP, items, records and purchases are carried over exactly as they were.
 ]]
 
 local ProgressionConfig = require(script.Parent:WaitForChild("ProgressionConfig"))
@@ -35,7 +39,7 @@ local CapsuleOdds = require(script.Parent:WaitForChild("CapsuleOdds"))
 
 local PlayerDataSchema = {}
 
-PlayerDataSchema.Version = 5
+PlayerDataSchema.Version = 6 -- v6 (2026-11-26 economy): capsule.pity per case, quests.milestones
 PlayerDataSchema.LedgerSize = 25 -- last N rewarded race ids kept (bounded, never grows)
 
 PlayerDataSchema.Settings = {
@@ -208,7 +212,7 @@ function PlayerDataSchema.Defaults()
 		levelRewardsClaimed = {}, -- v3: levels whose reward was granted
 		quests = QuestConfig.Default(), -- v3
 		shards = 0, -- v4: earned only (duplicates, season)
-		capsule = { epicMisses = 0, legendaryMisses = 0, history = {}, requests = {} }, -- v4
+		capsule = { epicMisses = 0, legendaryMisses = 0, history = {}, requests = {}, pity = {} }, -- v4; v6 pity = { [caseId] = { e, l } } for every case but the Skin case
 		season = SeasonConfig.Default(), -- v4
 		purchases = { journal = {}, entitlements = {}, premiumClaimed = {} }, -- v5
 		settings = PlayerDataSchema.DefaultSettings(),
@@ -344,9 +348,14 @@ function PlayerDataSchema.Migrate(raw)
 		end
 		d.capsule.epicMisses = misses(c.epicMisses, CapsuleOdds.EpicPityAfter)
 		d.capsule.legendaryMisses = misses(c.legendaryMisses, CapsuleOdds.LegendaryPityAfter)
+		for boxId, p in pairs(type(c.pity) == "table" and c.pity or {}) do -- v6
+			if CapsuleOdds.BoxById[boxId] and boxId ~= "Marble" and type(p) == "table" then
+				d.capsule.pity[boxId] = { e = misses(p.e, CapsuleOdds.EpicPityAfter), l = misses(p.l, CapsuleOdds.LegendaryPityAfter) }
+			end
+		end
 		for _, h in ipairs(type(c.history) == "table" and c.history or {}) do
 			if type(h) == "table" and type(h.id) == "string" and Catalog.Get(h.id) and #d.capsule.history < CapsuleOdds.HistorySize then
-				d.capsule.history[#d.capsule.history + 1] = { id = h.id, tier = Catalog.Get(h.id).Rarity, dup = h.dup == true, shards = type(h.shards) == "number" and math.max(0, math.floor(h.shards)) or 0, at = type(h.at) == "number" and h.at or 0, req = type(h.req) == "string" and #h.req <= 40 and h.req or nil, box = (type(h.box) == "string" and CapsuleOdds.BoxById[h.box]) and h.box or (CapsuleOdds.BoxById[Catalog.Get(h.id).Kind] and Catalog.Get(h.id).Kind or "Marble"), seen = h.seen ~= false }
+				d.capsule.history[#d.capsule.history + 1] = { id = h.id, tier = Catalog.Get(h.id).Rarity, dup = h.dup == true, shards = type(h.shards) == "number" and math.max(0, math.floor(h.shards)) or 0, at = type(h.at) == "number" and h.at or 0, req = type(h.req) == "string" and #h.req <= 40 and h.req or nil, box = (type(h.box) == "string" and (CapsuleOdds.BoxById[h.box] or CapsuleOdds.LegacyNames[h.box])) and h.box or (CapsuleOdds.BoxById[Catalog.Get(h.id).Kind] and Catalog.Get(h.id).Kind or "Marble"), seen = h.seen ~= false }
 			end
 		end
 		for _, r in ipairs(type(c.requests) == "table" and c.requests or {}) do

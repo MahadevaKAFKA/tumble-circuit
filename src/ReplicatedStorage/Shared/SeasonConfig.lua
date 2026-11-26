@@ -20,7 +20,9 @@ SeasonConfig.Seasons = {
 	{ id = "S1", name = "Season 1: Launch Lap", startsAt = 1795392000, endsAt = 1797811200 },
 }
 
--- Free track: cosmetics every 5 levels, Coins on odd levels, Shards on the other even levels
+-- Free track: cosmetics every 5 levels, Shards on every other level (2026-11-26 economy:
+-- new Coins come only from quests, so the odd levels that used to pay 60 Coins now pay
+-- 15 Shards; levels already claimed keep what they paid)
 SeasonConfig.CosmeticRewards = {
 	[5] = "tangerine",
 	[10] = "trail_bubble",
@@ -35,7 +37,7 @@ function SeasonConfig.Reward(level)
 	if item then
 		return { kind = "Item", id = item }
 	elseif level % 2 == 1 then
-		return { kind = "Coins", amount = 60 }
+		return { kind = "Shards", amount = 15 }
 	end
 	return { kind = "Shards", amount = 20 }
 end

@@ -135,11 +135,11 @@ function Spec.run(m)
 	local function snap(d)
 		return { version = O.Version, epic = d.capsule.epicMisses, legendary = d.capsule.legendaryMisses }
 	end
-	local d = profile(1300)
+	local d = profile(1350)
 	local r = CS.OpenOn(d, "req-0001", snap(d), pools, function()
 		return 0.01
 	end, 100)
-	check("open: debits exactly 600, grants a Common, records history + pity", r and d.coins == 700 and r.tier == "Common" and #d.capsule.history == 1 and d.capsule.epicMisses == 1 and d.capsule.legendaryMisses == 1)
+	check("open: debits exactly the Skin case's 650, grants a Common, records history + pity", r and d.coins == 700 and r.tier == "Common" and #d.capsule.history == 1 and d.capsule.epicMisses == 1 and d.capsule.legendaryMisses == 1)
 	local replay = CS.OpenOn(d, "req-0001", snap(d), pools, function()
 		return 0.99
 	end, 101)
@@ -148,12 +148,12 @@ function Spec.run(m)
 		return 0.5
 	end, 102)
 	check("stale odds snapshot refused (nothing spent)", stale == nil and string.find(why, "odds") ~= nil and d.coins == 700)
-	local poor = profile(599)
+	local poor = profile(649)
 	local none, why2 = CS.OpenOn(poor, "req-0003", snap(poor), pools, function()
 		return 0.5
 	end, 103)
-	check("not enough Coins: refused, wallet unchanged (never negative)", none == nil and poor.coins == 599 and string.find(why2, "600") ~= nil)
-	local two = profile(1200)
+	check("not enough Coins: refused, wallet unchanged (never negative)", none == nil and poor.coins == 649 and string.find(why2, "650") ~= nil)
+	local two = profile(1300)
 	local o1 = CS.OpenOn(two, "req-a", snap(two), pools, function()
 		return 0.5
 	end, 1)
@@ -167,7 +167,7 @@ function Spec.run(m)
 	local u = { Common = 0.01, Rare = 0.6, Epic = 0.9, Legendary = 0.97, Mythic = 0.999 }
 	local dupOk = true
 	for tier, uu in pairs(u) do
-		local dd = profile(1200)
+		local dd = profile(1300)
 		dd.capsule.epicMisses, dd.capsule.legendaryMisses = 0, 0
 		table.insert(dd.cosmetics.owned, pools[tier][1])
 		local before = dd.shards
@@ -183,7 +183,7 @@ function Spec.run(m)
 		end
 	end
 	check("duplicates give exactly 5/20/65/200/600 Shards per tier", dupOk)
-	local hist = profile(600 * 25)
+	local hist = profile(650 * 25)
 	for i = 1, 25 do
 		CS.OpenOn(hist, "h-" .. i .. "-xxxx", snap(hist), pools, function()
 			return 0.2
@@ -237,47 +237,67 @@ function Spec.run(m)
 	local hostile = Schema.Migrate({ schemaVersion = 4, shards = -5, capsule = { epicMisses = 99, legendaryMisses = -3, history = { { id = "nope" }, { id = "cobalt", tier = "Mythic", shards = 1e9 } } }, season = { id = "S1", xp = 1e9, claimed = { 1, 1, 99 } } })
 	check("v4 sanitize: shards >= 0, pity counters clamped, history tier from the catalog", hostile.shards == 0 and hostile.capsule.epicMisses == O.EpicPityAfter and hostile.capsule.legendaryMisses == 0 and #hostile.capsule.history == 1 and hostile.capsule.history[1].tier == "Common")
 	check("v4 sanitize: season XP capped, claims unique and in range", hostile.season.xp == SC.Levels * SC.XpPerLevel and #hostile.season.claimed == 1)
-	------------------------------------------------------------------ one capsule per kind (2026-11-26)
+	------------------------------------------------------------------ tiered cases (2026-11-26 economy)
 	local function boxPools(box)
-		local out = {}
-		for _, tier in ipairs(O.Tiers) do
-			out[tier] = C.ItemsOfRarity(box.Kind, tier)
-		end
-		return out
+		return O.PoolsFor(box, C.ItemsOfRarity)
 	end
-	check("four capsules: Marble / Trail / Burst / Emote, earned Coins only", #O.Boxes == 4 and O.Box("Trail").Kind == "Trail" and O.Box("nope").Id == "Marble" and O.Box(nil).Cost == 600)
+	check("four cases: Starter (basic) / Skin / Trail (specialist) / Apex (high tier)", #O.Boxes == 4 and O.Box("Starter").Tier == "BASIC" and O.Box("Marble").Kind == "Marble" and O.Box("Apex").Mixed and O.Box("nope").Id == "Marble")
+	check("prices rise with the tier: basic < specialist < high tier", O.Box("Starter").Cost < O.Box("Trail").Cost and O.Box("Trail").Cost <= O.Box("Marble").Cost and O.Box("Marble").Cost < O.Box("Apex").Cost)
 	local boxesOk, boxDetail = true, nil
 	for _, box in ipairs(O.Boxes) do
 		local bp = boxPools(box)
+		local kinds = {}
+		for _, k in ipairs(box.Kinds) do
+			kinds[k] = true
+		end
 		for _, counters in ipairs({ { 0, 0 }, { 14, 0 }, { 0, 59 } }) do
 			local total, kindOk = 0, true
 			for _, entry in ipairs(O.ItemOdds(bp, counters[1], counters[2])) do
 				total = total + entry.p
-				kindOk = kindOk and C.Get(entry.id).Kind == box.Kind and not C.Get(entry.id).Exclusive
+				local item = C.Get(entry.id)
+				kindOk = kindOk and kinds[item.Kind] and not item.Exclusive and (not box.Rarities or box.Rarities[item.Rarity])
 			end
 			if math.abs(total - 1) > 1e-9 or not kindOk then
 				boxesOk, boxDetail = false, box.Id .. " " .. counters[1] .. "/" .. counters[2] .. " sum " .. total
 			end
 		end
 	end
-	check("every capsule's item odds sum to 100% and hold only its own kind (base and both pity tables)", boxesOk, boxDetail)
-	local ep = boxPools(O.Box("Emote"))
-	local et = O.EffectiveTiers(ep, 0, 0)
-	check("Emote capsule (no Legendary/Mythic emotes): those tiers removed, rest rescaled", (et.Legendary or 0) == 0 and (et.Mythic or 0) == 0 and math.abs(et.Common - 0.55 / 0.96) < 1e-9)
-	local etl = O.EffectiveTiers(ep, 0, 59)
-	check("Legendary pity on a capsule with no Legendary: its best tier is guaranteed", etl.Epic == 1)
-	local tb = profile(1000)
-	local tr = CS.OpenOn(tb, "box-trail", snap(tb), boxPools(O.Box("Trail")), function()
+	check("every case's item odds sum to 100% and hold only its kinds and tiers (base and both guarantees)", boxesOk, boxDetail)
+	local st = O.EffectiveTiers(boxPools(O.Box("Starter")), 0, 0)
+	check("Starter case: Common + Rare only, rescaled (55/30 -> 64.7/35.3)", math.abs(st.Common - 0.55 / 0.85) < 1e-9 and (st.Epic or 0) == 0)
+	local ap = O.EffectiveTiers(boxPools(O.Box("Apex")), 0, 0)
+	check("Apex case: Epic or better on every open (Epic 73.3 / Legendary 23.3 / Mythic 3.3)", (ap.Common or 0) == 0 and (ap.Rare or 0) == 0 and math.abs(ap.Epic - 0.11 / 0.15) < 1e-9 and math.abs(ap.Mythic - 0.005 / 0.15) < 1e-9)
+	local stl = O.EffectiveTiers(boxPools(O.Box("Starter")), 14, 0)
+	check("a guarantee for a tier the case can't drop gives its best tier (Starter: Rare)", stl.Rare == 1)
+	-- per-case counters: opening one case never moves another case's guarantee
+	local pc = profile(5000)
+	pc.capsule.epicMisses = 7
+	local function snapFor(dd, boxId)
+		local e, l = O.Counters(dd.capsule, boxId)
+		return { version = O.Version, epic = e, legendary = l, cost = O.Box(boxId).Cost }
+	end
+	local tr = CS.OpenOn(pc, "box-trail", snapFor(pc, "Trail"), boxPools(O.Box("Trail")), function()
 		return 0.3
 	end, 5, O.Box("Trail"))
-	check("Trail capsule: charges 450, grants a Trail, history records the capsule", tr and tb.coins == 550 and tr.box == "Trail" and C.Get(tr.id).Kind == "Trail" and tb.capsule.history[1].box == "Trail")
-	local poorE = profile(299)
-	local ne, whyE = CS.OpenOn(poorE, "box-emote", snap(poorE), boxPools(O.Box("Emote")), function()
+	local te, tl = O.Counters(pc.capsule, "Trail")
+	check("Trail case: charges 550, grants a Trail, moves only its own counters", tr and pc.coins == 4450 and C.Get(tr.id).Kind == "Trail" and pc.capsule.history[1].box == "Trail" and te == 1 and tl == 1 and pc.capsule.epicMisses == 7)
+	local stale2, whyStale = CS.OpenOn(pc, "box-skin", { version = O.Version, epic = 0, legendary = 0, cost = 650 }, boxPools(O.Box("Marble")), function()
 		return 0.3
-	end, 6, O.Box("Emote"))
-	check("Emote capsule: 300 Coins needed, refused at 299", ne == nil and string.find(whyE, "300") ~= nil and poorE.coins == 299)
-	local resan = Schema.Migrate({ schemaVersion = 4, capsule = { history = { { id = "tangerine", tier = "Common" } } } })
-	check("history entries keep which capsule they came from", resan.capsule.history[1].box == C.Get("tangerine").Kind)
+	end, 6, O.Box("Marble"))
+	check("the Skin case keeps its own (old shared) counters: a snapshot with another case's counters is refused", stale2 == nil and string.find(whyStale, "odds") ~= nil and pc.coins == 4450)
+	local wrongPrice, whyPrice = CS.OpenOn(pc, "box-price", { version = O.Version, epic = 7, legendary = 0, cost = 600 }, boxPools(O.Box("Marble")), function()
+		return 0.3
+	end, 7, O.Box("Marble"))
+	check("price mismatch: the price you saw isn't the server's -> refused, nothing spent", wrongPrice == nil and string.find(whyPrice, "price") ~= nil and pc.coins == 4450)
+	local poorS = profile(249)
+	local ne, whyE = CS.OpenOn(poorS, "box-starter", snapFor(poorS, "Starter"), boxPools(O.Box("Starter")), function()
+		return 0.3
+	end, 8, O.Box("Starter"))
+	check("Starter case: 250 Coins needed, refused at 249", ne == nil and string.find(whyE, "250") ~= nil and poorS.coins == 249)
+	local migrated6 = Schema.Migrate({ schemaVersion = 5, coins = 777, capsule = { epicMisses = 9, legendaryMisses = 30, pity = { Apex = { e = 2, l = 70 }, Bogus = { e = 1, l = 1 } }, history = { { id = "tangerine", tier = "Common", box = "Emote" } } } })
+	local ae, al = O.Counters(migrated6.capsule, "Apex")
+	check("v5 -> v6: Coins kept, the old shared counters become the Skin case's, bad entries clamped / dropped", migrated6.schemaVersion == 6 and migrated6.coins == 777 and migrated6.capsule.epicMisses == 9 and ae == 2 and al == O.LegendaryPityAfter and migrated6.capsule.pity.Bogus == nil)
+	check("old history lines from removed v2 cases keep their name", migrated6.capsule.history[1].box == "Emote" and O.BoxName("Emote") == "EMOTE CAPSULE")
 
 	local Lab = m.LabPure
 	local RV = m.RevealPure
@@ -328,25 +348,25 @@ function Spec.run(m)
 		local t1, t2 = RV.Mask(C.Get("trail_ember")), RV.Mask(C.Get("trail_starlight"))
 		check("trails with the same profile share one neutral trace (Ember = Starlight: Twin)", t1 == t2 and t1 == "Trail:Twin" and RV.Mask(C.Get("trail_dust")) ~= t1)
 		check("each category has a distinct mask (marble / trail / burst / emote)", RV.Mask(C.Get("cobalt")) ~= RV.Mask(C.Get("trail_dust")) and RV.Mask(C.Get("burst_confetti")) == "Burst" and RV.Mask(C.Get("emote_gg")) == "Emote")
-		-- fillers are independent draws from the shown odds, of the capsule's own kind
+		-- fillers are independent draws from the shown odds, from the case's own pool
 		local rng, counts, n = lcg(99), {}, 20000
-		local kindOk = true
+		local poolOk = true
 		for _ = 1, n do
-			local id = Lab.Filler("Emote", 0, 0, rng)
+			local id = Lab.Filler("Apex", 0, 0, rng)
 			local item = C.Get(id)
-			kindOk = kindOk and item and item.Kind == "Emote"
+			poolOk = poolOk and item and (item.Rarity == "Epic" or item.Rarity == "Legendary" or item.Rarity == "Mythic")
 			counts[item.Rarity] = (counts[item.Rarity] or 0) + 1
 		end
-		check("reveal fillers: only the capsule's kind, distributed like the shown odds", kindOk and math.abs(counts.Common / n - 0.55 / 0.96) < 0.02 and (counts.Legendary or 0) == 0)
+		check("reveal fillers: only the case's own pool, distributed like the shown odds", poolOk and math.abs(counts.Epic / n - 0.11 / 0.15) < 0.02)
 		-- saved result recovery
-		local seenData = profile(1200)
+		local seenData = profile(1300)
 		CS.OpenOn(seenData, "seen-001", snap(seenData), pools, function()
 			return 0.4
 		end, 1)
 		check("an open is saved as not yet seen until the reveal is shown", seenData.capsule.history[1].seen == false and Lab.Unseen(seenData.capsule.history).req == "seen-001")
 		local first = CS.MarkSeen(seenData, "seen-001")
 		local again = CS.MarkSeen(seenData, "seen-001")
-		check("marking a reveal seen is idempotent and grants / charges nothing", first and not again and seenData.coins == 600 and Lab.Unseen(seenData.capsule.history) == nil)
+		check("marking a reveal seen is idempotent and grants / charges nothing", first and not again and seenData.coins == 650 and Lab.Unseen(seenData.capsule.history) == nil)
 		local migratedSeen = Schema.Migrate({ schemaVersion = 5, capsule = { history = { { id = "tangerine", tier = "Common", req = "abc12345", seen = false } } } })
 		check("an unseen result survives a save + reload (returns after a disconnect)", migratedSeen.capsule.history[1].seen == false)
 	end

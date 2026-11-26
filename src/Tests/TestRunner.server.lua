@@ -66,6 +66,7 @@ local modules = {
 	Catalog = require(Shared:WaitForChild("Catalog")),
 	MarbleLook = require(Shared:WaitForChild("MarbleLook")),
 	MotionFeel = require(Shared:WaitForChild("MotionFeel")),
+	EconomyModel = require(Shared:WaitForChild("EconomyModel")),
 	QuestConfig = require(Shared:WaitForChild("QuestConfig")),
 	CosmeticService = require(Services:WaitForChild("CosmeticService")),
 	LeaderboardService = require(Services:WaitForChild("LeaderboardService")),
@@ -154,6 +155,7 @@ report("Protocol key specs", require(Unit:WaitForChild("ProtocolKeys.spec")).run
 report("UI overhaul specs", require(Unit:WaitForChild("UIOverhaul.spec")).run(modules))
 report("Environment specs", require(Unit:WaitForChild("Environment.spec")).run(modules))
 report("Motion specs", require(Unit:WaitForChild("Motion.spec")).run(modules))
+report("Economy specs", require(Unit:WaitForChild("Economy.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

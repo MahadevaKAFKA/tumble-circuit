@@ -19,6 +19,12 @@
 
 local ProgressionConfig = {}
 
+-- Owner brief 2026-11-26 (economy): NEW Coins come only from completed quests (QuestConfig).
+-- Races still give XP, level-ups, records and quest progress; existing balances are kept.
+-- The race Coin numbers below stay documented (and are used again if this is ever turned back
+-- on), but with RaceCoins = false every race line pays 0 Coins.
+ProgressionConfig.RaceCoins = false
+
 ProgressionConfig.Coins = {
 	FinishBase = 55,
 	Podium = { 125, 100, 80 },
@@ -104,7 +110,7 @@ function ProgressionConfig.RaceReward(result)
 	local c, x = ProgressionConfig.Coins, ProgressionConfig.Xp
 	local lines = {}
 	local function line(label, coins, xp)
-		lines[#lines + 1] = { label = label, coins = coins or 0, xp = xp or 0 }
+		lines[#lines + 1] = { label = label, coins = ProgressionConfig.RaceCoins and (coins or 0) or 0, xp = xp or 0 }
 	end
 	if not result.active then
 		line("No input detected this race - no reward", 0, 0)
@@ -112,7 +118,9 @@ function ProgressionConfig.RaceReward(result)
 		line("Finished", c.FinishBase, x.Finish)
 		local placementXp = x.Placement[result.place] or x.PlacementRest
 		line("Placement " .. tostring(result.place) .. " of " .. tostring(result.count), ProgressionConfig.PlacementCoins(result.place, result.count), placementXp)
-		line("Completion bonus", c.Completion, 0)
+		if ProgressionConfig.RaceCoins then
+			line("Completion bonus", c.Completion, 0)
+		end
 		if result.personalBest then
 			line("Personal best!", 0, x.PersonalBest)
 		end

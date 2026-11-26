@@ -4,6 +4,7 @@ ok    src/ReplicatedStorage/Shared/AbilityConfig.lua
 ok    src/ReplicatedStorage/Shared/CapsuleOdds.lua
 ok    src/ReplicatedStorage/Shared/Catalog.lua
 ok    src/ReplicatedStorage/Shared/Dressing.lua
+ok    src/ReplicatedStorage/Shared/EconomyModel.lua
 ok    src/ReplicatedStorage/Shared/EnvironmentProfiles.lua
 ok    src/ReplicatedStorage/Shared/GameConfig.lua
 ok    src/ReplicatedStorage/Shared/HazardSim.lua
@@ -115,6 +116,7 @@ ok    src/Tests/Unit/CCapsules.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
 ok    src/Tests/Unit/DCommerce.spec.lua
 ok    src/Tests/Unit/Dressing.spec.lua
+ok    src/Tests/Unit/Economy.spec.lua
 ok    src/Tests/Unit/Environment.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
@@ -143,8 +145,8 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 171.7 ms
-PRINT	[TumbleCircuit] server ready (A6.0, protocol v14)
+PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 139.7 ms
+PRINT	[TumbleCircuit] server ready (A6.0, protocol v15)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
 PASS  StarterPlayer/StarterPlayerScripts/ClientBootstrap.client main chunk completes
@@ -544,7 +546,7 @@ PASS  UTC week turns on Monday 00:00
 PASS  daily quests: 3 distinct, the same for everyone that day
 PASS  refresh: 3 daily + 4 weekly
 PASS  progress caps at the target
-PASS  claim pays once (250 Coins + 400 XP), a second claim is refused
+PASS  claim pays once (400 Coins + 400 XP), a second claim is refused
 PASS  unfinished quest can't be claimed
 PASS  '2 different worlds' counts distinct worlds only
 PASS  bot practice: only the first 3 bot races a day count for quests
@@ -573,7 +575,7 @@ PASS  items inside a tier are uniform (each Common within 5% of expected)
 PASS  pity branches never give less than promised (5k draws each)
 PASS  20k sequential opens: never 15 in a row without Epic+, never 60 without Legendary+
 PASS  reproducible on a fixed seed
-PASS  open: debits exactly 600, grants a Common, records history + pity
+PASS  open: debits exactly the Skin case's 650, grants a Common, records history + pity
 PASS  retry with the same request id: same result, no second charge
 PASS  stale odds snapshot refused (nothing spent)
 PASS  not enough Coins: refused, wallet unchanged (never negative)
@@ -591,13 +593,18 @@ PASS  all 30 free rewards are real (items exist)
 PASS  v3 -> v4: Coins kept, shards 0, capsule + season defaults
 PASS  v4 sanitize: shards >= 0, pity counters clamped, history tier from the catalog
 PASS  v4 sanitize: season XP capped, claims unique and in range
-PASS  four capsules: Marble / Trail / Burst / Emote, earned Coins only
-PASS  every capsule's item odds sum to 100% and hold only its own kind (base and both pity tables)
-PASS  Emote capsule (no Legendary/Mythic emotes): those tiers removed, rest rescaled
-PASS  Legendary pity on a capsule with no Legendary: its best tier is guaranteed
-PASS  Trail capsule: charges 450, grants a Trail, history records the capsule
-PASS  Emote capsule: 300 Coins needed, refused at 299
-PASS  history entries keep which capsule they came from
+PASS  four cases: Starter (basic) / Skin / Trail (specialist) / Apex (high tier)
+PASS  prices rise with the tier: basic < specialist < high tier
+PASS  every case's item odds sum to 100% and hold only its kinds and tiers (base and both guarantees)
+PASS  Starter case: Common + Rare only, rescaled (55/30 -> 64.7/35.3)
+PASS  Apex case: Epic or better on every open (Epic 73.3 / Legendary 23.3 / Mythic 3.3)
+PASS  a guarantee for a tier the case can't drop gives its best tier (Starter: Rare)
+PASS  Trail case: charges 550, grants a Trail, moves only its own counters
+PASS  the Skin case keeps its own (old shared) counters: a snapshot with another case's counters is refused
+PASS  price mismatch: the price you saw isn't the server's -> refused, nothing spent
+PASS  Starter case: 250 Coins needed, refused at 249
+PASS  v5 -> v6: Coins kept, the old shared counters become the Skin case's, bad entries clamped / dropped
+PASS  old history lines from removed v2 cases keep their name
 PASS  reveal timeline: queue 0.35, chase cut 0.75, rail 1.15, cross 2.0, unmask 2.05, done 2.5
 PASS  reveal lineup: the confirmed winner appears exactly once, finishing order is a full ranking
 PASS  the confirmed winner is exactly on the reveal line at 2.0 s and clearly first
@@ -605,7 +612,7 @@ PASS  every entrant moves continuously (no jumps across camera cuts)
 PASS  marble masks come from the outline family only (same shape -> same mask across rarities)
 PASS  trails with the same profile share one neutral trace (Ember = Starlight: Twin)
 PASS  each category has a distinct mask (marble / trail / burst / emote)
-PASS  reveal fillers: only the capsule's kind, distributed like the shown odds
+PASS  reveal fillers: only the case's own pool, distributed like the shown odds
 PASS  an open is saved as not yet seen until the reveal is shown
 PASS  marking a reveal seen is idempotent and grants / charges nothing
 PASS  an unseen result survives a save + reload (returns after a disconnect)
@@ -909,6 +916,32 @@ PASS  UI hide is instant and settled
 PASS  Reduced motion: entrances do nothing
 PASS  pop / punch always settle at scale 1
 
+-- Economy specs (quests, claims, model) --
+PASS  quest rewards: daily 100 Coins, weekly 400, nine one-time milestones (skill goals marked)
+PASS  a daily claim pays once; the retry is refused ('Already claimed')
+PASS  QuestService: claim + Coins in one mutation, a duplicate request pays nothing
+PASS  reset boundary: a finished, unclaimed daily is auto-claimed at the rollover (never lost)
+PASS  ...and only once
+PASS  auto-claimed rewards are added in the same mutation
+PASS  an unfinished quest at the reset pays nothing
+PASS  milestones keep progress across days (Finish 10 races) and pay once each
+PASS  skill milestone 'Win a race' counts wins only
+PASS  milestone progress and claims survive a save + reload
+PASS  v5 -> v6: Coins kept exactly; milestones start fresh
+PASS  milestone sanitize: progress capped at the target, unknown ids dropped
+PASS  day 1: an active player can open a basic case, not yet a high-tier one
+PASS  30 days: a viable earned path to every tier (active: 10+ Apex, casual: 5+)
+PASS  cases are materially less frequent than before (30-day Skin cases < 60% of the old Marble capsules)
+PASS  paid random gate: PolicyService error / missing field / restricted account -> no
+PASS  paid random gate: even an eligible account gets nothing while the build flag is off
+PASS  paid random cases stay OFF (no flag on, no product listed)
+info  economy model Active day 1: 450 Coins -> Starter 1 / Skin 0 / Trail 0 / Apex 0
+info  economy model Active day 7: 5150 Coins -> Starter 20 / Skin 7 / Trail 9 / Apex 3
+info  economy model Active day 30: 19450 Coins -> Starter 77 / Skin 29 / Trail 35 / Apex 14
+info  economy model Casual day 1: 350 Coins -> Starter 1 / Skin 0 / Trail 0 / Apex 0
+info  economy model Casual day 7: 2650 Coins -> Starter 10 / Skin 4 / Trail 4 / Apex 2
+info  economy model Casual day 30: 11050 Coins -> Starter 44 / Skin 17 / Trail 20 / Apex 8
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
 PASS  defaults carry every field (current schema)
@@ -948,6 +981,9 @@ PASS  level boundaries: 399 -> 1, 400 -> 2 (0/480), 880 -> 3
 PASS  level capped at 50 with no next cost; huge XP does not overflow
 PASS  NaN / negative XP -> level 1
 PASS  TotalXpForLevel matches LevelForXp
+PASS  economy: races pay no Coins (Coins come only from quests)
+PASS  1st, last, DNF and bot races: 0 Coins on every line; XP unchanged (1st = 160)
+PASS  a race keeps the existing Coin balance exactly and still pays XP / records
 PASS  Coins 1st/2nd/3rd = 55+125/100/80+20
 PASS  Coins 4th = 55+60+20, 8th of 8 = 55+35+20
 PASS  rest interpolates linearly 60 -> 35 (6th of 8 = 48 placement)
@@ -1022,4 +1058,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-791 passed, 0 failed (+ 0 syntax failures)
+817 passed, 0 failed (+ 0 syntax failures)

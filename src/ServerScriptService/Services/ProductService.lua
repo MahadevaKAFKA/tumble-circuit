@@ -192,13 +192,19 @@ function ProductService:CheckGamePasses(player)
 	end
 end
 
+-- Pure: may this player see paid random items? Fails closed: a PolicyService error, a missing
+-- or unknown field, a restricted account or the build flag off all mean NO (earned cases and
+-- guaranteed items stay available).
+function ProductService.PaidRandomAllowed(ok, info, flag)
+	local restricted = not ok or type(info) ~= "table" or info.ArePaidRandomItemsRestricted ~= false
+	return flag == true and not restricted
+end
+
 function ProductService:CheckPolicy(player)
 	local ok, info = pcall(function()
 		return PolicyService:GetPolicyInfoForPlayerAsync(player)
 	end)
-	-- fail closed: any error = no paid random items (none exist anyway); free play unaffected
-	local restricted = not ok or type(info) ~= "table" or info.ArePaidRandomItemsRestricted ~= false
-	self.policy[player] = { checked = ok, paidRandomAllowed = PlaceholderIds.ENABLE_PAID_CAPSULES == true and not restricted }
+	self.policy[player] = { checked = ok, paidRandomAllowed = ProductService.PaidRandomAllowed(ok, info, PlaceholderIds.ENABLE_PAID_CAPSULES) }
 end
 
 function ProductService:SendState(player)

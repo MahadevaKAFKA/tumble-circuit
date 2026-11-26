@@ -6,6 +6,9 @@
 	Bot practice: counted for your first 3 bot races per UTC day (QuestConfig.BotQuestRaces).
 	RequestQuestClaim(scope, index): the claim flag and the Coins/XP grant happen in ONE profile
 	mutation, so a double tap or a retry can never pay twice.
+	2026-11-26 economy: quests (Daily / Weekly / Milestone) are the only source of new Coins.
+	A completed quest left unclaimed when its period ends is paid in the same mutation that
+	rolls the period over (QuestConfig.Refresh -> autoPaid), and the player is told.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,6 +21,18 @@ local Utility = require(Shared:WaitForChild("Utility"))
 
 local QuestService = {}
 QuestService.__index = QuestService
+
+-- Pure: add auto-paid rollover rewards to a profile (inside the caller's mutation)
+function QuestService.PayAuto(data, paid)
+	local coins, xp = 0, 0
+	for _, p in ipairs(paid or {}) do
+		coins = coins + p.reward.coins
+		xp = xp + p.reward.xp
+	end
+	data.coins = data.coins + coins
+	data.xp = data.xp + xp
+	return coins, xp
+end
 
 local S = RoundProtocol.States
 
@@ -50,8 +65,15 @@ function QuestService:SendState(player)
 	end
 	local q = profile.data.quests
 	local now = self.clock()
-	if QuestConfig.Refresh(q, now) then
-		self.data:Update(player, function() end) -- persist the new day's quests
+	local autoCoins = 0
+	self.data:Update(player, function(data) -- new day / week: settle completed quests, then roll
+		local _, paid = QuestConfig.Refresh(data.quests, now)
+		autoCoins = QuestService.PayAuto(data, paid)
+	end)
+	q = profile.data.quests
+	if autoCoins > 0 then
+		self.data:SaveSoon(player)
+		self.remotes.ProgressionNotice:FireClient(player, { kind = "QuestClaimed", text = string.format("Finished quests from the last period were paid: +%d COINS", autoCoins) })
 	end
 	local day, week = QuestConfig.UtcDay(now), QuestConfig.UtcWeek(now)
 	self.remotes.QuestState:FireClient(player, {
@@ -59,6 +81,7 @@ function QuestService:SendState(player)
 		weekly = q.weekly,
 		resetsDailyIn = (day + 1) * 86400 - now,
 		resetsWeeklyIn = (week * 7 + 4) * 86400 - now, -- next Monday 00:00 UTC
+		milestones = q.milestones,
 		botRaces = q.botRaces,
 		botLimit = QuestConfig.BotQuestRaces,
 		rewards = QuestConfig.Rewards,
@@ -71,7 +94,9 @@ function QuestService:Event(player, kind, amount, ctx)
 	end
 	local done = {}
 	local updated = self.data:Update(player, function(data)
-		done = QuestConfig.Apply(data.quests, kind, amount or 1, self.clock(), ctx or {})
+		local _, paid
+		done, _, paid = QuestConfig.Apply(data.quests, kind, amount or 1, self.clock(), ctx or {})
+		QuestService.PayAuto(data, paid)
 	end)
 	if updated then
 		for _, text in ipairs(done) do
@@ -84,7 +109,9 @@ end
 function QuestService:Claim(player, scope, index)
 	local reward, reason = nil, "Your progress isn't loaded yet"
 	local ok = self.data:Update(player, function(data)
-		reward, reason = QuestConfig.Claim(data.quests, scope, index, self.clock())
+		local paid
+		reward, reason, paid = QuestConfig.Claim(data.quests, scope, index, self.clock())
+		QuestService.PayAuto(data, paid)
 		if reward then
 			data.coins = data.coins + reward.coins
 			data.xp = data.xp + reward.xp
@@ -126,6 +153,9 @@ function QuestService:_onRaceFinished(results)
 					self:Event(player, "finish", 1, ctx)
 					if entry.place and entry.place <= 3 then
 						self:Event(player, "podium", 1, ctx)
+					end
+					if entry.place == 1 and #results > 1 then
+						self:Event(player, "win", 1, ctx) -- milestone: wins count with 2+ racers
 					end
 				end
 			end

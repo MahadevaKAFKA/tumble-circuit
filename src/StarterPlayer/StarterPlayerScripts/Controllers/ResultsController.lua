@@ -12,6 +12,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local QuestConfig = require(Shared:WaitForChild("QuestConfig"))
 local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local Utility = require(Shared:WaitForChild("Utility"))
@@ -171,11 +172,48 @@ function Results:ApplyProfile(profile)
 	self:_renderSave()
 end
 
+-- 2026-11-26 economy: quest progress on the results screen (Coins come only from quests)
+function Results:SetQuests(data)
+	self.quests = data
+	self:_renderNotice()
+end
+
+-- Pure: up to `max` quest lines, finished-but-unclaimed first, then the closest to done.
+function Results.QuestLines(data, defs, max)
+	local out = {}
+	if type(data) ~= "table" then
+		return out
+	end
+	local entries = {}
+	for _, scope in ipairs({ "Daily", "Weekly", "Milestone" }) do
+		local list = scope == "Daily" and data.daily or scope == "Weekly" and data.weekly or data.milestones
+		for _, e in ipairs(list or {}) do
+			local def = defs(scope, e.id)
+			if def and not e.claimed then
+				entries[#entries + 1] = { text = def.text, progress = e.progress or 0, target = def.target, done = (e.progress or 0) >= def.target, scope = scope }
+			end
+		end
+	end
+	table.sort(entries, function(a, b)
+		if a.done ~= b.done then
+			return a.done
+		end
+		return a.progress / a.target > b.progress / b.target
+	end)
+	for i = 1, math.min(max, #entries) do
+		local e = entries[i]
+		out[i] = e.done and string.format("QUEST DONE: %s - claim it in QUESTS", e.text) or string.format("QUEST %s  %d / %d", e.text, e.progress, e.target)
+	end
+	return out
+end
+
 function Results:_renderNotice()
 	local n = self.notice
+	local used = 0
 	for i, label in ipairs(self.lines) do
 		local l = n and n.lines and n.lines[i]
 		if l then
+			used = i
 			local parts = {}
 			if l.coins ~= 0 then
 				parts[#parts + 1] = string.format("%+d Coins", l.coins)
@@ -188,8 +226,16 @@ function Results:_renderNotice()
 			label.Text = (i == 1 and not n and self.mine) and "Adding up your rewards..." or ""
 		end
 	end
+	-- the free label slots show your quest progress (where new Coins come from)
+	local quests = Results.QuestLines(self.quests, QuestConfig.Def, #self.lines - used - 1)
+	for i, text in ipairs(quests) do
+		local label = self.lines[used + 1 + i]
+		if label and n then
+			label.Text = text
+		end
+	end
 	UIKit.setText(self.pbLine, n and Results.PbLine(n.pb) or "")
-	UIKit.setText(self.totals, n and string.format("+%d COINS   +%d XP", n.coins, n.xp) or "")
+	UIKit.setText(self.totals, n and (n.coins > 0 and string.format("+%d COINS   +%d XP", n.coins, n.xp) or string.format("+%d XP   ·   Coins come from QUESTS", n.xp)) or "")
 	if n then
 		local level = n.levelUp and string.format("LEVEL UP!  Level %d", n.level) or string.format("Level %d", n.level)
 		if n.xpForNext and n.xpForNext > 0 then

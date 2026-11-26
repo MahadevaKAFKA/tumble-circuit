@@ -38,7 +38,7 @@ UIController.Modals = {
 	Loadout = { layer = "Loadout", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "EquipSlot", "UnlockAbility" } },
 	-- B3 hub menus
 	Garage = { layer = "Garage", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "GarageTab", "GarageFilter", "GarageItem", "Equip", "Favorite" } },
-	Quests = { layer = "Quests", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "QuestClaim" } },
+	Quests = { layer = "Quests", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "QuestClaim", "QuestTab" } },
 	Boards = { layer = "Boards", allowedOn = { Lobby = true, Results = true, Spectate = true }, buttons = { "Close", "BoardWorld", "BoardKind" } },
 	-- C: Capsule Lab (free capsule, Shard Shop, free season)
 	Lab = { layer = "Lab", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "LabTab", "CapsuleBox", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim" } },
@@ -56,7 +56,7 @@ UIController.Actions = {
 	"Emote", "Vote", -- A6
 	"TimeTrial", "Party", "Invite", "MapVote", "QuitTrial", -- B1
 	"UnlockAbility", -- B2
-	"Garage", "Quests", "More", "Boards", "GarageTab", "GarageFilter", "GarageItem", "Equip", "Favorite", "QuestClaim", "BoardWorld", "BoardKind", -- B3
+	"Garage", "Quests", "More", "Boards", "GarageTab", "GarageFilter", "GarageItem", "Equip", "Favorite", "QuestClaim", "BoardWorld", "BoardKind", "QuestTab", -- B3 (+ QuestTab 2026-11-26)
 	"Lab", "LabTab", "CapsuleBox", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim", -- C (CapsuleBox: 2026-11-26)
 	"Shop", "ShopItem", "ShopGet", "LaneClaim", "ShopTab", "ShopCase", -- D (optional shop); 2026-11-26 sections
 	"Maps", "MapVisit", "MapPractice", "MapBallot", "MapPage", -- promo pack 03 (Map Selection)

@@ -1018,6 +1018,12 @@ end
 loadStage = "applying settings"
 maid:Give(settings.Changed:Connect(applySettings))
 applySettings(settings:Get())
+-- 2026-11-26 economy: the results screen shows quest progress (the only source of Coins)
+maid:Give(remote.QuestState.OnClientEvent:Connect(function(data)
+	if type(data) == "table" then
+		results:SetQuests(data)
+	end
+end))
 -- brief 2026-11-26: the Garage filter persists in your profile
 maid:Give(hubMenus.FilterChanged:Connect(function(filter)
 	settings:SetValue("garageFilter", filter)

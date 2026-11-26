@@ -8,6 +8,9 @@
 	and never charges twice. Two opens arriving together are processed one after the other.
 	Shard Shop: pick ANY not-owned catalog item; its rarity price is debited and the item granted
 	in the same mutation. Shards are earned only and can't be bought, traded or cashed out.
+	2026-11-26 economy: four tiered cases (CapsuleOdds.Boxes), a guarantee counter per case,
+	and the price the player saw is checked too: if it isn't the server's price, nothing is
+	spent ("price changed"). Coins come only from quests.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -31,11 +34,7 @@ function CapsuleService.new(deps)
 	self.counter = 0
 	self.pools = {} -- [boxId][tier] = { ids }
 	for _, box in ipairs(CapsuleOdds.Boxes) do
-		local pools = {}
-		for _, tier in ipairs(CapsuleOdds.Tiers) do
-			pools[tier] = Catalog.ItemsOfRarity(box.Kind, tier)
-		end
-		self.pools[box.Id] = pools
+		self.pools[box.Id] = CapsuleOdds.PoolsFor(box, Catalog.ItemsOfRarity)
 	end
 	return self
 end
@@ -55,18 +54,22 @@ function CapsuleService.OpenOn(data, requestId, snapshot, pools, rng, now, box)
 			return nil, "Already opened"
 		end
 	end
-	if type(snapshot) ~= "table" or snapshot.version ~= CapsuleOdds.Version or snapshot.epic ~= cap.epicMisses or snapshot.legendary ~= cap.legendaryMisses then
+	local epic, legendary = CapsuleOdds.Counters(cap, box.Id)
+	if type(snapshot) ~= "table" or snapshot.version ~= CapsuleOdds.Version or snapshot.epic ~= epic or snapshot.legendary ~= legendary then
 		return nil, "The odds changed - check them again before opening"
+	end
+	if snapshot.cost ~= nil and snapshot.cost ~= cost then
+		return nil, string.format("The price changed to %d Coins - nothing was spent", cost)
 	end
 	if data.coins < cost then
 		return nil, string.format("You need %d Coins", cost)
 	end
-	local tier, id, branch = CapsuleOdds.RollWith(rng(), rng(), pools, cap.epicMisses, cap.legendaryMisses)
+	local tier, id, branch = CapsuleOdds.RollWith(rng(), rng(), pools, epic, legendary)
 	if not id then
 		return nil, "Capsule unavailable"
 	end
 	data.coins = data.coins - cost
-	cap.epicMisses, cap.legendaryMisses = CapsuleOdds.After(tier, cap.epicMisses, cap.legendaryMisses)
+	CapsuleOdds.SetCounters(cap, box.Id, CapsuleOdds.After(tier, epic, legendary))
 	local owned = false
 	for _, ownedId in ipairs(data.cosmetics.owned) do
 		if ownedId == id then
@@ -136,8 +139,23 @@ function CapsuleService:SendState(player)
 		cost = CapsuleOdds.Cost,
 		coins = d.coins,
 		shards = d.shards,
-		epicMisses = d.capsule.epicMisses,
+		epicMisses = d.capsule.epicMisses, -- the Skin case (older clients)
 		legendaryMisses = d.capsule.legendaryMisses,
+		pity = (function()
+			local out = {}
+			for _, box in ipairs(CapsuleOdds.Boxes) do
+				local e, l = CapsuleOdds.Counters(d.capsule, box.Id)
+				out[box.Id] = { e = e, l = l }
+			end
+			return out
+		end)(),
+		prices = (function()
+			local out = {}
+			for _, box in ipairs(CapsuleOdds.Boxes) do
+				out[box.Id] = box.Cost
+			end
+			return out
+		end)(),
 		history = d.capsule.history,
 		canSave = profile.status ~= "Unavailable" and profile.status ~= "ReadOnly",
 	})
@@ -154,7 +172,7 @@ function CapsuleService:_usable(player)
 	return true
 end
 
-function CapsuleService:Open(player, requestId, version, epic, legendary, boxId)
+function CapsuleService:Open(player, requestId, version, epic, legendary, boxId, costSeen)
 	local box = CapsuleOdds.Box(boxId)
 	local ok, reason = self:_usable(player)
 	if ok and #requestId < 8 then
@@ -168,7 +186,7 @@ function CapsuleService:Open(player, requestId, version, epic, legendary, boxId)
 		self.counter = self.counter + 1
 		local rng = Random.new((os.clock() * 1e6 + player.UserId * 7919 + self.counter * 104729) % 2147483647)
 		self.data:Update(player, function(data)
-			result, reason = CapsuleService.OpenOn(data, requestId, { version = version, epic = epic, legendary = legendary }, self.pools[box.Id], function()
+			result, reason = CapsuleService.OpenOn(data, requestId, { version = version, epic = epic, legendary = legendary, cost = costSeen }, self.pools[box.Id], function()
 				return rng:NextNumber()
 			end, os.time(), box)
 		end)
@@ -226,8 +244,8 @@ function CapsuleService:Start()
 			end
 		end))
 	end
-	connect("RequestOpenCapsule", function(player, requestId, version, epic, legendary, boxId)
-		self:Open(player, requestId, version, epic, legendary, boxId)
+	connect("RequestOpenCapsule", function(player, requestId, version, epic, legendary, boxId, costSeen)
+		self:Open(player, requestId, version, epic, legendary, boxId, costSeen)
 	end)
 	connect("RequestShardBuy", function(player, id)
 		self:ShardBuy(player, id)

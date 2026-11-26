@@ -71,7 +71,7 @@
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 14 -- v14 (2026-11-26): RequestCapsuleSeen (v13: RequestOpenCapsule adds the capsule id)
+RoundProtocol.Version = 15 -- v15 (2026-11-26 economy): Milestone quest claims, RequestOpenCapsule + price seen (v14: RequestCapsuleSeen)
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -121,14 +121,14 @@ RoundProtocol.Remotes = {
 	RequestEquipCosmetic = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 8 }, { type = "string", maxLength = 40 }, { type = "number", min = 0, max = 3, integer = true } }, MinInterval = 0.25 },
 	RequestFavorite = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 }, "boolean" }, MinInterval = 0.2 },
 	QuestState = { Direction = "ServerToClient" },
-	RequestQuestClaim = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 8 }, { type = "number", min = 1, max = 4, integer = true } }, MinInterval = 0.4 },
+	RequestQuestClaim = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 9 }, { type = "number", min = 1, max = 12, integer = true } }, MinInterval = 0.4 }, -- v15: "Milestone" scope
 	RequestLeaderboard = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 8 }, { type = "string", maxLength = 40 }, { type = "number", min = 0, max = 2, integer = true } }, MinInterval = 1.0 },
 	LeaderboardData = { Direction = "ServerToClient" },
 	ProgressionNotice = { Direction = "ServerToClient" }, -- owner: LevelReward / QuestDone / QuestClaimed / Denied
 	-- C (earned only: no Robux anywhere in C)
 	CapsuleState = { Direction = "ServerToClient" },
 	RequestCapsuleState = { Direction = "ClientToServer", Args = {}, MinInterval = 0.5 },
-	RequestOpenCapsule = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 }, { type = "number", min = 0, max = 99, integer = true }, { type = "number", min = 0, max = 99, integer = true }, { type = "number", min = 0, max = 99, integer = true }, { type = "string", maxLength = 12 } }, MinInterval = 1.6 },
+	RequestOpenCapsule = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 }, { type = "number", min = 0, max = 99, integer = true }, { type = "number", min = 0, max = 99, integer = true }, { type = "number", min = 0, max = 99, integer = true }, { type = "string", maxLength = 12 }, { type = "number", min = 0, max = 100000, integer = true } }, MinInterval = 1.6 }, -- v15: + the price you saw
 	CapsuleResult = { Direction = "ServerToClient" },
 	-- v14: the reveal of a saved result was shown (display bookkeeping only: grants nothing)
 	RequestCapsuleSeen = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 } }, MinInterval = 0.25 },

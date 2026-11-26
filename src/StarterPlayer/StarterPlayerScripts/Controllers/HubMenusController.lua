@@ -471,8 +471,25 @@ function HubMenus:_buildQuests(root)
 		self.CloseRequested:Fire()
 	end))
 	self.questRows = {}
-	local function row(scope, index, y)
-		local frame = UIKit.panel(panel, { Position = UDim2.fromOffset(24, y), Size = UDim2.fromOffset(672, 48), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.1 })
+	-- 2026-11-26 economy: quests are the only source of Coins; MILESTONES = one-time goals
+	local periodic = UIKit.new("Frame", { Name = "Periodic", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, panel)
+	local milestones = UIKit.new("ScrollingFrame", { Name = "Milestones", Position = UDim2.fromOffset(0, 60), Size = UDim2.new(1, 0, 0, 440), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 6, CanvasSize = UDim2.fromOffset(0, #QuestConfig.Milestones * 54 + 8), Visible = false }, panel)
+	self.questPages = { Periodic = periodic, Milestones = milestones }
+	self.questTabs = {}
+	for i, tab in ipairs({ { "Periodic", "DAILY + WEEKLY" }, { "Milestones", "MILESTONES" } }) do
+		local b = UIKit.button(panel, { Name = "QuestTab", Position = UDim2.fromOffset(200 + (i - 1) * 170, 14), Size = UDim2.fromOffset(160, 36), Text = tab[2] }, palette.Yellow)
+		self.maid:Give(b.Activated:Connect(function()
+			for name, page in pairs(self.questPages) do
+				UIKit.Show(page, name == tab[1], "FromRight", 0.2)
+			end
+			for name, button in pairs(self.questTabs) do
+				button.BackgroundTransparency = name == tab[1] and 0 or 0.6
+			end
+		end))
+		self.questTabs[tab[1]] = b
+	end
+	local function row(scope, index, y, parent)
+		local frame = UIKit.panel(parent or periodic, { Position = UDim2.fromOffset(24, y), Size = UDim2.fromOffset(672, 48), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.1 })
 		local text = UIKit.label(frame, { Position = UDim2.fromOffset(12, 4), Size = UDim2.fromOffset(420, 22), Font = Enum.Font.GothamBold, Text = "", TextXAlignment = Enum.TextXAlignment.Left })
 		local barBack = UIKit.new("Frame", { Position = UDim2.fromOffset(12, 30), Size = UDim2.fromOffset(420, 10), BackgroundColor3 = palette.Navy, BorderSizePixel = 0 }, frame)
 		local bar = UIKit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = palette.Yellow, BorderSizePixel = 0 }, barBack)
@@ -483,15 +500,18 @@ function HubMenus:_buildQuests(root)
 		end))
 		self.questRows[scope .. index] = { frame = frame, text = text, bar = bar, count = count, claim = claim }
 	end
-	UIKit.label(panel, { Position = UDim2.fromOffset(24, 60), Size = UDim2.fromOffset(400, 24), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = "DAILY", TextXAlignment = Enum.TextXAlignment.Left })
-	self.dailyReset = UIKit.label(panel, { Position = UDim2.fromOffset(300, 60), Size = UDim2.fromOffset(396, 24), Font = Enum.Font.Gotham, Text = "", TextXAlignment = Enum.TextXAlignment.Right })
+	UIKit.label(periodic, { Position = UDim2.fromOffset(24, 60), Size = UDim2.fromOffset(400, 24), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = "DAILY", TextXAlignment = Enum.TextXAlignment.Left })
+	self.dailyReset = UIKit.label(periodic, { Position = UDim2.fromOffset(300, 60), Size = UDim2.fromOffset(396, 24), Font = Enum.Font.Gotham, Text = "", TextXAlignment = Enum.TextXAlignment.Right })
 	for i = 1, QuestConfig.DailyCount do
 		row("Daily", i, 88 + (i - 1) * 54)
 	end
-	UIKit.label(panel, { Position = UDim2.fromOffset(24, 256), Size = UDim2.fromOffset(400, 24), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = "WEEKLY", TextXAlignment = Enum.TextXAlignment.Left })
-	self.weeklyReset = UIKit.label(panel, { Position = UDim2.fromOffset(300, 256), Size = UDim2.fromOffset(396, 24), Font = Enum.Font.Gotham, Text = "", TextXAlignment = Enum.TextXAlignment.Right })
+	UIKit.label(periodic, { Position = UDim2.fromOffset(24, 256), Size = UDim2.fromOffset(400, 24), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = "WEEKLY", TextXAlignment = Enum.TextXAlignment.Left })
+	self.weeklyReset = UIKit.label(periodic, { Position = UDim2.fromOffset(300, 256), Size = UDim2.fromOffset(396, 24), Font = Enum.Font.Gotham, Text = "", TextXAlignment = Enum.TextXAlignment.Right })
 	for i = 1, #QuestConfig.Weekly do
 		row("Weekly", i, 284 + (i - 1) * 54)
+	end
+	for i = 1, #QuestConfig.Milestones do
+		row("Milestone", i, 4 + (i - 1) * 54, milestones)
 	end
 	self.questNote = UIKit.label(panel, { Position = UDim2.fromOffset(24, 504), Size = UDim2.fromOffset(672, 44), Font = Enum.Font.Gotham, TextWrapped = true, TextTransparency = 0.15, Text = "" })
 end
@@ -504,17 +524,17 @@ function HubMenus:_renderQuests()
 	local elapsed = os.clock() - (self.questsReceivedAt or os.clock())
 	self.dailyReset.Text = "new quests in " .. duration((q.resetsDailyIn or 0) - elapsed)
 	self.weeklyReset.Text = "new quests in " .. duration((q.resetsWeeklyIn or 0) - elapsed)
-	for _, scope in ipairs({ "Daily", "Weekly" }) do
-		local list = scope == "Daily" and q.daily or q.weekly
-		local reward = q.rewards and q.rewards[scope] or QuestConfig.Rewards[scope]
-		local count = scope == "Daily" and QuestConfig.DailyCount or #QuestConfig.Weekly
+	for _, scope in ipairs({ "Daily", "Weekly", "Milestone" }) do
+		local list = (scope == "Daily" and q.daily or scope == "Weekly" and q.weekly or q.milestones) or {}
+		local count = scope == "Daily" and QuestConfig.DailyCount or scope == "Weekly" and #QuestConfig.Weekly or #QuestConfig.Milestones
 		for i = 1, count do
 			local row = self.questRows[scope .. i]
 			local entry = list[i]
 			local def = entry and QuestConfig.Def(scope, entry.id)
 			row.frame.Visible = def ~= nil
 			if def then
-				row.text.Text = string.format("%s   (+%d Coins, +%d XP)", def.text, reward.coins, reward.xp)
+				local reward = QuestConfig.RewardFor(scope, def)
+				row.text.Text = string.format("%s%s   (+%d Coins, +%d XP)", def.skill and "SKILL  " or "", def.text, reward.coins, reward.xp)
 				row.bar.Size = UDim2.fromScale(math.clamp(entry.progress / def.target, 0, 1), 1)
 				row.count.Text = string.format("%d/%d", entry.progress, def.target)
 				local ready = entry.progress >= def.target and not entry.claimed
@@ -524,7 +544,7 @@ function HubMenus:_renderQuests()
 			end
 		end
 	end
-	self.questNote.Text = string.format("Bot races counted for quests today: %d/%d. After that, bot races still pay Coins but don't count for quests. Quests reset at 00:00 UTC (weekly: Monday).", math.min(q.botRaces or 0, q.botLimit or 3), q.botLimit or 3)
+	self.questNote.Text = string.format("Quests are where Coins come from. Bot races counted today: %d/%d (later bot races still give XP). Resets 00:00 UTC (weekly: Monday); a finished quest you didn't claim is paid at the reset.", math.min(q.botRaces or 0, q.botLimit or 3), q.botLimit or 3)
 end
 
 ---------------------------------------------------------------------------------------------
