@@ -296,7 +296,7 @@ function Spec.run(m)
 	check("Starter case: 250 Coins needed, refused at 249", ne == nil and string.find(whyE, "250") ~= nil and poorS.coins == 249)
 	local migrated6 = Schema.Migrate({ schemaVersion = 5, coins = 777, capsule = { epicMisses = 9, legendaryMisses = 30, pity = { Apex = { e = 2, l = 70 }, Bogus = { e = 1, l = 1 } }, history = { { id = "tangerine", tier = "Common", box = "Emote" } } } })
 	local ae, al = O.Counters(migrated6.capsule, "Apex")
-	check("v5 -> v6: Coins kept, the old shared counters become the Skin case's, bad entries clamped / dropped", migrated6.schemaVersion == 6 and migrated6.coins == 777 and migrated6.capsule.epicMisses == 9 and ae == 2 and al == O.LegendaryPityAfter and migrated6.capsule.pity.Bogus == nil)
+	check("v5 -> v6+: Coins kept, the old shared counters become the Skin case's, bad entries clamped / dropped", migrated6.schemaVersion == m.PlayerDataSchema.Version and migrated6.coins == 777 and migrated6.capsule.epicMisses == 9 and ae == 2 and al == O.LegendaryPityAfter and migrated6.capsule.pity.Bogus == nil)
 	check("old history lines from removed v2 cases keep their name", migrated6.capsule.history[1].box == "Emote" and O.BoxName("Emote") == "EMOTE CAPSULE")
 
 	local Lab = m.LabPure

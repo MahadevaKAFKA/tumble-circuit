@@ -163,6 +163,11 @@ physics:Start()
 hazards:Start()
 hubs:Start() -- before players spawn: sets TC_Hub / TC_Features on everyone
 round:Start()
+-- brief 3 E: the opt-in Ranked test (seals rounds, applies ratings idempotently)
+local RankService = require(Services:WaitForChild("RankService"))
+local ranked = RankService.new({ data = playerData, round = round, remotes = remotes })
+round.ranked = ranked
+ranked:Start()
 timeTrial:Start()
 cosmetics:Start()
 quests:Start()

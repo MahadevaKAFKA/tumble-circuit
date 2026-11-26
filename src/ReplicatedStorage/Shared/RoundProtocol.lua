@@ -71,7 +71,8 @@
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 15 -- v15 (2026-11-26 economy): Milestone quest claims, RequestOpenCapsule + price seen (v14: RequestCapsuleSeen)
+RoundProtocol.Version = 16 -- v16 (2026-11-26 ranked/challenges): RequestRankedOptIn/RankState, RequestChallenge/ChallengeState
+-- v15: v15 (2026-11-26 economy): Milestone quest claims, RequestOpenCapsule + price seen (v14: RequestCapsuleSeen)
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -137,6 +138,12 @@ RoundProtocol.Remotes = {
 	RequestSeasonClaim = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 30, integer = true } }, MinInterval = 0.3 },
 	-- D (optional shop; every product id nil until the owner configures it)
 	ShopState = { Direction = "ServerToClient" },
+	-- v16: opt-in Ranked test (boolean = wants ranked); RankState = rating / tier / last delta / wait note
+	RequestRankedOptIn = { Direction = "ClientToServer", Args = { "boolean" }, MinInterval = 1.0 },
+	RankState = { Direction = "ServerToClient" },
+	-- v16: challenges (id, action: "start" | "retry" | "quit" | "code") and their state / results
+	RequestChallenge = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 }, { type = "string", maxLength = 12 } }, MinInterval = 0.5 },
+	ChallengeState = { Direction = "ServerToClient" },
 	RequestShopState = { Direction = "ClientToServer", Args = {}, MinInterval = 0.5 },
 	RequestPremiumClaim = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 30, integer = true } }, MinInterval = 0.3 },
 }

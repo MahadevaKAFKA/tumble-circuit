@@ -18,6 +18,22 @@ The promo pack adds no monetization. Every deploy stays private.
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
 
+## 2026-11-26 — Graphics/gameplay brief E: opt-in Ranked Circuit test (v39, private)
+
+- **RankRules**: pairwise expected-vs-actual model from one sealed snapshot, normalized by field
+  size, ties 0.5, DNF behind finishers, placement K 48 → 24, tiers Bronze…Elite, idempotent apply
+  by match id, season soft reset. Profile schema **v7** (rank, challenges, mastery; migrations
+  keep every earlier field).
+- **RankService** on the normal queue: ranked only when 4+ humans all opted in (else Casual with
+  an honest note); no bots, no Chaos Gate boosts, no abilities in ranked rounds; results apply on
+  Results, pending/neutral rules as in docs/RANKED.md. **MORE > RANKED** card (tier or placement
+  n/5, bar, last result or "pending", join/leave).
+- Protocol v16 (ranked + challenge remotes).
+
+**Verified here:** 895 offline checks incl. Ranked.spec (equal/mixed fields, ties, small vs large
+fields, 200-race simulation, idempotence, eligibility, season, opt-in rule, card text).
+**Not verified:** a real 4-player ranked round (needs four people in the private server).
+
 ## 2026-11-26 — Graphics/gameplay brief A–C: Volcano Vault circuit, roadside speed cues, readability, race instrumentation (v38, private)
 
 Brief: Tumble-Circuit-Graphics-Gameplay-and-Ranked-Master-Prompt (milestones A–C; D/E follow).

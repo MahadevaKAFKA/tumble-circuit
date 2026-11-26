@@ -392,9 +392,11 @@ function RoundService:_enterPreparing()
 		self.racers[#self.racers + 1] = racer
 		self.racerByPlayer[player] = racer
 	end
-	-- A4: bots fill the remaining slots (behind the humans) up to FillTo racers.
+	-- brief 3 E: an opt-in Ranked round is sealed now (roster + ratings snapshot), before bots
+	self.rankedRound = self.ranked ~= nil and #self.racers > 0 and self.ranked:Seal(self.roundId, self.racers) or false
+	-- A4: bots fill the remaining slots (behind the humans) up to FillTo racers (never in Ranked).
 	local cfg = RaceConfig.Bots
-	if self.bots and cfg and cfg.Enabled and #self.racers > 0 then
+	if self.bots and cfg and cfg.Enabled and #self.racers > 0 and not self.rankedRound then
 		local fill = RaceRules.BotFillCount(#self.racers, slots, cfg.FillTo, cfg.Enabled)
 		if cfg.FixedCount and #self.racers > 0 then -- dev panel override (Studio)
 			fill = math.max(0, math.min(cfg.FixedCount, slots - #self.racers))
@@ -494,6 +496,9 @@ function RoundService:_enterResults()
 		end
 	end
 	self.results = self.progress:Standings(self.racers)
+	if self.rankedRound and self.ranked then
+		self.ranked:Finalize(self.results) -- deltas from the seal snapshot, idempotent per match id
+	end
 	if self.stats then
 		for _, racer in ipairs(self.racers) do
 			self.stats:OnResult(racer.finished == true)
@@ -526,6 +531,7 @@ function RoundService:_enterResults()
 end
 
 function RoundService:_enterCleanup()
+	self.rankedRound = false
 	self.track:SetStartGateClosed(true)
 	self.checkpoints:EndRound()
 	local racers = self.racers
@@ -961,6 +967,7 @@ function RoundService:GetSnapshot()
 		trackId = self.track:GetLayout(ZONES.Race).Definition.Id,
 		checkpointTotal = #self.track:GetLayout(ZONES.Race).Checkpoints, -- per lap
 		laps = self.track:GetLayout(ZONES.Race).Loop and self.track:GetLayout(ZONES.Race).Laps or 1,
+		mode = self.rankedRound and "Ranked" or "Casual", -- brief 3 E
 		finishGrace = self.leaderGrace == true, -- the clock is now the finish grace (show it)
 		racers = racers,
 		queued = queued,

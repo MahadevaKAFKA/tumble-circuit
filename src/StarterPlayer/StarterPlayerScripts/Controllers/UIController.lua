@@ -21,7 +21,7 @@ UIController.Screens = {
 		-- 3D board; the lobby column now carries the countdown / waiting line itself.
 		-- AbilitiesRace here = B2 try-it buttons (only shown after TRY in the ability menu)
 		layers = { "Hud", "Lobby", "Modes", "Touch", "Social", "AbilitiesRace", "Phase" }, -- loadout summary lives on the LOADOUT button; Phase = the one MAP · PHASE · TIMER strip
-		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2", "Garage", "Quests", "More", "Boards", "Lab", "Shop", "Maps", "HubDrawer", "ProfileDrawer", "ExitPractice" },
+		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2", "Garage", "Quests", "More", "Boards", "Lab", "Shop", "Maps", "HubDrawer", "ProfileDrawer", "ExitPractice", "Ranked", "RankedToggle" },
 	},
 	-- B1 solo Time Trial: timer card + QUIT; no abilities, no lobby column
 	TimeTrial = { layers = { "Hud", "TimeTrial", "Touch" }, buttons = { "QuitTrial", "Brake", "Reset", "Camera" } },
@@ -61,6 +61,7 @@ UIController.Actions = {
 	"Shop", "ShopItem", "ShopGet", "LaneClaim", "ShopTab", "ShopCase", -- D (optional shop); 2026-11-26 sections
 	"Maps", "MapVisit", "MapPractice", "MapBallot", "MapPage", -- promo pack 03 (Map Selection)
 	"SettingsTab", "SettingsReset", "HubDrawer", "ProfileDrawer", "ExitPractice", -- UI overhaul
+	"Ranked", "RankedToggle", -- brief 3 E (opt-in Ranked test card)
 }
 
 local RACE_STATES = { Preparing = true, Countdown = true, Racing = true }

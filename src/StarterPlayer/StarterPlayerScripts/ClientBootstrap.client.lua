@@ -55,6 +55,7 @@ local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local RouteTracker = require(Shared:WaitForChild("RouteTracker"))
 local NameplateController = require(Controllers:WaitForChild("NameplateController"))
 local MarbleReadability = require(Controllers:WaitForChild("MarbleReadability"))
+local RankController = require(Controllers:WaitForChild("RankController"))
 local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 local MapRegistry = require(Shared:WaitForChild("MapRegistry"))
 local VisualProfiles = require(Shared:WaitForChild("VisualProfiles"))
@@ -417,9 +418,13 @@ maid:Give(social.ModifierChanged:Connect(function(modifier)
 end))
 -- UI overhaul (2026-11-26): hub card + MENU drawer + profile drawer, compact race strip. The
 -- same buttons and handlers as before, re-placed; GameConfig.UI.LegacyHud restores the old HUD.
+-- brief 3 E: the opt-in Ranked test card (MORE > RANKED)
+local rank = maid:Give(RankController.new({ remotes = remote, toast = function(text, seconds)
+	hud:Toast(text, seconds)
+end }))
 if not GameConfig.UI.LegacyHud then
 	-- v2 hub (owner feedback 2026-11-26): profile chip + PLAY card top right, icon dock bottom
-	matchUi:UseDockLayout({ buttons = { modes.trialButton, modes.partyButton }, emotes = social.emoteBar })
+	matchUi:UseDockLayout({ buttons = { modes.trialButton, modes.partyButton, rank.openButton }, emotes = social.emoteBar })
 	modes:SetCardMode(true)
 	raceHud:UseStrip()
 end
@@ -1663,6 +1668,9 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	end
 	nameplates:Step(dt, marblesFolder, ball, (state == S.Preparing or state == S.Countdown) and amRacing())
 	readability:Step(PhysicsConfig.Ball.Radius)
+	if amRacing() and rank.panel.Visible then
+		rank:Close() -- never over a race
+	end
 	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown, progress = progressFraction, rivals = rivalFractions })
 	results:Update(now)
 	social:Update(now)

@@ -19,6 +19,7 @@ ok    src/ReplicatedStorage/Shared/ProgressionConfig.lua
 ok    src/ReplicatedStorage/Shared/Protocol.lua
 ok    src/ReplicatedStorage/Shared/QuestConfig.lua
 ok    src/ReplicatedStorage/Shared/RaceConfig.lua
+ok    src/ReplicatedStorage/Shared/RankRules.lua
 ok    src/ReplicatedStorage/Shared/RoundProtocol.lua
 ok    src/ReplicatedStorage/Shared/RouteTracker.lua
 ok    src/ReplicatedStorage/Shared/SeasonConfig.lua
@@ -61,6 +62,7 @@ ok    src/ServerScriptService/Services/QuestService.lua
 ok    src/ServerScriptService/Services/RacePhysicsService.lua
 ok    src/ServerScriptService/Services/RaceRules.lua
 ok    src/ServerScriptService/Services/RaceStats.lua
+ok    src/ServerScriptService/Services/RankService.lua
 ok    src/ServerScriptService/Services/RewardRules.lua
 ok    src/ServerScriptService/Services/RoundService.lua
 ok    src/ServerScriptService/Services/SeasonService.lua
@@ -96,6 +98,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PhaseStripController.lu
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceIntroController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RankController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ResultsController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/SettingsController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ShopController.lua
@@ -133,6 +136,7 @@ ok    src/Tests/Unit/MicroSkill.spec.lua
 ok    src/Tests/Unit/Motion.spec.lua
 ok    src/Tests/Unit/Persistence.spec.lua
 ok    src/Tests/Unit/ProtocolKeys.spec.lua
+ok    src/Tests/Unit/Ranked.spec.lua
 ok    src/Tests/Unit/ReadyVote.spec.lua
 ok    src/Tests/Unit/RewardIdempotence.spec.lua
 ok    src/Tests/Unit/RoundState.spec.lua
@@ -152,8 +156,8 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (8947 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 289.8 ms
-PRINT	[TumbleCircuit] server ready (A6.0, protocol v15)
+PRINT	[Track] built 3 maps (8947 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 279.7 ms
+PRINT	[TumbleCircuit] server ready (A6.0, protocol v16)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
 PASS  StarterPlayer/StarterPlayerScripts/ClientBootstrap.client main chunk completes
@@ -611,7 +615,7 @@ PASS  Trail case: charges 550, grants a Trail, moves only its own counters
 PASS  the Skin case keeps its own (old shared) counters: a snapshot with another case's counters is refused
 PASS  price mismatch: the price you saw isn't the server's -> refused, nothing spent
 PASS  Starter case: 250 Coins needed, refused at 249
-PASS  v5 -> v6: Coins kept, the old shared counters become the Skin case's, bad entries clamped / dropped
+PASS  v5 -> v6+: Coins kept, the old shared counters become the Skin case's, bad entries clamped / dropped
 PASS  old history lines from removed v2 cases keep their name
 PASS  reveal timeline: queue 0.35, chase cut 0.75, rail 1.15, cross 2.0, unmask 2.05, done 2.5
 PASS  reveal lineup: the confirmed winner appears exactly once, finishing order is a full ranking
@@ -1133,4 +1137,22 @@ info  Neon Foundry circuit: lap 2963 studs, model standing 71.0 s / flying 69.8 
 info  Sky Carnival circuit: lap 3305 studs, model flying lap 76.9 s, race 232 s (MODEL)
 info  Volcano Vault circuit: lap 2723 studs, model flying lap 64.4 s, race 194 s (MODEL)
 
-880 passed, 0 failed (+ 0 syntax failures)
+-- Ranked test specs --
+PASS  equal 4-player field: winner gains, last loses, the field is ~zero-sum
+PASS  normalized by opponents: the winner of 4 and the winner of 12 gain the same
+PASS  2nd of 4 is a small gain; ~2nd-of-4 position in 12 is close to it
+PASS  mixed skill: an expected win gains less than an upset
+PASS  two DNFs tie with each other and rank behind every finisher
+PASS  deterministic: the roster order never changes a delta
+PASS  placement races move faster than established ones
+PASS  repeated races: the stronger player ends higher, and nobody runs away (bounded)
+PASS  tiers: a rated player has a named tier; fewer than 5 results = Provisional
+PASS  a duplicate match result never applies twice
+PASS  3 humans or an unfinalized result = no rating change; 4 finalized humans = rated
+PASS  season rollover: halfway back to the start rating, placements restart
+PASS  sanitize drops garbage (infinite rating, negative counts, bad ids)
+PASS  a round is ranked only with 4+ humans who ALL opted in; otherwise Casual with an honest note
+PASS  rank card: placement progress, the wait note and a pending (never invented) result
+info  200 simulated 6-player races: ratings 1404 (best) ... 606 (weakest)
+
+895 passed, 0 failed (+ 0 syntax failures)

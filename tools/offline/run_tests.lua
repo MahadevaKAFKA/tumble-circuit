@@ -119,6 +119,9 @@ modules.SpeedFeelPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers
 modules.RevealPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CapsuleRevealController")
 modules.NameplatePure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/NameplateController")
 modules.RaceStats = H.module("ServerScriptService/Services/RaceStats")
+modules.RankRules = H.module("ReplicatedStorage/Shared/RankRules")
+modules.RankService = H.module("ServerScriptService/Services/RankService")
+modules.RankPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/RankController")
 modules.PhaseStripPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/PhaseStripController")
 modules.CameraPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CameraController")
 H.stubServices = {}
@@ -313,6 +316,7 @@ local suites = {
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },
 	{ "A6 social specs", root .. "/src/Tests/Unit/Social.spec.lua" },
 	{ "Three-lap circuit specs", root .. "/src/Tests/Unit/Circuits.spec.lua" },
+	{ "Ranked test specs", root .. "/src/Tests/Unit/Ranked.spec.lua" },
 }
 local passed, failed = 0, 0
 -- Boot smoke (2026-11-26): both bootstrap main chunks run end to end against proxy Roblox APIs

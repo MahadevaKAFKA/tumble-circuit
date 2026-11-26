@@ -36,10 +36,12 @@ local Catalog = require(script.Parent:WaitForChild("Catalog"))
 local QuestConfig = require(script.Parent:WaitForChild("QuestConfig"))
 local SeasonConfig = require(script.Parent:WaitForChild("SeasonConfig"))
 local CapsuleOdds = require(script.Parent:WaitForChild("CapsuleOdds"))
+local RankRules = require(script.Parent:WaitForChild("RankRules"))
 
 local PlayerDataSchema = {}
 
-PlayerDataSchema.Version = 6 -- v6 (2026-11-26 economy): capsule.pity per case, quests.milestones
+PlayerDataSchema.Version = 7 -- v7 (2026-11-26 ranked/challenges): rank, challenges, mastery
+-- v6 (2026-11-26 economy): capsule.pity per case, quests.milestones
 PlayerDataSchema.LedgerSize = 25 -- last N rewarded race ids kept (bounded, never grows)
 
 PlayerDataSchema.Settings = {
@@ -218,8 +220,44 @@ function PlayerDataSchema.Defaults()
 		settings = PlayerDataSchema.DefaultSettings(),
 		rewardLedger = {},
 		botPractice = { day = 0, races = 0 },
+		rank = RankRules.Default(), -- v7: opt-in Ranked test (skill only; separate from level)
+		challenges = { best = {}, medals = {}, splits = {} }, -- v7: [challengeKey] (id|revision|ruleset)
+		mastery = {}, -- v7: [goalId] = true (earned once; survives course revisions)
 	}
 end
+
+-- v7 challenge / mastery sanitizing (keys are stable ids; values bounded)
+local function sanitizeChallenges(raw)
+	local out = { best = {}, medals = {}, splits = {} }
+	if type(raw) ~= "table" then
+		return out
+	end
+	local n = 0
+	for key, seconds in pairs(type(raw.best) == "table" and raw.best or {}) do
+		if type(key) == "string" and #key <= 80 and finiteNumber(seconds) and seconds > 0 and n < 60 then
+			out.best[key] = seconds
+			n = n + 1
+		end
+	end
+	for key, medal in pairs(type(raw.medals) == "table" and raw.medals or {}) do
+		if type(key) == "string" and #key <= 80 and (medal == "Gold" or medal == "Silver" or medal == "Bronze") then
+			out.medals[key] = medal
+		end
+	end
+	for key, list in pairs(type(raw.splits) == "table" and raw.splits or {}) do
+		if type(key) == "string" and #key <= 80 and type(list) == "table" and #list <= 16 then
+			local clean = {}
+			for _, t in ipairs(list) do
+				if finiteNumber(t) and t > 0 then
+					clean[#clean + 1] = t
+				end
+			end
+			out.splits[key] = clean
+		end
+	end
+	return out
+end
+PlayerDataSchema.SanitizeChallenges = sanitizeChallenges
 
 -- Stable personal-best key: different worlds, layouts, hazard variations or modes never compare.
 function PlayerDataSchema.BestTimeKey(worldId, layoutVersion, hazardSeedClass, mode)
@@ -367,6 +405,15 @@ function PlayerDataSchema.Migrate(raw)
 	if type(raw.botPractice) == "table" then
 		d.botPractice.day = count(raw.botPractice.day)
 		d.botPractice.races = count(raw.botPractice.races)
+	end
+	d.rank = RankRules.Sanitize(raw.rank) -- v7
+	d.challenges = sanitizeChallenges(raw.challenges) -- v7
+	if type(raw.mastery) == "table" then -- v7
+		for id, done in pairs(raw.mastery) do
+			if type(id) == "string" and #id <= 40 and done == true then
+				d.mastery[id] = true
+			end
+		end
 	end
 	d.level = (ProgressionConfig.LevelForXp(d.xp)) -- level is always derived from XP (no double level-ups)
 	return d, version ~= PlayerDataSchema.Version or raw.level ~= d.level, version < PlayerDataSchema.Version and ("migrated v" .. version .. " -> v" .. PlayerDataSchema.Version) or nil

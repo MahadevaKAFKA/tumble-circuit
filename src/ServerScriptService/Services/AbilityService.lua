@@ -612,6 +612,10 @@ function AbilityService:SetLoadout(player, loadout)
 end
 
 function AbilityService:Activate(player, slot)
+	if self.round and self.round.rankedRound and self.round:IsActiveRacer(player) then
+		self:_skill(player, "Denied", "Abilities are off in Ranked (one shared ruleset)")
+		return false
+	end
 	local state = self:_state(player)
 	local ball = self:_ballFor(player)
 	-- B2 try-it: in the hub (practice chute / platform) abilities act on yourself only

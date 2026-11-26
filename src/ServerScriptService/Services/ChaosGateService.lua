@@ -78,6 +78,9 @@ function ChaosGateService:Start()
 end
 
 function ChaosGateService:_check(entity, info)
+	if self.round and self.round.rankedRound then
+		return -- Ranked: no comeback boosts
+	end
 	local layout = self.track and self.track:GetLayout(Protocol.Zones.Race)
 	local lapLength = layout and layout.Loop and layout.LapLength or nil
 	for _, rawGate in ipairs(self.gates) do

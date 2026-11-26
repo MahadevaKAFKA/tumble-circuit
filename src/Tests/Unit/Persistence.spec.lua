@@ -70,7 +70,7 @@ function Spec.run(m)
 	check("ledger trimmed to the newest 25 (bounded)", #migrated.rewardLedger == 25 and migrated.rewardLedger[25] == "s:40")
 	local hostile = Schema.Migrate({ schemaVersion = 1, coins = -5, xp = 0 / 0, raceCount = math.huge, equippedAbilityIds = { "Boost", "Boost" } })
 	check("negative / NaN / inf counters become 0; duplicate loadout rejected", hostile.coins == 0 and hostile.xp == 0 and hostile.raceCount == 0 and hostile.equippedAbilityIds[1] == "Boost" and hostile.equippedAbilityIds[2] == "Shield")
-	local newer = { schemaVersion = 7, coins = 9999 }
+	local newer = { schemaVersion = 99, coins = 9999 }
 	local same, ok = Schema.Migrate(newer)
 	check("a NEWER schema is returned untouched and flagged not-ok", same == newer and ok == false)
 	check("SanitizeSetting: unknown key -> nil", Schema.SanitizeSetting("adminMode", true) == nil)
