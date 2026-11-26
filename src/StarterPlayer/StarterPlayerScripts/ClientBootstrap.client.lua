@@ -567,9 +567,15 @@ end
 ---------------------------------------------------------------------------------------------
 local myMarbleName = Protocol.MarbleName(player.UserId)
 
+local lostBallAt = nil -- baseline audit: respawn time shown on the perf overlay
+
 local function bindBall(ball)
 	if currentBall == ball then
 		return
+	end
+	if lostBallAt then
+		hud:NoteRespawn(os.clock() - lostBallAt)
+		lostBallAt = nil
 	end
 	currentBall = ball
 	currentZone = ball:GetAttribute(BALL.Zone) or ZONES.Hub
@@ -592,6 +598,7 @@ end
 local function unbindBall(ball)
 	if currentBall == ball then
 		currentBall = nil
+		lostBallAt = os.clock()
 		motor:Unbind()
 		if not spectate.active then
 			cameraController:Unbind()

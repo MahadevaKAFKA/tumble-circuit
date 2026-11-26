@@ -456,6 +456,14 @@ function HUD:RecordHitch(seconds, where)
 end
 
 -- Frame-time sampling for the overlay (last 240 frames).
+-- Baseline audit (2026-11-26): seconds from losing your marble to controlling the next one,
+-- shown on the overlay so a phone screenshot carries it. Presentation only.
+function HUD:NoteRespawn(seconds)
+	if type(seconds) == "number" and seconds >= 0 and seconds < 60 then
+		self.lastRespawnSeconds = seconds
+	end
+end
+
 function HUD:RecordFrame(dt)
 	self.frameIndex = self.frameIndex % 240 + 1
 	self.frameTimes[self.frameIndex] = dt
@@ -490,23 +498,29 @@ function HUD:RecordFrame(dt)
 		local value = workspace:GetAttribute(name)
 		return type(value) == "number" and value or -1
 	end
+	local okInst, instances = pcall(function()
+		return Stats.InstanceCount
+	end)
 	local line1 = string.format(
-		"FPS %.0f  p95 %.0f ms  worst %.0f ms  mem %s  ping %s",
+		"FPS %.0f  p95 %.0f ms  worst %.0f ms  mem %s  ping %s  inst %s  respawn %s",
 		1 / avg,
 		p95 * 1000,
 		worst * 1000,
 		okMem and string.format("%.0f MB", memMb) or "?",
-		okPing and string.format("%.0f ms", ping * 1000) or "?"
+		okPing and string.format("%.0f ms", ping * 1000) or "?",
+		okInst and tostring(instances) or "?",
+		self.lastRespawnSeconds and string.format("%.1f s", self.lastRespawnSeconds) or "-"
 	)
 	-- A4 PerfService publishes the server's numbers as workspace attributes every 2 s.
 	local line2 = string.format(
-		"SERVER %.0f/%.0f ms  phys %.1f ms  moving %d  marbles %d (bots %d)",
+		"SERVER %.0f/%.0f ms  phys %.1f ms  moving %d  marbles %d (bots %d)  inst %d",
 		attr("Perf_ServerFrameAvgMs"),
 		attr("Perf_ServerFrameP95Ms"),
 		attr("Perf_PhysicsStepMs"),
 		attr("Perf_MovingParts"),
 		attr("Perf_Marbles"),
-		attr("Perf_Bots")
+		attr("Perf_Bots"),
+		attr("Perf_Instances")
 	)
 	local line3 = #self.hitches > 0 and ("hitches: " .. table.concat(self.hitches, " | ")) or "hitches: none"
 	local text = line1 .. "\n" .. line2 .. "\n" .. line3
