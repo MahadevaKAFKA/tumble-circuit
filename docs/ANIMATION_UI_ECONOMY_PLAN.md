@@ -83,8 +83,92 @@ Garage, Quests, Boards, Lab (capsules / Shard Shop / season), MapSelect, Shop.
 4. Full UI — motorsport style, phase strip, Garage / Shop / Settings rework.
 5. Economy — Coins from quests only, tiered case prices, gated Robux paths.
 
-## 3. Save migration plan (filled in per milestone)
-- M2: profile v5 -> v6 adds `cosmetics.equipped.launch` (default `launch_ramp`) and the
-  `launch_ramp` starter; settings add `introSkip`, `trailVisibility`, `speedStreaks`. Old
-  saves keep everything; unknown values fall back to defaults.
-- M5: Coin balances and owned items are kept exactly. Only *new* Coins change source.
+## 3. Save migration plan
+- **M2 (v32):** `cosmetics.equipped.launch` (default `launch_ramp`, a starter everyone owns);
+  settings `introSkip`, `trailVisibility`, `speedEffects`. Sanitizers fill defaults.
+- **M3 (v33):** capsule history entries gain `seen` (old entries count as seen).
+- **M4 (v34):** settings `hudAlign`, `garageFilter`.
+- **M5 (v35): profile schema v5 -> v6.**
+  - Coins, Shards, XP, level, items, records, purchases journal: carried over **exactly**.
+  - The old shared capsule guarantee counters become the **Skin case's** counters (same
+    `epicMisses` / `legendaryMisses` fields), so nobody loses guarantee progress; the other
+    cases start at 0 in `capsule.pity[caseId]`.
+  - `quests.milestones` added (progress starts from 0; past races are not back-filled).
+  - History lines from the removed v2 Burst / Emote capsules keep their names.
+  - Season odd levels already claimed keep the Coins they paid; unclaimed ones now pay Shards.
+  - Rollback: `git revert` the M5 commit and redeploy. A v6 profile opened by v5 code is
+    read-only (the existing newer-schema guard), so nothing is overwritten; play on v6 again
+    to make it writable.
+
+## 4. Economy (M5)
+**New Coins come only from completed quests.** Races, placement, wins, the season track and
+logins pay no Coins (`ProgressionConfig.RaceCoins = false`; season odd levels pay 15 Shards).
+Races still give XP, levels, records, PBs and quest progress. Duplicates already convert to
+Shards (a separate cosmetic credit), unchanged.
+
+| Quests | Coins | XP |
+| --- | --- | --- |
+| Daily (3 per UTC day) | 100 each | 100 |
+| Weekly (4 per week, Monday UTC) | 400 each | 400 |
+| Milestones (one time) | 150-1000 (4,050 total) | 100-500 |
+
+Milestones: Finish your first race (150), Finish 10 races (300), Land 10 ramp tricks (300),
+Collect 25 Chaos Gates (400), Finish 50 races (800); skill goals: Podium 5 times (400), Win a
+race (300), Beat a personal best 5 times (400), Win 10 races (1000).
+Claims: the claimed flag and the Coins are one profile mutation (a retry or a second server
+sees "Already claimed"); a finished quest left unclaimed at a reset is paid automatically in
+the rollover mutation; bot practice counts for quests 3 races a day.
+
+| Case | Tier | Price | Daily-quest equivalents | Pool |
+| --- | --- | --- | --- | --- |
+| STARTER | basic | 250 | 2.5 | every kind, Common + Rare |
+| TRAIL | specialist | 550 | 5.5 | every trail |
+| SKIN | specialist | 650 | 6.5 | every marble skin |
+| APEX | high tier | 1300 | 13 | every kind, Epic / Legendary / Mythic only |
+
+Each case has its own guarantee counter (Epic+ on the 15th, Legendary+ on the 60th; a case
+that can't drop the tier gives its best tier). The server checks the odds version, the case's
+counters **and the price the player saw** before spending; any mismatch spends nothing.
+
+### Model (`Shared/EconomyModel`, assumptions to be replaced by telemetry)
+Active = every daily and weekly; Casual = 2/3 dailies, 2/4 weeklies, slower milestones. "Cases"
+= how many of that one case those Coins would buy.
+
+| Pattern | Day | Coins | Starter | Trail | Skin | Apex |
+| --- | --- | --- | --- | --- | --- | --- |
+| Active | 1 | 450 | 1 | 0 | 0 | 0 |
+| Active | 7 | 5,150 | 20 | 9 | 7 | 3 |
+| Active | 30 | 19,450 | 77 | 35 | 29 | 14 |
+| Casual | 1 | 350 | 1 | 0 | 0 | 0 |
+| Casual | 7 | 2,650 | 10 | 4 | 4 | 2 |
+| Casual | 30 | 11,050 | 44 | 20 | 17 | 8 |
+
+Before (v31, race Coins on): about 33,000 Coins in 30 days for an active player = 55 Marble
+capsules at 600. Now: 29 Skin cases at 650 (about half as often), with a cheaper basic case
+and a clearly stronger, pricier Apex case.
+
+### Robux (suggested only; nothing is listed or enabled)
+Guaranteed direct items, shown with Roblox's own localized price and native confirmation:
+
+| Offer | Suggested price | Notes |
+| --- | --- | --- |
+| Spring Snap launch | 79 R$ | look only, same timing |
+| Afterimage Drop launch | 99 R$ | look only, same timing |
+| Polished Copper / Quantum Chrome / Phoenix Ember skins | 49 / 99 / 149 R$ | |
+| Ember / Rainbow trails | 59 / 99 R$ | |
+| Lightning finish, Rematch? emote | 49 / 25 R$ | |
+| Founder's Style Pack (Game Pass) | 299 R$ | |
+| Season 1 premium lane | 199 R$ | Season 1 only |
+
+Paid random cases: **not recommended** and not built (`ENABLE_PAID_CAPSULES = false`, no
+route). Quest Coins never mix with any Robux-linked currency. If you ever want them, it needs
+your separate decision and the work listed in `MONETIZATION_COMPLIANCE.md`.
+
+### Owner steps to turn on an approved direct item later
+1. Approve the SKU list and prices above (or your own).
+2. Creator Dashboard > your experience > Monetization > Developer Products: create one per
+   approved offer at the approved price; copy each product id.
+3. Paste the ids into `PLACEHOLDER_IDS.lua` under `Products` (e.g. `LaunchSpringSnap = 123`)
+   and commit; I can do this step if you send the ids (product ids aren't secrets).
+4. Update the experience questionnaire for monetization; make one real test purchase per
+   product type and check a rejoin (the receipt journal grants exactly once).

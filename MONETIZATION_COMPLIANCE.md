@@ -9,7 +9,7 @@ code path at all. The free competitive game never depends on the shop.
 | --- | --- | --- |
 | Race rewards, quests, season | Free | Server-verified events; atomic claims |
 | Abilities | Free (level or earned Coins) | Never Robux (B2) |
-| Free capsules | Earned Coins only: Marble 600, Trail 450, Burst 350, Emote 300 | One capsule per item kind; one odds function for roll + display; full tier and per-item odds (empty tiers removed and rescaled, shown that way) and the shared pity counters shown before every open; request-id replay safety (C) |
+| Cases | Earned Coins only (Coins come only from quests): Starter 250, Trail 550, Skin 650, Apex 1300 | One odds function for roll + display; every item and its chance shown before each open (tiers a case can't drop are removed and rescaled, shown that way); a guarantee counter per case; the server re-checks the odds version, the counters and the price you saw (any mismatch spends nothing); request-id replay safety |
 | Shard Shop | Earned Shards only | Direct choice, exact prices by rarity |
 | Optional SHOP (D) | Robux, off | Direct choice of a named cosmetic; Roblox's own localized price or "Price unavailable"; lobby only; no timers, no strike-throughs, no pop-ups |
 | Founder's Style Pack | Game Pass, off | Visual only; ownership re-checked with Roblox, never trusted from the client |

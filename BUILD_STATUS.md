@@ -2,7 +2,7 @@
 
 **Active milestone:** owner brief 2026-11-26 "Animation, UI and Economy"
 (docs/ANIMATION_UI_ECONOMY_BRIEF.md, plan + baseline in docs/ANIMATION_UI_ECONOMY_PLAN.md):
-M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34). Before that: CS:GO-style capsules, UI
+M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34), M5 economy (v35). All five milestones done. Before that: CS:GO-style capsules, UI
 motion and a race-entry drop-in (v31). Before that: hub
 obstruction fix (v30); UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
 settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
@@ -17,6 +17,32 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Brief M5: Coins only from quests, tiered cases, gated Robux (v35, private)
+
+- **Coins only from quests.** Races, placement, wins, the season and logins pay no Coins
+  (`ProgressionConfig.RaceCoins = false`; season odd levels now pay 15 Shards). Races still
+  give XP, levels, records and quest progress; results show XP and your quest progress
+  ("Coins come from QUESTS"). Balances and items are kept exactly.
+- **Quests:** daily 100 Coins (x3), weekly 400 (x4), and a new MILESTONES tab with nine
+  one-time goals (placement-independent + skill goals, 4,050 Coins total). Claims are one
+  mutation (retries / other servers see "Already claimed"); a finished quest left unclaimed
+  at a reset is paid automatically at the rollover (the player is told).
+- **Cases:** STARTER 250 (basic, every kind, Common + Rare), TRAIL 550, SKIN 650
+  (specialist), APEX 1300 (high tier, Epic or better only). A guarantee counter per case
+  (the Skin case keeps the old shared counters). The server also checks the price you saw;
+  any mismatch spends nothing. The Lab shows cost, balance and how many quests you are away.
+  Shop > CASES lists the four with their tier.
+- **Robux:** suggested catalog and prices in docs/ANIMATION_UI_ECONOMY_PLAN.md; nothing is
+  listed, every product id is nil, paid random cases stay off and unbuilt. The PolicyService
+  gate is now a pure, tested function (fails closed).
+- **Profile v6** (migration plan in the doc; rollback = revert + redeploy).
+- **Model:** active player 450 / 5,150 / 19,450 Coins at 1 / 7 / 30 days (= 14 Apex or 29
+  Skin cases in 30 days, about half as often as before); casual 350 / 2,650 / 11,050.
+- **Tests:** 817 offline checks pass (+16 Economy.spec: claim retries, reset-boundary auto
+  claim, milestones, v5->v6, model, policy gate, flags off; race-Coin and case specs updated).
+- **Protocol v15.** Not verified in a Roblox runtime: the live quest flow across a real UTC
+  reset, and two servers claiming at once (covered by profile session locking + the flag).
 
 ## 2026-11-26 — Brief M4: motorsport UI pass — phase strip, Garage, Shop sections, Driving settings (v34, private)
 
