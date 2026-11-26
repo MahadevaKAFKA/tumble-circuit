@@ -1,7 +1,7 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
 **Active milestone:** Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
-02 map + hub registry done. Plan and baseline: docs/AUDIT_BASELINE.md.
+02 map + hub registry (v21) and 03 map selection / ballots (v22) done. Baseline: docs/AUDIT_BASELINE.md.
 **State:** A1–A6 played and approved on the owner's phone. The owner reported on 2026-11-26
 that v16–v20 (B1–D) "work as intended". The real race times and two-player features have not
 been measured yet. Nothing is purchasable: every product id is nil and paid capsules are off.
@@ -10,6 +10,54 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Prompt 03: Map Selection, ballots, personal destinations (v22, private)
+
+- **MAPS button** (top centre in the hub; it also shows the map leading the vote) opens **Map
+  Selection**. There is one card per map the server built.
+  - Each card shows: name, difficulty, skill, a one-line obstacle description, which hub it
+    belongs to, and a palette swatch. There are no preview images until real captures exist.
+  - **VISIT HUB** goes to that map's hub. This is your own choice and changes nothing for
+    anyone else.
+  - **PRACTICE** starts you on that hub's practice lane.
+  - **VOTE NEXT RACE** casts your ballot for the next race.
+  - Disabled states say why: YOU'RE HERE, AFTER RACE, NOT IN ROTATION, hub still in testing.
+- **One shared race queue**, unchanged. Ballots (`BallotRules`) replace B1's 8-second vote:
+  - you can vote or change your vote at any time until the grid forms, including mid-race for
+    the next one, and solo too (no 2-player minimum);
+  - the server counts one ballot per connected *and queued* human, and only for maps that
+    built;
+  - stale requests (a race that was already decided) and duplicate or out-of-order requests
+    (seq) are ignored;
+  - a tie goes to the first tied map in rotation order from the rotation pick. No ballots
+    means rotation.
+  - A leaver's ballot is dropped; a reconnecting player votes again. If the winning map
+    cannot be activated, the race runs on Neon Foundry.
+- **Per-player hub** (`HubService`, `HubRules`; attribute `TC_Hub`).
+  - Spawns, falls, the practice loop and the end of every race all send you to *your* hub. A
+    hub that is missing falls back to Orbital Garage.
+  - A destination picked while you are on the grid or racing becomes your return hub, so the
+    race is not disturbed. Destination changes are throttled to one per 1.5 s.
+  - Picking a destination during a Time Trial ends the trial.
+- Protocol v12: `RequestBallot`, `RequestDestination`, `DestinationResult`; the snapshot
+  `ballot` field replaces `mapVote`. Bots never vote.
+- **Results.**
+  - Offline: 597 passing, including 35 new in MapSelection.spec covering solo, two clients
+    voting simultaneously, change, duplicate, stale, leave, reconnect, a dropped map,
+    throttling, return-hub fallback and card states.
+  - Static: luau_check and place assembly (134 instances, 120 scripts).
+  - Runtime: **pending**.
+- **Phone test** (the owner, no Studio):
+  1. Tap MAPS: three cards appear.
+  2. VOTE Volcano, JOIN RACE: the strip shows "(yours)"; the race runs on Volcano Vault.
+  3. During that race, open MAPS from results: the card says AFTER RACE.
+  4. Tap PRACTICE: you start at the top of the practice chute.
+  5. Tap VISIT HUB on the Foundry card: it says YOU'RE HERE.
+- **Two clients** (optional, a second device): each votes a different map at the same moment;
+  both counts show, and the tie goes to rotation order. One leaves mid-vote: their count
+  disappears.
+- **Studio** (if ever used): Test → Start Server with 2 players; the same steps as above, with
+  the Output showing `[Round] ballots:` when VerboseLogging is on.
 
 ## 2026-11-26 — Prompt 02: map + hub registry (v21, private)
 

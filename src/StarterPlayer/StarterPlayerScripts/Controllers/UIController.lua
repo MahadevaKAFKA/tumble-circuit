@@ -21,7 +21,7 @@ UIController.Screens = {
 		-- 3D board; the lobby column now carries the countdown / waiting line itself.
 		-- AbilitiesRace here = B2 try-it buttons (only shown after TRY in the ability menu)
 		layers = { "Hud", "Lobby", "Modes", "Touch", "Social", "AbilitiesRace" }, -- loadout summary lives on the LOADOUT button
-		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2", "Garage", "Quests", "More", "Boards", "Lab", "Shop" },
+		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2", "Garage", "Quests", "More", "Boards", "Lab", "Shop", "Maps" },
 	},
 	-- B1 solo Time Trial: timer card + QUIT; no abilities, no lobby column
 	TimeTrial = { layers = { "Hud", "TimeTrial", "Touch" }, buttons = { "QuitTrial", "Brake", "Reset", "Camera" } },
@@ -42,6 +42,8 @@ UIController.Modals = {
 	Boards = { layer = "Boards", allowedOn = { Lobby = true, Results = true, Spectate = true }, buttons = { "Close", "BoardWorld", "BoardKind" } },
 	-- C: Capsule Lab (free capsule, Shard Shop, free season)
 	Lab = { layer = "Lab", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "LabTab", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim" } },
+	-- prompt 03: Map Selection (Visit Hub / Practice / Vote for Next Race)
+	MapSelect = { layer = "MapSelect", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "MapVisit", "MapPractice", "MapBallot", "MapPage" } },
 	-- D: the optional shop, lobby only (never during a race or on results)
 	Shop = { layer = "Shop", allowedOn = { Lobby = true }, buttons = { "Close", "ShopItem", "ShopGet", "LaneClaim" } },
 }
@@ -57,6 +59,7 @@ UIController.Actions = {
 	"Garage", "Quests", "More", "Boards", "GarageTab", "GarageFilter", "GarageItem", "Equip", "Favorite", "QuestClaim", "BoardWorld", "BoardKind", -- B3
 	"Lab", "LabTab", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim", -- C
 	"Shop", "ShopItem", "ShopGet", "LaneClaim", -- D (optional shop)
+	"Maps", "MapVisit", "MapPractice", "MapBallot", "MapPage", -- promo pack 03 (Map Selection)
 }
 
 local RACE_STATES = { Preparing = true, Countdown = true, Racing = true }

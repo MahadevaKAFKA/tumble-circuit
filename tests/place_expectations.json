@@ -429,7 +429,6 @@
     "GhostPath",
     "RequestTimeTrial",
     "TimeTrialState",
-    "RequestMapVote",
     "Rock",
     "TC_PBGhost",
     "TC_Decoys",
@@ -451,6 +450,9 @@
     "RequestOpenCapsule",
     "CapsuleResult",
     "RequestShardBuy",
-    "SeasonState"
+    "SeasonState",
+    "RequestBallot",
+    "RequestDestination",
+    "DestinationResult"
   ]
 }

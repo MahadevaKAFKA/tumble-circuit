@@ -112,6 +112,10 @@ local party = PartyService.new({ marbles = marbles }) -- B1
 round.party = party
 local timeTrial = TimeTrialService.new({ track = track, marbles = marbles, physics = physics, round = round, remotes = remotes, data = playerData, hazards = hazards }) -- B1
 round.timeTrial = timeTrial
+-- prompt 03/04: per-player hubs (Visit Hub / Practice); round asks it where hub spawns go
+local HubService = require(Services:WaitForChild("HubService"))
+local hubs = HubService.new({ track = track, marbles = marbles, remotes = remotes, round = round, timeTrial = timeTrial, featuresFor = FeatureGates.ForPlayer })
+round.hubs = hubs
 -- B3: telemetry, cosmetics, quests, leaderboards
 local telemetry = TelemetryService.new()
 local cosmetics = CosmeticService.new({ data = playerData, marbles = marbles, remotes = remotes, telemetry = telemetry })
@@ -144,6 +148,7 @@ end)
 playerData:Start() -- loads profiles as players join (does not block the course)
 physics:Start()
 hazards:Start()
+hubs:Start() -- before players spawn: sets TC_Hub / TC_Features on everyone
 round:Start()
 timeTrial:Start()
 cosmetics:Start()
@@ -203,6 +208,6 @@ bots:Start() -- bots only spawn at Preparing, so they can start after the folder
 perf:Start()
 
 -- Studio integration tests can reach the live services through this table (never replicated).
-_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev, social = social, party = party, timeTrial = timeTrial, cosmetics = cosmetics, quests = quests, leaderboards = leaderboards, telemetry = telemetry, capsules = capsules, seasons = seasons, products = products, anticheat = anticheat }
+_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev, social = social, party = party, timeTrial = timeTrial, cosmetics = cosmetics, quests = quests, leaderboards = leaderboards, telemetry = telemetry, capsules = capsules, seasons = seasons, products = products, anticheat = anticheat, hubs = hubs }
 
 print(string.format("[TumbleCircuit] server ready (%s, protocol v%d)", GameConfig.Version, RoundProtocol.Version))

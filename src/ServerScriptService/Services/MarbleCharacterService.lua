@@ -23,6 +23,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
+local MapRegistry = require(Shared:WaitForChild("MapRegistry"))
 local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local BotFactory = require(ServerStorage:WaitForChild("ProceduralBuilders"):WaitForChild("BotFactory"))
@@ -97,7 +98,7 @@ local function weldVisual(ball, part)
 	part.Parent = ball
 end
 
-local function createBall(player, cframe, zone, frozen, look)
+local function createBall(player, cframe, zone, frozen, look, hubId)
 	local cfg = PhysicsConfig.Ball
 	local palette = GameConfig.Palette
 	local diameter = cfg.Radius * 2
@@ -121,6 +122,9 @@ local function createBall(player, cframe, zone, frozen, look)
 	ball.CFrame = cframe
 	ball:SetAttribute(BALL.OwnerUserId, player.UserId)
 	ball:SetAttribute(BALL.Zone, zone)
+	if zone == Protocol.Zones.Hub then
+		ball:SetAttribute(BALL.HubId, hubId or MapRegistry.DefaultHubId) -- prompt 03/04
+	end
 	ball:SetAttribute(BALL.Protected, true)
 	ball:SetAttribute(BALL.Frozen, frozen)
 	ball:SetAttribute("BallRoot", true)
@@ -214,7 +218,7 @@ function MarbleCharacterService:_resolve(player, reason)
 		end
 		warn("[Marble] spawn resolver failed (" .. tostring(result) .. "); using hub")
 	end
-	return { CFrame = self.track:NextHubSpawnCFrame(), Zone = Protocol.Zones.Hub, Frozen = false }
+	return { CFrame = self.track:NextHubSpawnCFrame(), Zone = Protocol.Zones.Hub, Frozen = false, Hub = MapRegistry.DefaultHubId }
 end
 
 -- B3: rebuild the equipped look on the current marble in place (visual parts only)
@@ -257,7 +261,7 @@ function MarbleCharacterService:SpawnMarble(player, reason)
 		local ok, result = pcall(self.lookResolver, player)
 		look = ok and result or nil
 	end
-	local ball = createBall(player, spot.CFrame, spot.Zone, frozen, look)
+	local ball = createBall(player, spot.CFrame, spot.Zone, frozen, look, spot.Hub)
 	ball.Parent = self.folder
 	if not frozen then
 		local ok, err = pcall(function()

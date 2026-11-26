@@ -329,6 +329,12 @@ function TrainingTrackService:NextHubSpawnCFrame(hubId)
 	return hub.spawns[hub.cursor]
 end
 
+-- prompt 03: Practice from Map Selection starts on the hub's practice lane (its Spawn point)
+function TrainingTrackService:GetPracticeStartCFrame(hubId)
+	local hub = self:GetHub(hubId)
+	return frameToCFrame(hub.layout.SpawnFrame, 0)
+end
+
 function TrainingTrackService:GetGridSlotCount()
 	return #self.layouts[ZONES.Race].GridSlots
 end

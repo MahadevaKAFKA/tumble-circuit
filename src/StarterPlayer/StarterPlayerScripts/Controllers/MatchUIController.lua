@@ -279,7 +279,7 @@ function MatchUI:_statusText(ctx)
 		end
 		local world = nextWorldName(snap)
 		if world then
-			sub = (snap.mapVote and snap.mapVote.open and "Vote the world! " or (world .. " - ")) .. sub
+			sub = world .. " - " .. sub
 		end
 		return "NEXT RACE  " .. clock(left), sub
 	elseif snap.state == S.Preparing or snap.state == S.Countdown then

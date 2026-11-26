@@ -57,10 +57,12 @@ end
 
 function RacePhysicsService:Start()
 	self.maid:Give(self.marbles.MarbleSpawned:Connect(function(player, ball, _, zone)
-		local layout = self.track:GetLayout(zone)
+		local hubId = ball:GetAttribute(Protocol.BallAttributes.HubId) -- prompt 03/04: which hub
+		local layout = self.track:GetLayout(zone, hubId)
 		self.entries[player] = {
 			ball = ball,
 			zone = zone,
+			hubId = hubId,
 			layout = layout,
 			tracker = RouteTracker.new(layout.Route),
 			history = {},
@@ -104,6 +106,7 @@ function RacePhysicsService:_observe(player, entry, elapsed, now)
 	info.speed = ball.AssemblyLinearVelocity.Magnitude
 	info.position = position
 	info.zone = entry.zone
+	info.hubId = entry.hubId
 	info.time = now
 	info.prevS = entry.lastS
 	info.prevTime = entry.lastTime
@@ -119,7 +122,7 @@ function RacePhysicsService:_observe(player, entry, elapsed, now)
 	entry.lastInfo = info
 
 	-- Falls
-	local fell = position.Y < self.track:GetKillY(entry.zone)
+	local fell = position.Y < self.track:GetKillY(entry.zone, entry.hubId)
 	if not fell and entry.zone == Protocol.Zones.Race and not ball.Anchored then
 		if info.distance > RaceConfig.Recovery.OffRouteDistance then
 			entry.offRouteSeconds = entry.offRouteSeconds + elapsed

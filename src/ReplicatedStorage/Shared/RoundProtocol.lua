@@ -60,11 +60,18 @@
 	D (v11): ShopState, RequestShopState, RequestPremiumClaim(level). Purchases themselves are
 	Roblox prompts; grants happen only in ProcessReceipt / verified Game Pass ownership.
 	Snapshot adds chaosModifier = {kind, startsAt, endsAt} while a voted modifier is pending/active.
+	Promo pack 03 (v12): RequestMapVote is replaced by ballots and personal destinations.
+	RequestBallot         client->server   (mapIndex, epoch, seq)  vote for the next race; latest
+	                                       valid ballot counts; stale epoch / old seq ignored
+	RequestDestination    client->server   (hubIndex, mode 1 Visit | 2 Practice)  personal hub
+	DestinationResult     server->client   {ok, reason, hubIndex, mode}  to the requester only
+	Snapshot: mapVote is gone; ballot = {epoch, maps = {mapId...}, counts, choices = {[userId] =
+	mapIndex}, counted}; nextWorldId = the map leading right now (or the rotation pick).
 ]]
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 11
+RoundProtocol.Version = 12
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -100,7 +107,10 @@ RoundProtocol.Remotes = {
 	QuickEmote = { Direction = "ClientToServer", Args = { { type = "number", oneOf = { 1, 2, 3 } } }, MinInterval = 0.5 },
 	EmoteShown = { Direction = "ServerToClient" },
 	-- B1
-	RequestMapVote = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 3, integer = true } }, MinInterval = 0.3 },
+	-- prompt 03: ballots + personal destinations (replace B1's RequestMapVote)
+	RequestBallot = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 16, integer = true }, { type = "number", min = 0, max = 1000000000, integer = true }, { type = "number", min = 1, max = 1000000000, integer = true } }, MinInterval = 0.25 },
+	RequestDestination = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 16, integer = true }, { type = "number", min = 1, max = 2, integer = true } }, MinInterval = 0.5 },
+	DestinationResult = { Direction = "ServerToClient" },
 	RequestTimeTrial = { Direction = "ClientToServer", Args = { "boolean" }, MinInterval = 1.0 },
 	TimeTrialState = { Direction = "ServerToClient" }, -- to owner: Countdown / Running / Checkpoint / Finished / Ended / Refused
 	GhostPath = { Direction = "ServerToClient" }, -- to owner: their PB ghost for this world + variation

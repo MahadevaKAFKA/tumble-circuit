@@ -33,6 +33,8 @@ local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local RaceRules = require(script.Parent:WaitForChild("RaceRules"))
 local MapVoteRules = require(script.Parent:WaitForChild("MapVoteRules"))
+local BallotRules = require(script.Parent:WaitForChild("BallotRules"))
+local MapRegistry = require(Shared:WaitForChild("MapRegistry"))
 
 local RoundService = {}
 RoundService.__index = RoundService
@@ -63,7 +65,9 @@ function RoundService.new(deps)
 	self.ready = {} -- [player] = true: READY vote for the current intermission (owner request)
 	self.lastWorldIndex = 0 -- B1: world rotation (0 = nothing raced yet → first world next)
 	self.nextWorldIndex = 1
-	self.mapVote = nil -- B1: MapVoteRules vote during the first 8 s of Intermission
+	self.ballots = BallotRules.NewBox(1) -- prompt 03: ballots for the next round (epoch = its round id)
+	self.lastResolution = nil -- { roundId, mapId, counts, counted, fellBack }
+	self.hubs = deps.hubs -- prompt 03/04 (optional): per-player hub (HubService); set by the bootstrap
 	self.party = deps.party -- B1 (optional): keeps Roblox party members on neighbouring slots
 	self.ordinals = {} -- [player] = stable join ordinal
 	self.nextOrdinal = 0
@@ -111,8 +115,13 @@ function RoundService:Start()
 	self:_connectRemote("RequestReady", function(player, wants)
 		self:TryReady(player, wants)
 	end)
-	self:_connectRemote("RequestMapVote", function(player, optionIndex)
-		self:TryMapVote(player, optionIndex)
+	self:_connectRemote("RequestBallot", function(player, mapIndex, epoch, seq)
+		self:TryBallot(player, mapIndex, epoch, seq)
+	end)
+	self:_connectRemote("RequestDestination", function(player, hubIndex, modeIndex)
+		if self.hubs then
+			self.hubs:TryDestination(player, hubIndex, modeIndex)
+		end
 	end)
 	-- A5 AFK guard: real input during Racing marks the racer active (rewards need it).
 	self:_connectRemote("ReportActive", function(player, roundId)
@@ -241,36 +250,69 @@ function RoundService:_enterIntermission()
 	self.ready = {} -- every intermission starts with no READY votes
 	self.track:SetStartGateClosed(true)
 	self:_setTimer(T.IntermissionSeconds)
-	-- B1 map: rotation candidate, and a vote when at least two humans are queued
+	-- B1 rotation candidate (prompt 03: ballots decide at Preparing; no ballots = rotation)
 	local ids = self.track.GetWorldIds and self.track:GetWorldIds() or {}
 	self.nextWorldIndex = MapVoteRules.NextInRotation(self.lastWorldIndex, #ids) or 1
-	self.mapVote = nil
-	if MapVoteRules.ShouldOpen(self:_queuedCount(), #ids) then
-		self.mapVote = MapVoteRules.NewVote(ids, self.nextWorldIndex, workspace:GetServerTimeNow())
-	end
 end
 
--- B1: close the map vote (when its 8 s end, or the race starts early) and lock in the winner.
-function RoundService:_closeMapVote()
-	local vote = self.mapVote
-	if vote and vote.open then
-		vote.open = false
-		self.nextWorldIndex = MapVoteRules.Winner(vote)
-		if GameConfig.Debug.VerboseLogging then
-			print(string.format("[Round] map vote: %s (%s)", tostring(vote.options[self.nextWorldIndex]), table.concat(vote.counts, "/")))
+-- prompt 03: who can vote / is counted. Connected humans; counted = also queued for the race.
+function RoundService:_voterSets()
+	local connected, counted = {}, {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		connected[player.UserId] = true
+		if self.queued[player] then
+			counted[player.UserId] = true
 		end
-		self:Broadcast()
 	end
+	return connected, counted
 end
 
-function RoundService:TryMapVote(player, optionIndex)
-	local ok, reason = MapVoteRules.Cast(self.mapVote, player.UserId, optionIndex, self.state == S.Intermission and self.queued[player] == true, workspace:GetServerTimeNow())
+function RoundService:_eligibleMaps()
+	local ids = self.track.GetWorldIds and self.track:GetWorldIds() or {}
+	local set = {}
+	for _, id in ipairs(ids) do
+		set[id] = true
+	end
+	return ids, set
+end
+
+-- prompt 03: Vote for Next Race. Any connected human, any time before the box resolves.
+function RoundService:TryBallot(player, mapIndex, epoch, seq)
+	local ids, eligible = self:_eligibleMaps()
+	local ok, reason = BallotRules.Cast(self.ballots, player.UserId, ids[mapIndex], epoch, seq, eligible)
 	if ok then
-		self:Broadcast()
+		if reason ~= "same" then
+			self:Broadcast()
+		end
 	else
-		self:SendSnapshot(player)
+		self:SendSnapshot(player) -- stale / duplicate: the client re-reads the current box
 	end
 	return ok, reason
+end
+
+-- The map ballots would pick right now (or the rotation candidate).
+function RoundService:_rotationIndex(count)
+	return MapVoteRules.NextInRotation(self.lastWorldIndex, count) or 1
+end
+
+function RoundService:_leadingIndex()
+	local ids = self:_eligibleMaps()
+	local _, counted = self:_voterSets()
+	local counts = BallotRules.Tally(self.ballots, counted, ids)
+	return BallotRules.Winner(counts, self:_rotationIndex(#ids)) or 1, counts
+end
+
+-- Resolve the ballot box for the round about to start; a new box opens for the one after it.
+function RoundService:_resolveBallots()
+	local ids = self:_eligibleMaps()
+	local _, counted = self:_voterSets()
+	local winner, counts, total = BallotRules.Resolve(self.ballots, counted, ids, self:_rotationIndex(#ids))
+	self.nextWorldIndex = winner or 1
+	self.lastResolution = { roundId = self.roundId + 1, mapId = ids[self.nextWorldIndex], counts = counts, counted = total }
+	if GameConfig.Debug.VerboseLogging then
+		print(string.format("[Round] ballots: %s (%s, %d counted)", tostring(ids[self.nextWorldIndex]), table.concat(counts, "/"), total))
+	end
+	self.ballots = BallotRules.NewBox(self.roundId + 2)
 end
 
 function RoundService:ReportTimeTrial(player, seconds, isPb)
@@ -279,14 +321,33 @@ end
 
 function RoundService:GetNextWorldId()
 	local ids = self.track.GetWorldIds and self.track:GetWorldIds() or {}
-	return ids[self.nextWorldIndex] or ids[1]
+	local index = self.nextWorldIndex -- Preparing / Countdown: the map being raced
+	if self.state ~= S.Preparing and self.state ~= S.Countdown then
+		index = self:_leadingIndex() -- prompt 03: the map ballots favour for the next race
+	end
+	return ids[index] or ids[1]
 end
 
 function RoundService:_enterPreparing()
-	self:_closeMapVote()
-	local worldId = self:GetNextWorldId()
+	self:_resolveBallots()
+	local worldId = (self:_eligibleMaps())[self.nextWorldIndex]
 	if worldId and self.track.SetActiveWorld then
-		self.track:SetActiveWorld(worldId) -- B1: hazards / bots / gates rebind via WorldChanged
+		-- B1: hazards / bots / gates rebind via WorldChanged. prompt 03: a map that cannot be
+		-- activated falls back to the known-safe default map; the race still starts.
+		if not self.track:SetActiveWorld(worldId) then
+			local fallback = MapRegistry.DefaultMapId
+			warn("[Round] could not load " .. tostring(worldId) .. "; racing " .. fallback)
+			self.track:SetActiveWorld(fallback)
+			local ids = self:_eligibleMaps()
+			for i, id in ipairs(ids) do
+				if id == fallback then
+					self.nextWorldIndex = i
+				end
+			end
+			if self.lastResolution then
+				self.lastResolution.fellBack = true
+			end
+		end
 		self.lastWorldIndex = self.nextWorldIndex
 	end
 	self.roundId = self.roundId + 1
@@ -469,9 +530,6 @@ end
 
 function RoundService:_tick(dt)
 	local state = self.state
-	if state == S.Intermission and self.mapVote and self.mapVote.open and workspace:GetServerTimeNow() >= self.mapVote.endsAt then
-		self:_closeMapVote()
-	end
 	if state == S.Racing then
 		self.standingsTimer = self.standingsTimer + dt
 		if self.standingsTimer >= 1 / RaceConfig.Snapshot.StandingsHz then
@@ -586,7 +644,20 @@ function RoundService:ResolveSpawn(player, reason)
 			end
 		end
 	end
-	return { CFrame = self.track:NextHubSpawnCFrame(), Zone = ZONES.Hub, Frozen = false }
+	-- prompt 03/04: the player's own hub (Orbital Garage if theirs is missing); Practice starts
+	-- at that hub's practice lane
+	local hubId = self.hubs and self.hubs:HubFor(player) or nil
+	if reason == REASONS.Practice and self.track.GetPracticeStartCFrame then
+		return { CFrame = self.track:GetPracticeStartCFrame(hubId), Zone = ZONES.Hub, Frozen = false, Hub = hubId }
+	end
+	return { CFrame = self.track:NextHubSpawnCFrame(hubId), Zone = ZONES.Hub, Frozen = false, Hub = hubId }
+end
+
+-- prompt 03/04: on the grid or racing right now (destinations wait until after the race)
+function RoundService:IsOnGridOrRacing(player)
+	local racer = self.racerByPlayer[player]
+	local state = self.state
+	return racer ~= nil and not racer.finished and (state == S.Preparing or state == S.Countdown or state == S.Racing)
 end
 
 ---------------------------------------------------------------------------------------------
@@ -594,7 +665,7 @@ end
 ---------------------------------------------------------------------------------------------
 function RoundService:_onProgress(player, info)
 	if info.zone == ZONES.Hub then
-		local chute = self.track:GetLayout(ZONES.Hub)
+		local chute = self.track:GetLayout(ZONES.Hub, info.hubId)
 		if info.s >= chute.FinishLineS and info.distance < 15 then
 			self.marbles:ScheduleRespawn(player, REASONS.ToHub, 0.6) -- practice loop
 		end
@@ -686,7 +757,7 @@ function RoundService:_checkRaceComplete()
 end
 
 function RoundService:_onPlayerLeaving(player)
-	MapVoteRules.Remove(self.mapVote, player.UserId) -- B1: a leaver's map vote stops counting
+	BallotRules.Remove(self.ballots, player.UserId) -- prompt 03: a leaver's ballot stops counting
 	self.queued[player] = nil
 	self.ready[player] = nil
 	self.ordinals[player] = nil
@@ -783,13 +854,22 @@ function RoundService:GetSnapshot()
 		hazardEpoch = self.hazards and self.hazards:GetEpoch() or 0,
 		worldId = self.track.GetActiveWorldId and self.track:GetActiveWorldId() or nil, -- B1
 		nextWorldId = self:GetNextWorldId(),
-		mapVote = self.mapVote and {
-			open = self.mapVote.open,
-			endsAt = self.mapVote.endsAt,
-			options = self.mapVote.options,
-			counts = self.mapVote.counts,
-		} or nil,
+		ballot = self:_ballotSnapshot(),
 		party = self.party and self.party:SnapshotFor() or nil,
+	}
+end
+
+function RoundService:_ballotSnapshot()
+	local ids = self:_eligibleMaps()
+	local connected, counted = self:_voterSets()
+	local counts, total = BallotRules.Tally(self.ballots, counted, ids)
+	return {
+		epoch = self.ballots.epoch,
+		maps = ids,
+		counts = counts,
+		counted = total,
+		choices = BallotRules.Choices(self.ballots, connected, ids),
+		last = self.lastResolution,
 	}
 end
 

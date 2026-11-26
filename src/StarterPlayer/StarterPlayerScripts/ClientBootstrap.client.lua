@@ -78,6 +78,7 @@ local DevPanelController = require(Controllers:WaitForChild("DevPanelController"
 local SocialController = require(Controllers:WaitForChild("SocialController"))
 local ModesController = require(Controllers:WaitForChild("ModesController"))
 local HubMenusController = require(Controllers:WaitForChild("HubMenusController"))
+local MapSelectController = require(Controllers:WaitForChild("MapSelectController"))
 local LabController = require(Controllers:WaitForChild("LabController"))
 local ShopController = require(Controllers:WaitForChild("ShopController"))
 local Lighting = game:GetService("Lighting")
@@ -214,9 +215,18 @@ if not worldLayouts[activeWorldId] then
 end
 course:WaitForChild(activeWorldId, 5)
 local defaultHub = MapRegistry.Hub(MapRegistry.DefaultHubId)
+-- prompt 03/04: every hub's practice-lane layout, keyed by hub id; the Hub zone means the one
+-- the bound marble is in (its HubId attribute)
+local hubLayouts = {}
+for _, entry in ipairs(MapRegistry.Hubs) do
+	if entry.Status == "Live" or entry.Status == "Gated" then
+		hubLayouts[entry.Id] = TrackDefinitions.Generate(entry.Chute, PhysicsConfig.Ball.Radius)
+	end
+end
+local currentHubId = MapRegistry.DefaultHubId
 local layouts = {
 	[ZONES.Race] = worldLayouts[activeWorldId],
-	[ZONES.Hub] = TrackDefinitions.Generate(defaultHub.Chute, PhysicsConfig.Ball.Radius),
+	[ZONES.Hub] = hubLayouts[MapRegistry.DefaultHubId],
 }
 local hazards = HazardController.new(course:FindFirstChild(activeWorldId) or course, motor, sound, layouts[ZONES.Race])
 motor:SetMarblesFolder(marblesFolder)
@@ -271,9 +281,20 @@ local loadout = maid:Give(StarterLoadoutController.new({ remotes = remote }))
 local results = maid:Give(ResultsController.new())
 maid:Give(DevPanelController.new(remotes))
 local social = maid:Give(SocialController.new({ remotes = remote, marblesFolder = marblesFolder, localUserId = player.UserId }))
--- B1 modes: map vote, Time Trial (+ PB ghost), Party Race
+-- prompt 03: Map Selection (Visit Hub / Practice / Vote for Next Race)
+local mapSelect = maid:Give(MapSelectController.new({
+	remotes = remote,
+	toast = function(text, seconds)
+		hud:Toast(text, seconds)
+	end,
+}))
+mapSelect:RegisterLayers(ui)
+-- B1 modes: ballot strip, Time Trial (+ PB ghost), Party Race
 local modes = maid:Give(ModesController.new({
 	remotes = remote,
+	castBallot = function(mapIndex)
+		mapSelect:CastBallot(mapIndex)
+	end,
 	toast = function(text, seconds)
 		hud:Toast(text, seconds)
 	end,
@@ -321,8 +342,22 @@ for _, entry in ipairs(MapRegistry.Hubs) do
 	end
 end
 local groundIgnore = { marblesFolder }
-local boardPart = hubRoot:FindFirstChild("Decor") and hubRoot.Decor:FindFirstChild("NextRaceBoard")
-local board = boardPart and boardPart:FindFirstChild("Board")
+-- every hub's "next race" board (prompt 04: one per hub), updated from the round snapshot
+local boards = {}
+local function addBoard(root)
+	local decor = root and root:FindFirstChild("Decor")
+	local part = decor and decor:FindFirstChild("NextRaceBoard")
+	local gui = part and part:FindFirstChild("Board")
+	if gui then
+		boards[#boards + 1] = gui
+	end
+end
+addBoard(hubRoot)
+for _, entry in ipairs(MapRegistry.Hubs) do
+	if entry.ModelName ~= Protocol.HubModelName then
+		addBoard(workspace:FindFirstChild(entry.ModelName))
+	end
+end
 
 local function flatUnit(v, fallback)
 	return Utility.safeUnit(Vector3.new(v.X, 0, v.Z), fallback)
@@ -598,6 +633,11 @@ local function bindBall(ball)
 	end
 	currentBall = ball
 	currentZone = ball:GetAttribute(BALL.Zone) or ZONES.Hub
+	if currentZone == ZONES.Hub then
+		local hubId = ball:GetAttribute(BALL.HubId)
+		currentHubId = hubLayouts[hubId or ""] and hubId or MapRegistry.DefaultHubId
+		layouts[ZONES.Hub] = hubLayouts[currentHubId]
+	end
 	tracker = RouteTracker.new(layouts[currentZone].Route)
 	input:ResetState()
 	motor:Bind(ball, groundIgnore)
@@ -699,6 +739,7 @@ maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 	raceHud:ApplySnapshot(snap, player.UserId)
 	matchUi:ApplySnapshot(snap, player.UserId)
 	modes:ApplySnapshot(snap)
+	mapSelect:ApplySnapshot(snap)
 	results:ApplySnapshot(snap, player.UserId)
 	if snap.state ~= lastState then
 		if snap.state == S.Racing and myEntry() then
@@ -846,6 +887,15 @@ end))
 maid:Give(hubMenus.CloseRequested:Connect(function()
 	ui:CloseModal()
 	refreshGates()
+end))
+maid:Give(modes.MapsRequested:Connect(function()
+	openModal("MapSelect")
+end))
+maid:Give(mapSelect.CloseRequested:Connect(function()
+	if ui:GetModal() == "MapSelect" then
+		ui:CloseModal()
+		refreshGates()
+	end
 end))
 maid:Give(abilities.LoadoutRequested:Connect(function()
 	openModal("Loadout")
@@ -1009,13 +1059,17 @@ local lastAnchored = nil
 -- Hub platform free roam (owner playtest 2026-11-25): on the round platform there is no track, so
 -- the track-relative steering and auto-align fought the player. On the platform the stick moves the
 -- marble relative to the camera; on the practice chute (and the race) steering follows the track.
-local HUB_DEF = defaultHub.Geometry
+local function hubDef()
+	local entry = MapRegistry.RawHub(currentHubId) or defaultHub
+	return entry.Geometry
+end
 local function onHubPlatform(position)
 	if currentZone ~= ZONES.Hub then
 		return false
 	end
-	local offset = position - HUB_DEF.Center
-	return Vector3.new(offset.X, 0, offset.Z).Magnitude <= HUB_DEF.Radius + 1 and math.abs(offset.Y) < 12
+	local def = hubDef()
+	local offset = position - def.Center
+	return Vector3.new(offset.X, 0, offset.Z).Magnitude <= def.Radius + 1 and math.abs(offset.Y) < 12
 end
 
 -- Where the marble is, for the hitch log: zone + course piece under route segment i
@@ -1191,10 +1245,13 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	results:Update(now)
 	social:Update(now)
 	matchUi:Update({ now = now, racing = amRacing(), raceRunning = raceRunning(), spectating = spectate.active })
+	mapSelect:SetRacing(amRacing()) -- prompt 03: Visit / Practice wait until after your race
 	boardTimer = boardTimer + dt
 	if boardTimer >= 0.25 then
 		boardTimer = 0
-		matchUi:UpdateBoard(board, { now = now })
+		for _, board in ipairs(boards) do
+			matchUi:UpdateBoard(board, { now = now })
+		end
 	end
 end)
 maid:Give(function()

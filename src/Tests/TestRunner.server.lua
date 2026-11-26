@@ -79,10 +79,12 @@ local modules = {
 	VisualProfiles = require(Shared:WaitForChild("VisualProfiles")),
 	MapLoader = require(Services:WaitForChild("MapLoader")),
 	FeatureGates = require(Services:WaitForChild("FeatureGates")),
+	BallotRules = require(Services:WaitForChild("BallotRules")),
+	HubRules = require(Services:WaitForChild("HubRules")),
 }
 do
 	local ControllersFolder = StarterPlayer:WaitForChild("StarterPlayerScripts"):WaitForChild("Controllers")
-	for key, name in pairs({ UIController = "UIController", SettingsPure = "SettingsController", LoadoutPure = "StarterLoadoutController", ResultsPure = "ResultsController", SocialPure = "SocialController" }) do
+	for key, name in pairs({ UIController = "UIController", SettingsPure = "SettingsController", LoadoutPure = "StarterLoadoutController", ResultsPure = "ResultsController", SocialPure = "SocialController", MapSelectPure = "MapSelectController" }) do
 		local ok, mod = pcall(function()
 			return require(ControllersFolder:WaitForChild(name))
 		end)
@@ -141,6 +143,7 @@ report("B3 progression specs", require(Unit:WaitForChild("B3Progression.spec")).
 report("C capsule / season specs", require(Unit:WaitForChild("CCapsules.spec")).run(modules))
 report("D commerce / security specs", require(Unit:WaitForChild("DCommerce.spec")).run(modules))
 report("Prompt 02 map registry specs", require(Unit:WaitForChild("MapRegistry.spec")).run(modules))
+report("Prompt 03 map selection specs", require(Unit:WaitForChild("MapSelection.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

@@ -28,6 +28,7 @@ ok    src/ServerScriptService/ServerBootstrap.server.lua
 ok    src/ServerScriptService/Services/AbilityRules.lua
 ok    src/ServerScriptService/Services/AbilityService.lua
 ok    src/ServerScriptService/Services/AntiCheatService.lua
+ok    src/ServerScriptService/Services/BallotRules.lua
 ok    src/ServerScriptService/Services/BotBrain.lua
 ok    src/ServerScriptService/Services/BotService.lua
 ok    src/ServerScriptService/Services/CapsuleService.lua
@@ -38,6 +39,8 @@ ok    src/ServerScriptService/Services/DevService.lua
 ok    src/ServerScriptService/Services/EconomyService.lua
 ok    src/ServerScriptService/Services/FeatureGates.lua
 ok    src/ServerScriptService/Services/HazardService.lua
+ok    src/ServerScriptService/Services/HubRules.lua
+ok    src/ServerScriptService/Services/HubService.lua
 ok    src/ServerScriptService/Services/LeaderboardService.lua
 ok    src/ServerScriptService/Services/MapLoader.lua
 ok    src/ServerScriptService/Services/MapVoteRules.lua
@@ -75,6 +78,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HubMenusController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/LabController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MapSelectController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ModesController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
@@ -105,6 +109,7 @@ ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
 ok    src/Tests/Unit/HubFreeRoam.spec.lua
 ok    src/Tests/Unit/MapRegistry.spec.lua
+ok    src/Tests/Unit/MapSelection.spec.lua
 ok    src/Tests/Unit/MicroSkill.spec.lua
 ok    src/Tests/Unit/Persistence.spec.lua
 ok    src/Tests/Unit/ReadyVote.spec.lua
@@ -635,6 +640,43 @@ PASS  live: listed test accounts get the gates
 PASS  live: OwnerSeesGated off -> creator gets none
 PASS  gates encode for the client attribute
 
+-- Prompt 03 map selection specs --
+PASS  solo: a queued player's ballot is accepted
+PASS  solo: a single ballot picks the course (no 2-player minimum)
+PASS  a resolved box refuses late ballots
+PASS  two clients: both ballots count once each
+PASS  tie -> first tied map in rotation order from the candidate (candidate 1 -> Sky)
+PASS  tie -> candidate 3 -> Volcano (deterministic, every server agrees)
+PASS  no ballots -> the rotation candidate
+PASS  a newer ballot replaces the old one (one ballot per player)
+PASS  the same request again is ignored (duplicate seq)
+PASS  an older request arriving late is ignored (out of order)
+PASS  a ballot for an already-decided race is stale
+PASS  a ballot for a map that is not eligible here is refused
+PASS  non-integer / missing seq is refused
+PASS  only queued, connected voters are counted (player 2 / 3 not queued yet)
+PASS  a party member who queued later is counted at resolution
+PASS  leaving mid-vote removes the ballot
+PASS  reconnect: a fresh client (seq 1) can vote again
+PASS  a ballot for a map dropped before resolution counts for nothing
+PASS  snapshot choices show each connected voter's pick
+PASS  same ballots -> same winner (deterministic)
+PASS  Visit a built, allowed hub -> accepted and moves you
+PASS  Practice -> accepted with the practice mode
+PASS  a hub that failed to load -> unavailable
+PASS  a gated hub for an ordinary player -> gated
+PASS  rapid destination changes are throttled
+PASS  while racing: the hub becomes your return hub, no move (race undisturbed)
+PASS  from a Time Trial: accepted, the trial ends
+PASS  a bad mode is refused
+PASS  after results: a missing chosen hub -> Orbital Garage (fellBack)
+PASS  after results: your chosen hub when it exists
+PASS  card: name, difficulty, one-line description from the registry
+PASS  card: your ballot and the vote count
+PASS  card: Visit is disabled with a reason when you're already there
+PASS  card: while racing Visit says AFTER RACE and Practice is disabled
+PASS  card: a map the server dropped cannot be voted for (and says why)
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
 PASS  defaults carry every field (current schema)
@@ -748,4 +790,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-562 passed, 0 failed (+ 0 syntax failures)
+597 passed, 0 failed (+ 0 syntax failures)

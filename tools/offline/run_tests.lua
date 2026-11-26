@@ -83,6 +83,8 @@ local modules = {
 	MapRegistry = H.module("ReplicatedStorage/Shared/MapRegistry"),
 	VisualProfiles = H.module("ReplicatedStorage/Shared/VisualProfiles"),
 	MapLoader = H.module("ServerScriptService/Services/MapLoader"),
+	BallotRules = H.module("ServerScriptService/Services/BallotRules"),
+	HubRules = H.module("ServerScriptService/Services/HubRules"),
 }
 -- A5 client modules: load-time references to client services are stubbed; only their pure
 -- functions (Step / Choose / PbLine) are exercised.
@@ -102,6 +104,8 @@ modules.ProductService = H.module("ServerScriptService/Services/ProductService")
 modules.AntiCheatService = H.module("ServerScriptService/Services/AntiCheatService")
 H.stubServices = { RunService = {} }
 modules.FeatureGates = H.module("ServerScriptService/Services/FeatureGates")
+H.stubServices = { Players = {}, RunService = {}, TweenService = {}, UserInputService = {} }
+modules.MapSelectPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/MapSelectController")
 H.stubServices = {}
 
 -- A5 UI text scan: every string literal in client code (comments stripped).
@@ -259,6 +263,7 @@ local suites = {
 	{ "C capsule / season specs", root .. "/src/Tests/Unit/CCapsules.spec.lua" },
 	{ "D commerce / security specs", root .. "/src/Tests/Unit/DCommerce.spec.lua" },
 	{ "Prompt 02 map registry specs", root .. "/src/Tests/Unit/MapRegistry.spec.lua" },
+	{ "Prompt 03 map selection specs", root .. "/src/Tests/Unit/MapSelection.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

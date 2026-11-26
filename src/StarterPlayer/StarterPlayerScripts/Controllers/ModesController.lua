@@ -1,8 +1,9 @@
 --[[
 	ModesController (B1) — the lobby's mode controls and the Time Trial HUD.
-	Layers (UIController): "Modes" (lobby: TIME TRIAL + PARTY row, map vote panel, party card)
-	and "TimeTrial" (timer card, QUIT). Everything is display/requests only:
-	- map vote: RequestMapVote(option); counts come from the server snapshot
+	Layers (UIController): "Modes" (lobby: MAPS button, TIME TRIAL + PARTY row, the next-race
+	ballot strip, party card) and "TimeTrial" (timer card, QUIT). Display/requests only:
+	- prompt 03: MAPS opens Map Selection; during the intermission a strip shows each map's
+	  ballots and a tap votes (deps.castBallot -> RequestBallot); counts come from the snapshot
 	- Time Trial: RequestTimeTrial(true/false); phases come from TimeTrialState
 	- ghost: GhostPath (the player's own PB run, recorded by the server) replayed as a labelled,
 	  non-colliding, non-queryable marble
@@ -42,8 +43,8 @@ function ModesController.new(deps)
 	self.trial = nil -- { phase, startedAt, goAt, best, cp, total, world }
 	self.ghost = nil -- payload from GhostPath
 	self.ghostPart = nil
-	self.myMapVote = nil -- option index this vote
-	self.mapVoteKey = nil
+	self.castBallot = deps.castBallot
+	self.MapsRequested = Utility.Signal.new() -- prompt 03: MAPS tapped
 	self.Changed = Utility.Signal.new() -- trial state changed (refresh screens)
 
 	-- Lobby "Modes" layer ----------------------------------------------------------------
@@ -69,25 +70,31 @@ function ModesController.new(deps)
 		self:_invite()
 	end))
 
-	-- map vote panel (top centre, first 8 s of the intermission)
+	-- prompt 03: MAPS (top centre, one tap from anywhere in the hub)
+	self.mapsButton = UIKit.button(modes, { Name = "Maps", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(360, 46), Text = "MAPS" }, palette.Cyan)
+	maid:Give(self.mapsButton.Activated:Connect(function()
+		self.MapsRequested:Fire()
+	end))
+	-- the next-race ballot strip (top centre, under MAPS, during the intermission)
 	local vote = UIKit.panel(modes, { Name = "MapVote", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 112), Size = UDim2.fromOffset(560, 132), Visible = false })
 	UIKit.new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, vote)
 	self.votePanel = vote
-	self.voteTitle = UIKit.label(vote, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 26), Font = Enum.Font.GothamBlack, TextColor3 = palette.Cyan, Text = "PICK THE NEXT WORLD" })
+	self.voteTitle = UIKit.label(vote, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 26), Font = Enum.Font.GothamBlack, TextColor3 = palette.Cyan, Text = "VOTE FOR THE NEXT RACE" })
 	self.voteButtons = {}
 	for i = 1, 3 do
-		local b = UIKit.button(vote, { Name = "MapOption" .. i, Position = UDim2.fromOffset(12 + (i - 1) * 182, 40), Size = UDim2.fromOffset(170, 80), Text = "" }, palette.Cyan)
+		local b = UIKit.button(vote, { Name = "MapVote", Position = UDim2.fromOffset(12 + (i - 1) * 182, 40), Size = UDim2.fromOffset(170, 80), Text = "" }, palette.Cyan)
 		local name = UIKit.label(b, { Position = UDim2.fromScale(0.04, 0.05), Size = UDim2.fromScale(0.92, 0.5), Font = Enum.Font.GothamBlack, Text = "" })
 		local count = UIKit.label(b, { Position = UDim2.fromScale(0.04, 0.58), Size = UDim2.fromScale(0.92, 0.34), Font = Enum.Font.Gotham, Text = "" })
 		self.voteButtons[i] = { button = b, name = name, count = count }
 		maid:Give(b.Activated:Connect(function()
-			if self.myMapVote == nil then
-				self.myMapVote = i
-				self.remotes.RequestMapVote:FireServer(i)
-				self:_renderVote()
+			local ballot = self.snapshot and self.snapshot.ballot
+			local mine = ballot and ballot.choices and ballot.choices[tostring(self.localUserId)]
+			if self.castBallot and mine ~= (i + (self.votePage - 1) * 3) then
+				self.castBallot(i + (self.votePage - 1) * 3)
 			end
 		end))
 	end
+	self.votePage = 1
 
 	-- Time Trial layer --------------------------------------------------------------------
 	local tt = UIKit.new("Frame", { Name = "TimeTrialLayer", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false }, root)
@@ -236,17 +243,17 @@ function ModesController:Step(now)
 			end
 		end
 	end
+	-- prompt 03: the ballot strip's countdown ticks once a second between snapshots
+	local second = math.floor(now)
+	if self.votePanel.Visible and second ~= self.voteTick then
+		self.voteTick = second
+		self:_renderVote()
+	end
 end
 
 -- snapshot: map vote, party card, next world
 function ModesController:ApplySnapshot(snap)
 	self.snapshot = snap
-	local mv = snap.mapVote
-	local key = mv and mv.endsAt
-	if key ~= self.mapVoteKey then
-		self.mapVoteKey = key
-		self.myMapVote = nil
-	end
 	self:_renderVote()
 	local party = snap.party
 	local mine = party and party.tags and party.tags[tostring(self.localUserId)]
@@ -270,21 +277,28 @@ end
 
 function ModesController:_renderVote()
 	local snap = self.snapshot
-	local mv = snap and snap.mapVote
-	local open = mv ~= nil and mv.open and snap.state == "Intermission"
+	local ballot = snap and snap.ballot
+	local lead = snap and snap.nextWorldId and worldName(snap.nextWorldId)
+	self.mapsButton.Text = lead and ("MAPS   |   NEXT: " .. string.upper(lead)) or "MAPS"
+	local queued = snap and snap.queued and snap.queued[tostring(self.localUserId)]
+	local open = ballot ~= nil and #ballot.maps > 1 and snap.state == "Intermission" and queued == true
 	self.votePanel.Visible = open
 	if not open then
 		return
 	end
-	local left = math.max(0, math.ceil((mv.endsAt or 0) - workspace:GetServerTimeNow()))
-	self.voteTitle.Text = self.myMapVote and string.format("VOTE CAST - %d s", left) or string.format("PICK THE NEXT WORLD - %d s", left)
+	local mine = ballot.choices and ballot.choices[tostring(self.localUserId)]
+	local left = math.max(0, math.ceil((snap.stateEndsAt or 0) - workspace:GetServerTimeNow()))
+	self.voteTitle.Text = mine and string.format("VOTED - CHANGE IT UNTIL THE GRID FORMS (%d s)", left) or string.format("VOTE FOR THE NEXT RACE - %d s", left)
+	self.votePage = 1
 	for i, entry in ipairs(self.voteButtons) do
-		local id = mv.options[i]
+		local index = i
+		local id = ballot.maps[index]
 		entry.button.Visible = id ~= nil
 		if id then
+			local count = ballot.counts[index] or 0
 			entry.name.Text = string.upper(worldName(id))
-			entry.count.Text = string.format("%d vote%s%s", mv.counts[i] or 0, (mv.counts[i] or 0) == 1 and "" or "s", self.myMapVote == i and "  (yours)" or "")
-			entry.button.AutoButtonColor = self.myMapVote == nil
+			entry.count.Text = string.format("%d vote%s%s", count, count == 1 and "" or "s", mine == index and "  (yours)" or "")
+			entry.button.AutoButtonColor = mine ~= index
 		end
 	end
 end

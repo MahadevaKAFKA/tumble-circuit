@@ -698,7 +698,7 @@ function AbilityService:Activate(player, slot)
 		outcome.endsAt = t + def.Duration
 	elseif id == "GrappleSpark" then
 		local info = self.physics:GetLastInfo(player)
-		local layout = self.track and self.track:GetLayout(practice and Protocol.Zones.Hub or Protocol.Zones.Race)
+		local layout = self.track and self.track:GetLayout(practice and Protocol.Zones.Hub or Protocol.Zones.Race, ball and ball:GetAttribute(Protocol.BallAttributes.HubId))
 		local target = nil
 		if info and info.s and layout and layout.GrappleAnchors then
 			local nextCpS = nil
