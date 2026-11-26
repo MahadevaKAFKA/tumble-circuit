@@ -34,6 +34,33 @@ local Reveal = {}
 Reveal.__index = Reveal
 
 Reveal.Times = { Queue = 0.35, Chase = 0.75, Rail = 1.15, Cross = 2.0, Unmask = 2.05, Done = 2.5 }
+-- 2026-11-26 owner: "there's no animation when actually opening chests" - the case itself now
+-- opens first: it pops in, shakes harder and harder, the lid blows off with a flash, then the
+-- spool runs. Reduced Motion: a short fade-open without the shake.
+Reveal.OpenTimes = { Pop = 0.22, Shake = 0.95, Burst = 1.25 }
+Reveal.ReducedOpen = 0.45
+
+-- Pure: the case's pose at time t of the opening (scale, rotation degrees, lid lift studs-ish
+-- px, lid rotation, flash alpha 0..1, burst 0..1). Deterministic so tests can sample it.
+function Reveal.ChestPose(t, reduced)
+	local O = Reveal.OpenTimes
+	if reduced then
+		local u = math.clamp(t / Reveal.ReducedOpen, 0, 1)
+		return { scale = 1, rotation = 0, lid = u * 40, lidRotation = u * -20, flash = u < 0.5 and u * 2 or (1 - u) * 2, burst = u }
+	end
+	if t < O.Pop then
+		local u = t / O.Pop
+		local back = 1 + 1.70158
+		local e = 1 + back * (u - 1) ^ 3 + 1.70158 * (u - 1) ^ 2 -- back-out pop
+		return { scale = e, rotation = 0, lid = 0, lidRotation = 0, flash = 0, burst = 0 }
+	elseif t < O.Shake then
+		local u = (t - O.Pop) / (O.Shake - O.Pop)
+		local amp = 2 + u * u * 9 -- degrees, building up
+		return { scale = 1 + u * 0.06, rotation = math.sin(t * (28 + u * 30)) * amp, lid = u * 3, lidRotation = 0, flash = u * 0.25, burst = 0 }
+	end
+	local u = math.clamp((t - O.Shake) / (O.Burst - O.Shake), 0, 1)
+	return { scale = 1.06 - u * 0.12, rotation = 0, lid = 18 + u * 160, lidRotation = -25 - u * 70, flash = 1 - u, burst = u }
+end
 Reveal.Entrants = 6
 Reveal.Radius = 40 -- track arc radius (studs)
 Reveal.Sweep = 1.3 -- radians of arc per unit of progress (s = 0 start, s = 1 reveal line)
@@ -198,6 +225,24 @@ function Reveal.new(deps)
 		self.muteButton.Text = self.muted and "MUTED" or "SOUND ON"
 	end))
 	self.syncLabel = UIKit.label(backdrop, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 470), Size = UDim2.fromOffset(900, 60), Font = Enum.Font.GothamBold, TextWrapped = true, Text = "", Visible = false })
+	-- the case itself (opening stage)
+	local chest = UIKit.new("Frame", { Name = "Chest", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, 250), Size = UDim2.fromOffset(260, 260), BackgroundTransparency = 1, Visible = false, ZIndex = 5 }, backdrop)
+	self.chest = chest
+	self.chestScale = UIKit.new("UIScale", { Scale = 1 }, chest)
+	self.chestGlow = UIKit.new("Frame", { Name = "Glow", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromOffset(240, 240), BackgroundColor3 = palette.White, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 4 }, chest)
+	UIKit.corner(self.chestGlow, 0.5)
+	self.chestRays = {}
+	for k = 1, 10 do
+		local ray = UIKit.new("Frame", { Name = "Ray", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(6, 120), Rotation = k * 36, BackgroundColor3 = palette.White, BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 4 }, chest)
+		self.chestRays[k] = ray
+	end
+	self.chestBody = UIKit.new("Frame", { Name = "Body", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40), Size = UDim2.fromOffset(170, 112), BackgroundColor3 = palette.Cyan, BorderSizePixel = 0, ZIndex = 6 }, chest)
+	UIKit.corner(self.chestBody, 0.08)
+	UIKit.new("Frame", { Name = "Band", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromScale(0, 0.38), Size = UDim2.new(1, 0, 0, 14), BackgroundColor3 = palette.Ink, BorderSizePixel = 0, ZIndex = 7 }, self.chestBody)
+	UIKit.new("Frame", { Name = "Latch", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.38), Size = UDim2.fromOffset(28, 30), BackgroundColor3 = palette.White, BorderSizePixel = 0, ZIndex = 8 }, self.chestBody)
+	self.chestLid = UIKit.new("Frame", { Name = "Lid", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -150), Size = UDim2.fromOffset(186, 38), BackgroundColor3 = palette.Cyan, BorderSizePixel = 0, ZIndex = 9 }, chest)
+	UIKit.corner(self.chestLid, 0.08)
+	UIKit.new("Frame", { Name = "LidEdge", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 6), BackgroundColor3 = palette.Ink, BorderSizePixel = 0, ZIndex = 10 }, self.chestLid)
 	maid:Give(game:GetService("RunService").RenderStepped:Connect(function()
 		if self.playing then
 			self:_step()
@@ -311,31 +356,68 @@ function Reveal:Play(result, pick, mixed)
 	self.title.TextColor3 = palette.White
 	local winner = Catalog.Get(result.id)
 	self.legend.Text = mixed and "SHAPES SHOW THE CATEGORY:  marble = a skin   ·   marble + trace = a trail   ·   spikes = a burst   ·   bubble = an emote" or "Silhouettes only - colours and names stay hidden until the winner crosses the line"
-	if self.reducedMotion then
-		self:_unmask()
-		return
+	-- the case opens first (both quality levels; Reduced Motion = a short fade-open)
+	local color = result.boxColor or palette.Cyan
+	self.chestBody.BackgroundColor3 = color
+	self.chestLid.BackgroundColor3 = color:Lerp(palette.White, 0.25)
+	self.chest.Visible = true
+	self.viewport.Visible, self.ribbon.Visible = false, false
+	self.openStart = os.clock()
+	self.phase = "Open"
+	self:_poseChest(0)
+	if self.sound and not self.muted then
+		pcall(function()
+			self.sound:Play("CaseOpen")
+		end)
 	end
 	local rng = Random.new()
 	local lineup = Reveal.Lineup(result.id, pick, function()
 		return rng:NextNumber()
 	end)
 	self.lineup = lineup
-	self.t0 = os.clock()
 	self.crossed = false
-	if self.low then
-		self:_playRibbon(lineup)
-	else
-		self.viewport.Visible, self.ribbon.Visible = true, false
-		self:_buildTrack()
-		self.entrants = {}
-		for i, id in ipairs(lineup.ids) do
-			local item = Catalog.Get(id)
-			local model, root, offsets, trace = self:_silhouette(item or winner)
-			model.Parent = self.viewport
-			self.entrants[i] = { model = model, root = root, offsets = offsets, trace = trace, lane = Reveal.Lanes[(i - 1) % #Reveal.Lanes + 1] }
+	if not self.reducedMotion then
+		local built = false
+		if not self.low then
+			-- the 3D spool; if anything fails to build, the single-camera ribbon plays instead (never
+			-- a blank screen)
+			built = pcall(function()
+				self:_buildTrack()
+				self.entrants = {}
+				for i, id in ipairs(lineup.ids) do
+					local item = Catalog.Get(id)
+					local model, root, offsets, trace = self:_silhouette(item or winner)
+					model.Parent = self.viewport
+					self.entrants[i] = { model = model, root = root, offsets = offsets, trace = trace, lane = Reveal.Lanes[(i - 1) % #Reveal.Lanes + 1] }
+				end
+			end)
+			if not built then
+				self:_clear()
+				self.entrants = nil
+			end
+		end
+		self.useRibbon = not built
+		if self.useRibbon then
+			self:_playRibbon(lineup)
+			self.ribbon.Visible = false -- shown when the case has opened
 		end
 	end
 	self.playing = true
+end
+
+function Reveal:_poseChest(t)
+	local pose = Reveal.ChestPose(t, self.reducedMotion)
+	self.chestScale.Scale = pose.scale
+	self.chest.Rotation = pose.rotation
+	self.chestLid.Position = UDim2.new(0.5, pose.lid * 0.4, 1, -150 - pose.lid)
+	self.chestLid.Rotation = pose.lidRotation
+	self.chestLid.BackgroundTransparency = math.clamp((pose.burst - 0.4) / 0.6, 0, 1)
+	self.chestGlow.BackgroundTransparency = 1 - pose.flash * 0.85
+	self.chestGlow.Size = UDim2.fromOffset(160 + pose.burst * 260, 160 + pose.burst * 260)
+	for k, ray in ipairs(self.chestRays) do
+		ray.BackgroundTransparency = pose.burst > 0 and (0.2 + pose.burst * 0.8) or 1
+		ray.Size = UDim2.fromOffset(6, 60 + pose.burst * 160 + (k % 2) * 30)
+	end
 end
 
 -- Low graphics: one camera, a ribbon of the same masks sliding to the same winner.
@@ -413,6 +495,26 @@ function Reveal.Glyph(parent, item)
 end
 
 function Reveal:_step()
+	if self.phase == "Open" then
+		local t = os.clock() - self.openStart
+		self:_poseChest(t)
+		local done = self.reducedMotion and Reveal.ReducedOpen or Reveal.OpenTimes.Burst
+		if t < done then
+			return
+		end
+		self.phase = "Spool"
+		self.chest.Visible = false
+		if self.reducedMotion then
+			self:_unmask()
+			return
+		end
+		if self.useRibbon then
+			self.ribbon.Visible = true
+		else
+			self.viewport.Visible = true
+		end
+		self.t0 = os.clock()
+	end
 	local t = os.clock() - self.t0
 	local T = Reveal.Times
 	if self.ribbon.Visible then
@@ -464,6 +566,8 @@ end
 
 function Reveal:Skip()
 	if self.playing then
+		self.chest.Visible = false
+		self.phase = "Spool"
 		self:_unmask()
 	end
 end
@@ -471,6 +575,12 @@ end
 -- Show the winner: its real look (viewport) and the result card.
 function Reveal:_unmask()
 	self.playing = false
+	self.chest.Visible = false
+	if self.entrants then
+		self.viewport.Visible = true
+	elseif self.useRibbon and not self.reducedMotion then
+		self.ribbon.Visible = true
+	end
 	local result = self.result
 	local item = result and Catalog.Get(result.id)
 	if self.entrants and self.lineup then
@@ -534,6 +644,7 @@ function Reveal:ShowSyncing(text)
 	self.playing = false
 	self.card.Visible = false
 	self.viewport.Visible, self.ribbon.Visible = false, false
+	self.chest.Visible = false
 	self.skipButton.Visible = false
 	self.muteButton.Visible = false
 	self.title.Text = "OPENING"

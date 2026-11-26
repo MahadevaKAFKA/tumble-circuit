@@ -46,7 +46,7 @@ function HazardService:_bindWorld()
 	local layout = self.track:GetLayout(Protocol.Zones.Race)
 	self.resolved = {}
 	for _, hz in ipairs(layout.Hazards) do
-		self.resolved[#self.resolved + 1] = { Kind = hz.Kind, Id = hz.Id, Definition = hz.Definition, Frame = hz.Frame, FromFrame = hz.FromFrame, Length = hz.Length, Offset = hz.Offset, Piece = hz.Piece }
+		self.resolved[#self.resolved + 1] = { Kind = hz.Kind, Id = hz.Id, Definition = hz.Definition, Frame = hz.Frame, FromFrame = hz.FromFrame, ToFrame = hz.ToFrame, Length = hz.Length, Offset = hz.Offset, Piece = hz.Piece }
 	end
 	self:SetRound(self.seed or 0, self.epoch or 0)
 	local root = self.track:GetRaceRoot()
@@ -160,7 +160,7 @@ function HazardService:EnvironmentAccelFor(position)
 	local fanBoost = HazardSim.FanMultiplier(self.modifier, workspace:GetServerTimeNow())
 	local total = nil
 	for _, hz in ipairs(self.resolved) do
-		if hz.Params and (hz.Kind == "Fan" or hz.Kind == "Conveyor") then
+		if hz.Params and (hz.Kind == "Fan" or hz.Kind == "Conveyor" or hz.Kind == "Boost") then
 			local push = HazardSim.EnvironmentAccel(hz, t, position)
 			if push then
 				total = (total or Vector3.new(0, 0, 0)) + push * (hz.Kind == "Fan" and fanBoost or 1)

@@ -287,6 +287,34 @@ function ModesController:ApplySnapshot(snap)
 	self.partyButton.Text = mine and string.format("PARTY  %d", here) or "PARTY"
 end
 
+-- Brief 3 (2026-11-26): with the hub card the ballot is a compact list UNDER the card on the
+-- right (it no longer covers the marble in the middle of the screen) and carries no second
+-- timer - the phase strip already shows the one countdown.
+function ModesController:_compactVote()
+	if self.voteCompact then
+		return
+	end
+	self.voteCompact = true
+	local vote = self.votePanel
+	vote.AnchorPoint = Vector2.new(1, 0)
+	vote.Position = UDim2.new(1, -14, 0, 186)
+	vote.Size = UDim2.fromOffset(300, 34 + 3 * 42)
+	local stroke = vote:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		stroke.Transparency = 1
+	end
+	self.voteTitle.Size = UDim2.new(1, -24, 0, 20)
+	self.voteTitle.TextXAlignment = Enum.TextXAlignment.Left
+	for i, entry in ipairs(self.voteButtons) do
+		entry.button.Position = UDim2.fromOffset(10, 30 + (i - 1) * 42)
+		entry.button.Size = UDim2.fromOffset(280, 36)
+		entry.name.Position, entry.name.Size = UDim2.fromOffset(10, 6), UDim2.new(0.66, -10, 1, -12)
+		entry.name.TextXAlignment = Enum.TextXAlignment.Left
+		entry.count.Position, entry.count.Size = UDim2.new(0.66, 0, 0, 8), UDim2.new(0.34, -10, 1, -16)
+		entry.count.TextXAlignment = Enum.TextXAlignment.Right
+	end
+end
+
 function ModesController:_renderVote()
 	local snap = self.snapshot
 	local ballot = snap and snap.ballot
@@ -301,7 +329,12 @@ function ModesController:_renderVote()
 	end
 	local mine = ballot.choices and ballot.choices[tostring(self.localUserId)]
 	local left = math.max(0, math.ceil((snap.stateEndsAt or 0) - workspace:GetServerTimeNow()))
-	self.voteTitle.Text = mine and string.format("VOTED - CHANGE IT UNTIL THE GRID FORMS (%d s)", left) or string.format("VOTE FOR THE NEXT RACE - %d s", left)
+	if self.cardMode then
+		self:_compactVote()
+		self.voteTitle.Text = mine and "VOTED  ·  TAP ANOTHER TO CHANGE" or "VOTE  ·  NEXT RACE"
+	else
+		self.voteTitle.Text = mine and string.format("VOTED - CHANGE IT UNTIL THE GRID FORMS (%d s)", left) or string.format("VOTE FOR THE NEXT RACE - %d s", left)
+	end
 	self.votePage = 1
 	for i, entry in ipairs(self.voteButtons) do
 		local index = i
@@ -310,7 +343,7 @@ function ModesController:_renderVote()
 		if id then
 			local count = ballot.counts[index] or 0
 			entry.name.Text = string.upper(worldName(id))
-			entry.count.Text = string.format("%d vote%s%s", count, count == 1 and "" or "s", mine == index and "  (yours)" or "")
+			entry.count.Text = self.cardMode and string.format("%d%s", count, mine == index and "  (you)" or "") or string.format("%d vote%s%s", count, count == 1 and "" or "s", mine == index and "  (yours)" or "")
 			entry.button.AutoButtonColor = mine ~= index
 		end
 	end

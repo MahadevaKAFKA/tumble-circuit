@@ -44,6 +44,7 @@ function ProgressService:Standings(racers)
 			active = racer.active == true, -- A5 AFK guard (set by RoundService)
 			checkpoint = racer.player and self.checkpoints:GetConfirmed(racer.player) or (racer.checkpoint or 0),
 			progressS = s,
+			laps = racer.lapTimes, -- circuits: completed lap times (results show the splits)
 		}
 	end
 	return RaceRules.SortStandings(entries)

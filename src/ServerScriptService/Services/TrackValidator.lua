@@ -17,7 +17,7 @@ local HazardSim = require(Shared:WaitForChild("HazardSim"))
 
 local TrackValidator = {}
 
-TrackValidator.KnownHazards = { PulseBumper = true, Sweeper = true, Hammer = true, Tiles = true, Fan = true, Conveyor = true, Trampoline = true }
+TrackValidator.KnownHazards = { PulseBumper = true, Sweeper = true, Hammer = true, Tiles = true, Fan = true, Conveyor = true, Trampoline = true, Boost = true }
 
 function TrackValidator.Validate(def, layout)
 	local errors = TrackDefinitions.Validate(def, layout)
@@ -47,10 +47,21 @@ function TrackValidator.Validate(def, layout)
 		fail("spawn slots must be 8-20, has " .. slots)
 	end
 
-	for _, piece in ipairs(layout.Pieces) do
+	-- a divider may run on across consecutive pieces (a split that spans a gap piece); the run as
+	-- a whole must still start and end inside a piece so both lanes rejoin the route
+	for i, piece in ipairs(layout.Pieces) do
 		local divider = piece.Definition.Divider
-		if divider and (divider.From <= 0 or divider.To >= piece.Definition.Length) then
-			fail("divider in " .. piece.Name .. " must start and end inside the piece (both lanes rejoin)")
+		if divider then
+			local prev = layout.Pieces[i - 1] and layout.Pieces[i - 1].Definition
+			local nextDef = layout.Pieces[i + 1] and layout.Pieces[i + 1].Definition
+			local continuesIn = prev and prev.Divider and prev.Divider.To >= prev.Length
+			local continuesOut = nextDef and nextDef.Divider and nextDef.Divider.From <= 0
+			if (divider.From <= 0 and not continuesIn) or (divider.To >= piece.Definition.Length and not continuesOut) then
+				fail("divider in " .. piece.Name .. " must start and end inside the piece (both lanes rejoin)")
+			end
+		end
+		if piece.Definition.HalfFloor and not divider then
+			fail("open-floor piece " .. piece.Name .. " needs a divider (the safe lane stays walled off)")
 		end
 	end
 

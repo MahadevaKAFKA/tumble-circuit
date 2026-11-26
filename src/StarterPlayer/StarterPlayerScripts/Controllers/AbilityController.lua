@@ -96,14 +96,12 @@ function AbilityController.new(deps)
 	end
 	self.panel = panel
 
-	-- Skippable hint card
-	-- v2: the tip sits low (above the speed readout), clear of the countdown and the race strip
-	local hint = UIKit.panel(root, { Name = "Hint", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -100), Size = UDim2.fromOffset(540, 56), Visible = false })
-	self.hintText = UIKit.label(hint, { Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -120, 1, -16), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, Font = Enum.Font.GothamBold })
-	local ok = UIKit.button(hint, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(90, 44), Text = "OK" }, palette.Mint)
-	self.maid:Give(ok.Activated:Connect(function()
-		hint.Visible = false
-	end))
+	-- Hint cue (brief 3, 2026-11-26): no longer a card with OK across the road - a small chip
+	-- at the left edge (above the steering zone) that goes away on its own after a few seconds.
+	-- Not a button, so it can never swallow a steering touch.
+	local hint = UIKit.panel(root, { Name = "Hint", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 14, 0.36, 0), Size = UDim2.fromOffset(300, 46), BackgroundTransparency = 0.25, Visible = false })
+	UIKit.new("Frame", { Name = "Edge", Size = UDim2.new(0, 3, 1, 0), BackgroundColor3 = palette.Mint, BorderSizePixel = 0 }, hint)
+	self.hintText = UIKit.label(hint, { Position = UDim2.fromOffset(12, 5), Size = UDim2.new(1, -20, 1, -10), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, Font = Enum.Font.GothamBold })
 	self.hint = hint
 
 	-- Server messages
@@ -202,7 +200,7 @@ function AbilityController:ShowHint(key, text)
 	self.hintsShown[key] = true
 	self.hintText.Text = text
 	self.hint.Visible = true
-	task.delay(8, function()
+	task.delay(4.5, function()
 		if self.hintText.Text == text then
 			self.hint.Visible = false
 		end

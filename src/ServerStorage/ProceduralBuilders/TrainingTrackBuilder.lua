@@ -197,7 +197,22 @@ function Builder.ComputeSpecs(layout)
 		if piece.Segment == "Start" or piece.Segment == "Finish" then
 			color = palette.Navy:Lerp(palette.Violet, 0.18)
 		end
-		local floorQuads = piece.Definition.Floor == "Tiles" and {} or Builder.QuadFloorSpecs(L0, R0, L1, R1, s0.Up, s1.Up, thickness)
+		local floorQuads
+		local half = piece.Definition.HalfFloor
+		if piece.Definition.Floor == "Tiles" then
+			floorQuads = {}
+		elseif half == "Left" or half == "Right" then
+			-- a risk-line gap: only one lane keeps its floor (the other side is open air)
+			local M0 = s0.Position + s0.Right * (half == "Left" and 0.6 or -0.6)
+			local M1 = s1.Position + s1.Right * (half == "Left" and 0.6 or -0.6)
+			if half == "Left" then
+				floorQuads = Builder.QuadFloorSpecs(L0, M0, L1, M1, s0.Up, s1.Up, thickness)
+			else
+				floorQuads = Builder.QuadFloorSpecs(M0, R0, M1, R1, s0.Up, s1.Up, thickness)
+			end
+		else
+			floorQuads = Builder.QuadFloorSpecs(L0, R0, L1, R1, s0.Up, s1.Up, thickness)
+		end
 		for _, q in ipairs(floorQuads) do
 			q.Name = "Floor_" .. piece.Name
 			q.Folder = "Floor"
@@ -266,6 +281,18 @@ function Builder.ComputeSpecs(layout)
 	end
 	if def.Pieces[1].StartCap then
 		capWall(first, 1, "StartBackWall", 5) -- low enough for the chase camera to look over
+	end
+	if layout.FinisherDeck then
+		local deck = layout.FinisherDeck
+		local cf = CFrame.fromMatrix(deck.Position - deck.Up * (deck.Size.Y / 2), deck.Right, deck.Up)
+		add({ Class = "Part", Name = "FinisherDeck", Folder = "Floor", Size = deck.Size, CFrame = cf, Color = palette.Navy:Lerp(palette.Mint, 0.12), Material = floorMaterial, Physics = floorPhysics })
+		for _, spec in ipairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
+			local alongX = spec[1] ~= 0
+			local size = alongX and Vector3.new(railT, 4, deck.Size.Z) or Vector3.new(deck.Size.X, 4, railT)
+			local offset = alongX and Vector3.new(spec[1] * deck.Size.X / 2, 2 + deck.Size.Y / 2, 0) or Vector3.new(0, 2 + deck.Size.Y / 2, spec[2] * deck.Size.Z / 2)
+			add({ Class = "Part", Name = "DeckRail", Folder = "Rails", Size = size, CFrame = cf * CFrame.new(offset), Color = palette.NavyRail, Material = railMaterial, Physics = railPhysics })
+		end
+		add({ Class = "Part", Name = "DeckSign", Folder = "Decor", Size = Vector3.new(deck.Size.X, 3, 0.6), CFrame = cf * CFrame.new(0, 9, -deck.Size.Z / 2), Color = palette.Ink, Material = "SmoothPlastic", Collide = false, Gui = { Kind = "Surface", Text = "FINISHED", Color = palette.Mint } })
 	end
 	if def.Pieces[#def.Pieces].EndCap then
 		capWall(last, -1, "FinishEndWall", 7)
@@ -510,6 +537,31 @@ function Builder.ComputeSpecs(layout)
 					add({ Class = "Part", Name = "Tile", Folder = folder, Size = Vector3.new(colWidth - 0.25, thickness, rowLength - 0.25), CFrame = frameCFrame(rf, -thickness / 2) * CFrame.new(x, 0, 0), Color = palette.NavyFloor:Lerp(palette.Cyan, 0.15), Material = floorMaterial, Physics = floorPhysics, Attributes = { HazardId = hz.Id, Role = "Tile", Row = row, Col = col } })
 				end
 			end
+		elseif hz.Kind == "Boost" then
+			-- assisted ascent / conveyor carry: forward chevrons on the boost lane (static decor)
+			local at = 2
+			while at <= hz.Length - 2 do
+				local zf = TrackDefinitions.SampleAtH(layout, hz.FromFrame.H + at)
+				local base = frameCFrame(zf, 0.08) * CFrame.new(hz.Offset or 0, 0, 0)
+				local w = math.min((d.Width or 10) / 2 - 1, 4)
+				for _, sideSign in ipairs({ -1, 1 }) do
+					local c = Vector3.new(sideSign * w / 2, 0, 0)
+					local dir = Vector3.new(sideSign * w, 0, 3.2)
+					add({ Class = "Part", Name = "BoostChevron", Folder = folder, Size = Vector3.new(0.8, 0.12, 4.2), CFrame = base * CFrame.lookAt(c, c + dir), Color = palette.Mint, Material = "Neon", Collide = false, Attributes = { HazardId = hz.Id, Role = "Boost" } })
+				end
+				at = at + 9
+			end
+			-- lane edge strips so the boost lane reads as a lane from a distance
+			for _, sideSign in ipairs({ -1, 1 }) do
+				local a0 = TrackDefinitions.SampleAtH(layout, hz.FromFrame.H)
+				local a1 = TrackDefinitions.SampleAtH(layout, hz.ToFrame.H)
+				local p0 = a0.Position + a0.Right * ((hz.Offset or 0) + sideSign * (d.Width or 10) / 2) + a0.Up * 0.07
+				local p1 = a1.Position + a1.Right * ((hz.Offset or 0) + sideSign * (d.Width or 10) / 2) + a1.Up * 0.07
+				local len = (p1 - p0).Magnitude
+				if len > 1 then
+					add({ Class = "Part", Name = "BoostEdge", Folder = "Decor", Size = Vector3.new(0.4, 0.1, len), CFrame = CFrame.lookAt((p0 + p1) / 2, p1, a0.Up), Color = palette.Mint, Material = "Neon", Transparency = 0.35, Collide = false })
+				end
+			end
 		elseif hz.Kind == "Fan" or hz.Kind == "Conveyor" then
 			local at = 0
 			while at <= hz.Length do
@@ -584,20 +636,29 @@ function Builder.ComputeSpecs(layout)
 		})
 	end
 
-	-- Floating signs (billboards, distance-limited).
+	-- Overhead sign gantries (2026-11-26: replaced the camera-facing billboards, which grew to
+	-- fill the phone screen as a marble passed under them). A posted beam across the road with
+	-- the text on its approach face: perspective-correct, it leaves the view as you pass.
 	for i, sign in ipairs(layout.Signs) do
+		local f = sign.Frame
+		local span = f.Width / 2 + railT + 1.4
+		local base = frameCFrame(f, 0)
+		local lift = sign.Lift or 9
+		for _, sideSign in ipairs({ -1, 1 }) do
+			add({ Class = "Part", Name = "SignPost", Folder = "Decor", Size = Vector3.new(0.9, lift + 1.6, 0.9), CFrame = base * CFrame.new(sideSign * span, (lift + 1.6) / 2, 0), Color = palette.NavyRail, Material = railMaterial, Collide = false })
+		end
 		add({
 			Class = "Part",
 			Name = "Sign" .. i,
 			Folder = "Decor",
-			Size = Vector3.new(1, 1, 1),
-			CFrame = frameCFrame(sign.Frame, sign.Lift),
+			Size = Vector3.new(span * 2 + 0.9, 2.6, 0.6),
+			CFrame = base * CFrame.new(0, lift + 1.3, 0),
 			Color = palette.Ink,
 			Material = "SmoothPlastic",
-			Transparency = 1,
 			Collide = false,
-			Gui = { Kind = "Billboard", Text = sign.Text, Color = palette.White },
+			Gui = { Kind = "Surface", Text = sign.Text, Color = palette.White },
 		})
+		add({ Class = "Part", Name = "SignEdge", Folder = "Decor", Size = Vector3.new(span * 2 + 0.9, 0.2, 0.7), CFrame = base * CFrame.new(0, lift, 0), Color = palette.Cyan, Material = "Neon", Collide = false })
 	end
 
 	-- Hazards

@@ -9,6 +9,12 @@
 
 	Pure module: no Roblox services. Used by the client (steering frame, camera) and the server
 	(start/finish progress), and by the offline tests.
+
+	Circuits (2026-11-26, route.loop): the polyline closes on itself. Lookups take S modulo the
+	lap length, the search window wraps across the start/finish line, and Update returns the
+	UNWRAPPED race distance (lap base + lap S) so progress keeps growing lap after lap; `localS`
+	is the lap-local value. A new tracker places itself on the right lap from options.hintS
+	(the spawn's race S: grid = just below 0, a checkpoint respawn = that checkpoint's race S).
 ]]
 
 local RouteTracker = {}
@@ -36,6 +42,9 @@ end
 function RouteTracker.SegmentAtS(route, s)
 	local cumulative = route.cumulative
 	local n = #cumulative
+	if route.loop and route.total > 0 then
+		s = s - math.floor(s / route.total) * route.total
+	end
 	if s <= 0 then
 		return 1, 0
 	end
@@ -129,17 +138,32 @@ function RouteTracker.new(route, options)
 	self.window = options.window or 6
 	self.reacquireDistance = options.reacquireDistance or 45
 	self.index = 1
+	self.hintS = options.hintS
+	self.lapBase = nil -- circuits: race S of this lap's start/finish line
+	self.lastLocal = nil
 	return self
 end
 
 function RouteTracker:Reset()
 	self.index = 1
+	self.lapBase, self.lastLocal = nil, nil
+end
+
+-- Circuits: tell the tracker where the marble is in the race (a respawn on lap k).
+function RouteTracker:SetHint(hintS)
+	self.hintS = hintS
+	self.lapBase, self.lastLocal = nil, nil
 end
 
 function RouteTracker:_search(p, first, last)
 	local pts = self.route.points
+	local segCount = #pts - 1
 	local bestD, bestI, bestT, bestQ = math.huge, first, 0, pts[first]
-	for i = first, last do
+	for k = first, last do
+		local i = k
+		if self.route.loop then
+			i = ((k - 1) % segCount) + 1 -- the window wraps across the start/finish line
+		end
 		local q, t, d = closestOnSegment(pts[i], pts[i + 1], p)
 		if d < bestD then
 			bestD, bestI, bestT, bestQ = d, i, t, q
@@ -154,6 +178,9 @@ function RouteTracker:Update(p)
 	local segCount = #pts - 1
 	local first = math.max(1, self.index - self.window)
 	local last = math.min(segCount, self.index + self.window)
+	if self.route.loop then
+		first, last = self.index - self.window, self.index + self.window
+	end
 	local i, t, q, d = self:_search(p, first, last)
 	if d > self.reacquireDistance then
 		i, t, q, d = self:_search(p, 1, segCount)
@@ -165,8 +192,27 @@ function RouteTracker:Update(p)
 	if segLen > 1e-9 then
 		tangent = segVec / segLen
 	end
+	local localS = self.route.cumulative[i] + segLen * t
+	local s = localS
+	if self.route.loop then
+		local total = self.route.total
+		if self.lapBase == nil then
+			local hint = self.hintS or 0
+			self.lapBase = math.floor((hint - localS) / total + 0.5) * total
+		elseif self.lastLocal ~= nil then
+			local delta = localS - self.lastLocal
+			if delta < -total / 2 then
+				self.lapBase = self.lapBase + total -- crossed the start/finish line forwards
+			elseif delta > total / 2 then
+				self.lapBase = self.lapBase - total -- ...or backwards
+			end
+		end
+		self.lastLocal = localS
+		s = self.lapBase + localS
+	end
 	return {
-		s = self.route.cumulative[i] + segLen * t,
+		s = s,
+		localS = localS,
 		index = i,
 		distance = d,
 		closest = q,

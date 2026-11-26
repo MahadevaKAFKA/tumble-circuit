@@ -157,6 +157,11 @@ function MapRegistry.IsEnabled(entry, features)
 	if not entry then
 		return false
 	end
+	-- three-lap circuits: a race map is playable only once its circuit is validated (explicit
+	-- registry data, so a vote can never pick an incomplete course)
+	if entry.Track and TrackDefinitions.RaceReady and not TrackDefinitions.RaceReady(entry.Track) then
+		return false
+	end
 	if entry.Status == "Live" then
 		return true
 	end

@@ -12,6 +12,7 @@
 	  Tiles      grid of floor tiles: solid -> telegraph (0.8 s) -> dropped -> solid
 	  Fan        tunnel gust (lateral push) with a 0.7 s warning, on/off cycle
 	  Conveyor   constant sideways push on a floor strip
+	  Boost      (circuits) forward push on one lane: assisted ascent / conveyor carry
 	  Trampoline pad that adds an upward kick on contact
 	  PulseBumper (A1 bumper) is timed by HazardTiming; listed here for seeds/phases.
 	All kicks are capped (KickCap) and are velocity CHANGES applied by the marble's owner.
@@ -160,9 +161,37 @@ function HazardSim.Contact(h, t, position, r)
 	return nil
 end
 
+-- Boost strips follow the road: forward / right / centre are blended from the strip's two
+-- end frames (strips are short, <= 70 studs, so the blend tracks the curve closely).
+local function boostAccel(h, position)
+	local p = h.Params
+	local a, b = h.FromFrame, h.ToFrame
+	local along = (position - a.Position):Dot(a.Forward)
+	if along < -1 or along > h.Length + 1 then
+		return nil
+	end
+	local u = clamp(along / h.Length, 0, 1)
+	local forward = a.Forward + (b.Forward - a.Forward) * u
+	local right = a.Right + (b.Right - a.Right) * u
+	local centre = a.Position + (b.Position - a.Position) * u
+	local fm, rm = forward.Magnitude, right.Magnitude
+	if fm < 1e-6 or rm < 1e-6 then
+		return nil
+	end
+	local x = (position - centre):Dot(right / rm)
+	if math.abs(x - (p.Offset or 0)) > (p.Width or 1e9) / 2 then
+		return nil
+	end
+	return (forward / fm) * (p.Accel or 0)
+end
+HazardSim.BoostAccel = boostAccel
+
 -- Continuous push (studs/s^2) from zone hazards, or nil.
 function HazardSim.EnvironmentAccel(h, t, position)
 	local p = h.Params
+	if h.Kind == "Boost" then
+		return boostAccel(h, position)
+	end
 	if h.Kind ~= "Fan" and h.Kind ~= "Conveyor" then
 		return nil
 	end

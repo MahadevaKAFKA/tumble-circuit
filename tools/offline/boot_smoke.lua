@@ -248,6 +248,12 @@ local path = root .. "/src/" .. target
     -- the reveal plays and finishes: step it through every shot, then DONE
     local reveal = client.lab.reveal
     assert(reveal.playing, "the unseen capsule result did not start the reveal")
+    assert(reveal.phase == "Open", "the case-opening stage did not start first")
+    for _, dt in ipairs({ 0.1, 0.4, 0.8, 1.1, 1.3 }) do -- the case pops, shakes, bursts open
+      reveal.openStart = os.clock() - dt
+      if reveal.playing and reveal.phase == "Open" then reveal:_step() end
+    end
+    assert(reveal.phase == "Spool", "the case never finished opening")
     for _, dt in ipairs({ 0.1, 0.5, 0.9, 1.5, 2.01, 2.2 }) do
       reveal.t0 = os.clock() - dt
       if reveal.playing then reveal:_step() end

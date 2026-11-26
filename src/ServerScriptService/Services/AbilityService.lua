@@ -39,6 +39,7 @@ local Utility = require(Shared:WaitForChild("Utility"))
 local SkillRules = require(script.Parent:WaitForChild("SkillRules"))
 local AbilityRules = require(script.Parent:WaitForChild("AbilityRules"))
 local RouteTracker = require(Shared:WaitForChild("RouteTracker"))
+local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 local RunService = game:GetService("RunService")
 
 local AbilityService = {}
@@ -702,14 +703,21 @@ function AbilityService:Activate(player, slot)
 		local target = nil
 		if info and info.s and layout and layout.GrappleAnchors then
 			local nextCpS = nil
+			local s = info.s
 			if not practice and self.checkpoints then
-				local cp = layout.Checkpoints[self.checkpoints:GetConfirmed(player) + 1]
-				nextCpS = cp and cp.S or layout.FinishLineS
+				local targets = layout.Targets or {}
+				local nextTarget = targets[self.checkpoints:GetConfirmed(player) + 1]
+				nextCpS = nextTarget and nextTarget.S or layout.FinishLineS
+				if layout.Loop and nextCpS then
+					-- circuits: anchors are laid out per lap - compare in lap distance
+					s = info.localS or TrackDefinitions.LapS(layout, info.s)
+					nextCpS = nextCpS - (info.s - s)
+				end
 			end
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Exclude
 			params.FilterDescendantsInstances = { self.marbles.folder }
-			target = AbilityRules.GrappleTarget(layout.GrappleAnchors, info.s, ball.Position, nextCpS, def.Range, function(anchor)
+			target = AbilityRules.GrappleTarget(layout.GrappleAnchors, s, ball.Position, nextCpS, def.Range, function(anchor)
 				local offset = anchor.Position - ball.Position
 				return workspace:Raycast(ball.Position, offset, params) == nil
 			end)

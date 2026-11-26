@@ -53,6 +53,7 @@ local Protocol = require(Shared:WaitForChild("Protocol"))
 local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local RouteTracker = require(Shared:WaitForChild("RouteTracker"))
+local NameplateController = require(Controllers:WaitForChild("NameplateController"))
 local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 local MapRegistry = require(Shared:WaitForChild("MapRegistry"))
 local VisualProfiles = require(Shared:WaitForChild("VisualProfiles"))
@@ -320,12 +321,13 @@ motor:SetEnvironmentAccel(function(position)
 	return nil
 end)
 local function setCheckpointMarks(raceLayout)
-	local total = raceLayout.Route.total
+	local total = raceLayout.LapLength or raceLayout.Route.total -- circuits: marks on the lap
 	local marks = {}
 	for i, cp in ipairs(raceLayout.Checkpoints) do
 		marks[i] = cp.S / total
 	end
 	raceHud:SetCheckpointMarks(marks)
+	raceHud:SetRaceLayout(raceLayout, TrackDefinitions)
 end
 setCheckpointMarks(layouts[ZONES.Race])
 
@@ -772,7 +774,15 @@ local function bindBall(ball)
 		currentHubId = hubLayouts[hubId or ""] and hubId or MapRegistry.DefaultHubId
 		layouts[ZONES.Hub] = hubLayouts[currentHubId]
 	end
-	tracker = RouteTracker.new(layouts[currentZone].Route)
+	-- circuits: start the tracker on the lap the server has confirmed (grid = just behind the line)
+	local hintS = nil
+	local raceLayout = layouts[ZONES.Race]
+	if currentZone == ZONES.Race and raceLayout.Loop then
+		local me = myEntry()
+		local target = me and roundState() == S.Racing and raceLayout.Targets[me.checkpoint or 0] or nil
+		hintS = target and (target.S + RaceConfig.Recovery.CheckpointRespawnAhead) or 0
+	end
+	tracker = RouteTracker.new(layouts[currentZone].Route, { hintS = hintS })
 	input:ResetState()
 	motor:Bind(ball, groundIgnore)
 	local plate = ball:FindFirstChild("Nameplate")
@@ -906,7 +916,11 @@ maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 end))
 maid:Give(remote.CheckpointFeedback.OnClientEvent:Connect(function(data)
 	if type(data) == "table" and type(data.index) == "number" and type(data.total) == "number" then
-		raceHud:FlashCheckpoint(data.index, data.total)
+		if data.kind == "Lap" and type(data.lap) == "number" and type(data.laps) == "number" then
+			raceHud:FlashLap(data.lap, data.laps, type(data.lapSeconds) == "number" and data.lapSeconds or nil)
+		else
+			raceHud:FlashCheckpoint(data.index, data.total)
+		end
 		sound:Play("Checkpoint")
 	end
 end))
@@ -1249,6 +1263,8 @@ local reportedRound = nil -- A5 AFK guard: one ReportActive per race, on the fir
 local rivalTrackers = {}
 local rivalWorld = nil
 local rivalTimer = 0
+local wrongWay = { seconds = 0, lastS = nil, shownAt = 0, missedAt = 0 }
+local nameplates = NameplateController.new()
 local rivalFractions = {}
 local steerRequired = GameConfig.Tutorial.SteerSecondsRequired
 local hitchThreshold = GameConfig.Debug.HitchThresholdSeconds
@@ -1563,10 +1579,10 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	vfx:Step()
 	local settled = snapshot and snapshot.raceStartedAt and workspace:GetServerTimeNow() - snapshot.raceStartedAt > 5 -- tips wait until the start is over
 	if currentZone == ZONES.Race and state == S.Racing and me and not me.finished and settled then
-		abilities:ShowHint("ability", "ABILITIES: " .. (input.device == "Gamepad" and "LB / RB" or input.device == "Touch" and "the two round buttons" or "Q / E") .. " - your loadout is set in the hub.")
+		abilities:ShowHint("ability", "ABILITIES  ·  " .. (input.device == "Gamepad" and "LB / RB" or input.device == "Touch" and "the two round buttons" or "Q / E"))
 		for _, zone in ipairs(trickZones) do
 			if progressS > zone.LipS - 70 and progressS < zone.LipS - 15 then
-				abilities:ShowHint("trick", "TRICK RAMP ahead (green, left side): jump it and press " .. (input.device == "Gamepad" and "(A)" or input.device == "Touch" and "TRICK" or "SPACE") .. " in the air for +15% speed.")
+				abilities:ShowHint("trick", "TRICK RAMP  ·  " .. (input.device == "Gamepad" and "(A)" or input.device == "Touch" and "TRICK" or "SPACE") .. " in the air = +15%")
 			end
 		end
 	end
@@ -1576,8 +1592,8 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	hud:Update({ speed = speed, recoverProgress = input.recoverProgress })
 	local now = workspace:GetServerTimeNow()
 	local queued = snapshot and snapshot.queued and snapshot.queued[tostring(player.UserId)] == true
-	local raceTotal = layouts[ZONES.Race].Route.total
-	local progressFraction = currentZone == ZONES.Race and progressS / raceTotal or nil
+	local raceTotal = layouts[ZONES.Race].LapLength or layouts[ZONES.Race].Route.total
+	local progressFraction = currentZone == ZONES.Race and (TrackDefinitions.LapS(layouts[ZONES.Race], progressS) or 0) / raceTotal or nil
 	-- rivals on the progress bar: tracked locally from their replicated marbles (no network)
 	rivalTimer = rivalTimer + dt
 	if rivalTimer >= 0.1 and progressFraction and snapshot then
@@ -1594,7 +1610,8 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 					local t = rivalTrackers[entry.userId] or RouteTracker.new(layouts[ZONES.Race].Route)
 					rivalTrackers[entry.userId] = t
 					seen[entry.userId] = true
-					rivalFractions[#rivalFractions + 1] = t:Update(ball.Position).s / raceTotal
+					local rinfo = t:Update(ball.Position)
+					rivalFractions[#rivalFractions + 1] = (rinfo.localS or rinfo.s) / raceTotal
 				end
 			end
 		end
@@ -1604,6 +1621,30 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 			end
 		end
 	end
+	-- three-lap brief: WRONG WAY (rolling back along the route) and MISSED CHECKPOINT (past the
+	-- next gate without it counting) as short lane cues; the server decides what counts
+	if currentZone == ZONES.Race and state == S.Racing and me and not me.finished and ball and ball.Parent then
+		local delta = progressS - (wrongWay.lastS or progressS)
+		wrongWay.lastS = progressS
+		if speed > 8 and delta < -0.05 then
+			wrongWay.seconds = wrongWay.seconds + dt
+		elseif delta > 0.05 then
+			wrongWay.seconds = 0
+		end
+		local clock = os.clock()
+		if wrongWay.seconds > 1.2 and clock - wrongWay.shownAt > 3 then
+			wrongWay.shownAt = clock
+			raceHud:Flash("WRONG WAY", GameConfig.Palette.Coral, 1.5)
+		end
+		local nextTarget = layouts[ZONES.Race].Targets and layouts[ZONES.Race].Targets[(me.checkpoint or 0) + 1]
+		if nextTarget and progressS > nextTarget.S + 60 and clock - wrongWay.missedAt > 4 then
+			wrongWay.missedAt = clock
+			raceHud:Flash("MISSED CHECKPOINT  ·  HOLD RESET", GameConfig.Palette.Coral, 2.5)
+		end
+	else
+		wrongWay.seconds, wrongWay.lastS = 0, nil
+	end
+	nameplates:Step(dt, marblesFolder, ball, (state == S.Preparing or state == S.Countdown) and amRacing())
 	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown, progress = progressFraction, rivals = rivalFractions })
 	results:Update(now)
 	social:Update(now)

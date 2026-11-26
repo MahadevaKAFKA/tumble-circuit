@@ -57,6 +57,7 @@ Protocol.SpawnReasons = {
 	Practice = "Practice", -- prompt 03: Practice from Map Selection (start of the hub's practice lane)
 	Movement = "Movement", -- server rejected implausible movement
 	TimeTrial = "TimeTrial", -- B1: placed on the start for a solo Time Trial
+	Finished = "Finished", -- circuits: a finisher leaves the road for the finisher deck
 }
 
 function Protocol.MarbleName(userId)

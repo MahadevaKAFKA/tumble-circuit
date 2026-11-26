@@ -7,6 +7,13 @@
 	plausibly. Crossing time is interpolated inside the sample. Respawns never create crossings
 	(the first sample after a spawn has no previous progress), and the next target is always the
 	next unconfirmed checkpoint, so nothing can be skipped. The client sends nothing here.
+
+	2026-11-26 three-lap circuits: the targets are the layout's ordered TARGET list in race S
+	(TrackDefinitions.Targets): every lap's checkpoints, the start/finish line between laps
+	("Lap" events with the lap time) and the finish after the last lap. Progress is the tracker's
+	unwrapped race S, so the same swept-crossing rules judge laps: a backwards or early line
+	crossing never matches the next target, and a lap cannot count without its gates.
+	`laps` (optional) overrides the layout's lap count (Time Trial = 1 lap).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,16 +21,31 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PhysicsConfig = require(Shared:WaitForChild("PhysicsConfig"))
 local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local RaceRules = require(script.Parent:WaitForChild("RaceRules"))
+local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 
 local CheckpointService = {}
 CheckpointService.__index = CheckpointService
 
-function CheckpointService.new(trackService)
+function CheckpointService.new(trackService, laps)
 	local self = setmetatable({}, CheckpointService)
 	self.track = trackService
+	self.laps = laps
 	self.racers = {}
 	self.active = false
 	return self
+end
+
+-- The ordered targets for the active layout (cached per layout + lap count)
+function CheckpointService:Targets()
+	local layout = self.track:GetLayout("Race")
+	if not layout.Loop or not self.laps or self.laps == layout.Laps then
+		return layout.Targets or {}, layout
+	end
+	if self._targetsFor ~= layout then
+		self._targetsFor = layout
+		self._targets = TrackDefinitions.Targets(layout, self.laps)
+	end
+	return self._targets, layout
 end
 
 -- starts: { [player] = startS } (the racer's grid slot progress)
@@ -32,7 +54,7 @@ function CheckpointService:BeginRound(starts, startClock)
 	self.active = true
 	self.startClock = startClock
 	for player, startS in pairs(starts) do
-		self.racers[player] = { confirmed = 0, lastCrossS = startS, lastCrossTime = startClock, finished = false, rejections = 0 }
+		self.racers[player] = { confirmed = 0, lastCrossS = startS, lastCrossTime = startClock, finished = false, rejections = 0, lapStart = startClock, laps = {} }
 	end
 end
 
@@ -55,15 +77,28 @@ function CheckpointService:IsFinished(player)
 	return racer ~= nil and racer.finished
 end
 
+-- The last confirmed target (nil before the first) - respawns use its RespawnFrame / race S.
+function CheckpointService:GetConfirmedTarget(player)
+	local racer = self.racers[player]
+	local targets = self:Targets()
+	return racer and racer.confirmed > 0 and targets[racer.confirmed] or nil
+end
+
+-- Completed lap times (seconds, in order) for the HUD and results.
+function CheckpointService:GetLapTimes(player)
+	local racer = self.racers[player]
+	return racer and racer.laps or {}
+end
+
 -- The progress value standings may use: never beyond the next unconfirmed target.
 function CheckpointService:CapProgress(player, s)
 	local racer = self.racers[player]
-	local layout = self.track:GetLayout("Race")
 	if not racer then
 		return 0
 	end
-	local nextCp = layout.Checkpoints[racer.confirmed + 1]
-	local cap = nextCp and nextCp.S or layout.FinishLineS
+	local targets = self:Targets()
+	local nextTarget = targets[racer.confirmed + 1]
+	local cap = nextTarget and nextTarget.S or (targets[#targets] and targets[#targets].S) or s
 	return math.min(s, cap)
 end
 
@@ -74,7 +109,7 @@ function CheckpointService:Process(player, info)
 	if not self.active or not racer or racer.finished or info.prevS == nil or info.frozen then
 		return nil
 	end
-	local layout = self.track:GetLayout("Race")
+	local targets = self:Targets()
 	local terminal = PhysicsConfig.Movement.TerminalSpeed
 	local factor = RaceConfig.Validation.PlausibleSpeedFactor
 	local dt = info.time - info.prevTime
@@ -85,8 +120,11 @@ function CheckpointService:Process(player, info)
 	local events = nil
 	while true do
 		local index = racer.confirmed + 1
-		local cp = layout.Checkpoints[index]
-		local target = cp and cp.S or layout.FinishLineS
+		local goal = targets[index]
+		if not goal then
+			break
+		end
+		local target = goal.S
 		local fraction = RaceRules.CrossingFraction(info.prevS, info.s, target)
 		if not fraction then
 			break
@@ -104,13 +142,20 @@ function CheckpointService:Process(player, info)
 		end
 		racer.lastCrossS = target
 		racer.lastCrossTime = t
-		if cp then
-			racer.confirmed = index
-			table.insert(events, { kind = "Checkpoint", index = index, time = t })
+		racer.confirmed = index
+		if goal.Kind == "Checkpoint" then
+			table.insert(events, { kind = "Checkpoint", index = index, checkpoint = goal.Checkpoint, lap = goal.Lap, time = t })
+		elseif goal.Kind == "Lap" then
+			racer.laps[#racer.laps + 1] = t - racer.lapStart
+			racer.lapStart = t
+			table.insert(events, { kind = "Lap", index = index, lap = goal.Lap, time = t, lapSeconds = racer.laps[#racer.laps] })
 		else
+			if targets[index].Lap > 1 or #racer.laps > 0 then
+				racer.laps[#racer.laps + 1] = t - racer.lapStart
+			end
 			racer.finished = true
 			racer.finishSeconds = t - self.startClock
-			table.insert(events, { kind = "Finish", time = t, seconds = racer.finishSeconds })
+			table.insert(events, { kind = "Finish", time = t, seconds = racer.finishSeconds, laps = racer.laps })
 			break
 		end
 	end

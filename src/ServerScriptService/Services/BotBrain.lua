@@ -82,10 +82,16 @@ end
 function BotBrain.ChooseTarget(ctx, state)
 	local target = state.laneOffset or 0
 	local halfLimit = ctx.halfWidth - 3
+	if ctx.boostLane then
+		target = ctx.boostLane -- a visible boost lane is the sensible line
+	end
 	if ctx.splitAhead then
-		-- skilled bots take the inside shortcut, others the safe outside lane (decided once)
+		-- skilled bots take the inside shortcut, others the safe outside lane (decided once);
+		-- a split with an open-floor risk lane always gets the safe lane (circuits)
 		if state.splitChoice == nil then
-			state.splitChoice = (ctx.rng() < (ctx.skill - 0.6)) and 1 or -1
+			local split = type(ctx.splitAhead) == "table" and ctx.splitAhead or {}
+			local inside = split.inside or 1
+			state.splitChoice = split.forced or ((ctx.rng() < (ctx.skill - 0.6)) and inside or -inside)
 		end
 		target = state.splitChoice * (ctx.halfWidth * 0.5)
 	end

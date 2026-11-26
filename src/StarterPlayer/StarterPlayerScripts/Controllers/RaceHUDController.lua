@@ -121,8 +121,8 @@ function RaceHUD.new()
 
 	local list = UIKit.panel(root, {
 		Name = "Standings",
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -14, 0.5, 0),
+		AnchorPoint = Vector2.new(1, 0), -- above the right thumb cluster (never over BOOST / SHIELD)
+		Position = UDim2.new(1, -14, 0, 104),
 		Size = UDim2.fromOffset(300, 300),
 		Visible = false,
 	})
@@ -206,6 +206,40 @@ function RaceHUD:SetCheckpointMarks(fractions)
 	end
 end
 
+-- Lap / checkpoint / deadline elements of the strip (circuits; a single-run course shows LAP 1/1)
+function RaceHUD:_updateLaps(snap, me, now, left)
+	if not self.lapPips then
+		return
+	end
+	local show = self.badge.Visible and me ~= nil and not me.finished
+	local laps = snap.laps or 1
+	local per = snap.checkpointTotal or 0
+	local lap, cp = 1, me and me.checkpoint or 0
+	if self.TD and self.raceLayout then
+		local l, c, p = self.TD.LapState(self.raceLayout, me and me.checkpoint or 0, laps)
+		lap, cp, per = l, c, p
+	end
+	self.lapLabel.Visible, self.lapValue.Visible = show, show
+	if show then
+		UIKit.setText(self.lapValue, string.format("%d/%d", lap, laps))
+		self.lapValue.TextColor3 = (lap == laps and laps > 1) and palette.Yellow or palette.White
+		UIKit.setText(self.checkpoint, string.format("CP %d/%d", cp, per))
+	end
+	self.checkpoint.Visible = show
+	for i, pip in ipairs(self.lapPips) do
+		pip.Visible = show and laps > 1 and i <= laps
+		if pip.Visible then
+			pip.BackgroundTransparency = i < lap and 0 or (i == lap and 0.25 or 0.75)
+			pip.BackgroundColor3 = i < lap and palette.Mint or palette.White
+		end
+	end
+	local urgent = show and left ~= nil and (snap.finishGrace == true or left <= 60)
+	self.deadline.Visible = urgent
+	if urgent then
+		UIKit.setText(self.deadline, string.format("FINISH WITHIN %s", (Utility.formatTime(left):gsub("%.%d+$", ""))))
+	end
+end
+
 -- ctx = { now = serverTime, device, queued, spectatingName, stuck, progress (0..1 or nil),
 --         rivals = { fraction, ... } (other racers' progress, computed locally from their marbles) }
 -- UI overhaul (2026-11-26): the compact race strip. The placement badge becomes one bar at the
@@ -217,14 +251,65 @@ function RaceHUD:UseStrip()
 	strip.AnchorPoint = Vector2.new(0.5, 0)
 	strip.Position = UDim2.new(0.5, 0, 0, 8)
 	strip.Size = UDim2.fromOffset(440, 46)
-	self.place.Position, self.place.Size = UDim2.fromOffset(12, 4), UDim2.new(0.26, -12, 1, -8)
-	self.placeOf.Position, self.placeOf.Size = UDim2.new(0.26, -6, 0, 8), UDim2.new(0.14, 0, 1, -16)
+	-- three-lap brief: LAP 2/3 | P3 / 8 | one clock (elapsed). Checkpoints live under the bar.
+	self.lapLabel = UIKit.label(strip, { Name = "LapLabel", Position = UDim2.fromOffset(12, 5), Size = UDim2.fromOffset(110, 12), Font = Enum.Font.GothamBold, TextColor3 = UIKit.Colors.Muted, TextXAlignment = Enum.TextXAlignment.Left, Text = "LAP" })
+	self.lapValue = UIKit.Title(strip, { Name = "LapValue", Position = UDim2.fromOffset(12, 17), Size = UDim2.fromOffset(110, 24), TextColor3 = palette.White, Text = "" })
+	self.place.Position, self.place.Size = UDim2.fromOffset(150, 4), UDim2.fromOffset(70, 38)
+	self.place.TextXAlignment = Enum.TextXAlignment.Right
+	self.placeOf.Position, self.placeOf.Size = UDim2.fromOffset(224, 14), UDim2.fromOffset(46, 22)
 	self.placeOf.TextXAlignment = Enum.TextXAlignment.Left
-	self.stripTime = UIKit.Title(strip, { Name = "Time", Position = UDim2.new(0.4, 0, 0, 8), Size = UDim2.new(0.32, 0, 1, -16), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = palette.White, Text = "" })
-	self.place.TextXAlignment = Enum.TextXAlignment.Left
-	self.checkpoint.Position, self.checkpoint.Size = UDim2.new(0.72, 0, 0, 8), UDim2.new(0.28, -12, 1, -16)
+	self.stripTime = UIKit.Title(strip, { Name = "Time", Position = UDim2.fromOffset(282, 8), Size = UDim2.fromOffset(146, 30), TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = palette.White, Text = "" })
+	self.checkpoint.Parent = strip.Parent
+	self.checkpoint.AnchorPoint = Vector2.new(1, 0)
+	self.checkpoint.Size = UDim2.fromOffset(90, 16)
+	self.checkpoint.TextXAlignment = Enum.TextXAlignment.Right
+	self.checkpoint.TextColor3 = palette.White
 	self.progressBar.Position = UDim2.new(0.5, 0, 0, 60)
-	self.progressBar.Size = UDim2.fromOffset(440, 8)
+	self.progressBar.Size = UDim2.fromOffset(440, 6)
+	-- lap pips (completed / current / ahead) under the bar's left end
+	self.lapPips = {}
+	local root = strip.Parent
+	for i = 1, 5 do
+		local pip = UIKit.new("Frame", { Name = "LapPip" .. i, Size = UDim2.fromOffset(22, 4), BackgroundColor3 = palette.White, BackgroundTransparency = 0.7, BorderSizePixel = 0, Visible = false }, root)
+		self.lapPips[i] = pip
+	end
+	-- the deadline only when it matters (finish grace running, or under a minute left)
+	self.deadline = UIKit.label(root, { Name = "Deadline", AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(240, 22), Font = Enum.Font.GothamBold, TextColor3 = palette.Coral, BackgroundColor3 = UIKit.Colors.Surface, BackgroundTransparency = 0.3, Text = "", Visible = false })
+	UIKit.corner(self.deadline, 0.1)
+	self:_placeUnderStrip()
+end
+
+-- checkpoint count, lap pips and the deadline chip follow the strip (centre or left aligned)
+function RaceHUD:_placeUnderStrip()
+	if not self.lapPips then
+		return
+	end
+	local left = self.align == "Left"
+	local x0 = left and 14 or nil
+	for i, pip in ipairs(self.lapPips) do
+		pip.AnchorPoint = left and Vector2.new(0, 0) or Vector2.new(0.5, 0)
+		pip.Position = left and UDim2.fromOffset(x0 + (i - 1) * 26, 72) or UDim2.new(0.5, -220 + 11 + (i - 1) * 26, 0, 72)
+	end
+	self.checkpoint.Position = left and UDim2.fromOffset(14 + 440, 68) or UDim2.new(0.5, 220, 0, 68)
+	self.checkpoint.AnchorPoint = Vector2.new(1, 0)
+	self.deadline.AnchorPoint = left and Vector2.new(0, 0) or Vector2.new(0.5, 0)
+	self.deadline.Position = left and UDim2.fromOffset(14 + 150, 70) or UDim2.new(0.5, 0, 0, 70)
+end
+
+-- The race layout (circuit lap state, targets for the missed-checkpoint cue)
+function RaceHUD:SetRaceLayout(layout, TrackDefinitions)
+	self.raceLayout = layout
+	self.TD = TrackDefinitions
+end
+
+-- Lap feedback from the server: "LAP 2 / 3  1:04.2" and a distinct FINAL LAP cue (yellow)
+function RaceHUD:FlashLap(lap, laps, lapSeconds)
+	local final = lap == laps
+	local text = final and "FINAL LAP" or string.format("LAP %d / %d", lap, laps)
+	if lapSeconds then
+		text = text .. "   " .. Utility.formatTime(lapSeconds)
+	end
+	self:Flash(text, final and palette.Yellow or palette.Cyan, final and 2.2 or 1.8)
 end
 
 -- Race strip position (Settings > Driving > Race HUD position): top centre or top left, so
@@ -233,6 +318,7 @@ function RaceHUD:SetAlign(align)
 	if not self.stripMode then
 		return
 	end
+	self.align = align
 	local left = align == "Left"
 	self.badge.AnchorPoint = left and Vector2.new(0, 0) or Vector2.new(0.5, 0)
 	self.badge.Position = left and UDim2.fromOffset(14, 8) or UDim2.new(0.5, 0, 0, 8)
@@ -243,6 +329,7 @@ function RaceHUD:SetAlign(align)
 		self.progressBar.AnchorPoint = Vector2.new(0.5, 0)
 		self.progressBar.Position = UDim2.new(0.5, 0, 0, 60)
 	end
+	self:_placeUnderStrip()
 end
 
 function RaceHUD:SetDensity(density)
@@ -281,12 +368,12 @@ function RaceHUD:Update(ctx)
 			sub = sub .. " - tap JOIN RACE to race"
 		end
 	elseif snap.state == S.Preparing then
-		status, sub = "GET READY", me and "To the start grid!" or "Racers to the grid"
+		status, sub = "GET READY", me and "" or "Racers to the grid" -- one title + the countdown cue
 		if self.stripMode and self.courseName then
 			status = string.upper(self.courseName) -- one cue: the course actually selected
 		end
 	elseif snap.state == S.Countdown then
-		status, sub = "GET READY", me and "Wait for GO" or "Race starting"
+		status, sub = "GET READY", me and "" or "Race starting"
 		if self.stripMode and self.courseName then
 			status = string.upper(self.courseName)
 		end
@@ -297,7 +384,7 @@ function RaceHUD:Update(ctx)
 			sub = me.seconds and Utility.formatTime(me.seconds) or ""
 		elseif me then
 			status = Utility.formatTime(elapsed)
-			sub = string.format("Race ends in %s", Utility.formatTime(left or 0):gsub("%.%d+$", ""))
+			sub = "" -- one clock: the deadline chip appears only when it is actionable
 		else
 			status = "RACE IN PROGRESS  " .. Utility.formatTime(elapsed):gsub("%.%d+$", "")
 			sub = ctx.queued and "You're in the next race - SPECTATE to watch" or "Sitting out - SPECTATE to watch"
@@ -323,8 +410,9 @@ function RaceHUD:Update(ctx)
 
 	-- placement + checkpoint chip
 	self.badge.Visible = racing and snap.state == S.Racing and me ~= nil
+	self:_updateLaps(snap, me, now, left)
 	if self.badge.Visible then
-		UIKit.setText(self.place, me.finished and UIKit.ordinal(me.place) or UIKit.ordinal(me.place))
+		UIKit.setText(self.place, self.stripMode and ("P" .. tostring(me.place or "-")) or UIKit.ordinal(me.place))
 		UIKit.setText(self.placeOf, (self.stripMode and "/ " or "of ") .. #snap.racers)
 		if self.stripMode and me.finished then
 			UIKit.setText(self.stripTime, me.seconds and Utility.formatTime(me.seconds) or "")
@@ -378,6 +466,13 @@ function RaceHUD:Update(ctx)
 	local showList = self.standingsVisible and #(snap.racers or {}) > 0
 	self.list.Visible = showList
 	if showList then
+		local bots = 0
+		for _, entry in ipairs(snap.racers) do
+			if entry.isBot then
+				bots = bots + 1
+			end
+		end
+		UIKit.setText(self.standingsTitle, bots > 0 and string.format("STANDINGS  ·  %d RACERS (%d BOTS)", #snap.racers, bots) or string.format("STANDINGS  ·  %d RACERS", #snap.racers))
 		for i, row in ipairs(self.rows) do
 			local entry = snap.racers[i]
 			if entry then
@@ -386,10 +481,13 @@ function RaceHUD:Update(ctx)
 					detail = entry.seconds and Utility.formatTime(entry.seconds) or "FIN"
 				elseif entry.dnf then
 					detail = "DNF"
+				elseif self.TD and self.raceLayout and (snap.laps or 1) > 1 then
+					local lap = self.TD.LapState(self.raceLayout, entry.checkpoint or 0, snap.laps)
+					detail = "LAP " .. lap
 				else
 					detail = "CP " .. entry.checkpoint
 				end
-				local tag = entry.isBot and "[BOT] " or ""
+				local tag = entry.isBot and "BOT  " or ""
 				UIKit.setText(row, string.format("%d. %s%s   %s", entry.place, tag, entry.name, detail))
 				row.TextColor3 = entry.userId == self.localUserId and palette.Yellow or palette.White
 				row.Visible = true

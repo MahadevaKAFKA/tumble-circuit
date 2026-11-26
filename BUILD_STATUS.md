@@ -2,7 +2,7 @@
 
 **Active milestone:** owner brief 2026-11-26 "Animation, UI and Economy"
 (docs/ANIMATION_UI_ECONOMY_BRIEF.md, plan + baseline in docs/ANIMATION_UI_ECONOMY_PLAN.md):
-M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34), M5 economy (v35). All five milestones done. v36: visible redesign after the owner's "the UI looks the same" (design system v2). Before that: CS:GO-style capsules, UI
+M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34), M5 economy (v35). All five milestones done. v36: visible redesign after the owner's "the UI looks the same" (design system v2). v37: THREE-LAP CIRCUITS (Neon Foundry + Sky Carnival) and the new in-race HUD (docs/THREE_LAP_PLAN.md). Queued next: Graphics/Gameplay/Ranked brief, Challenges/Cups/Creator brief, Shop brief. Before that: CS:GO-style capsules, UI
 motion and a race-entry drop-in (v31). Before that: hub
 obstruction fix (v30); UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
 settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
@@ -17,6 +17,38 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Three-lap circuits + new in-race HUD (v37, private)
+
+Brief: three-lap races and the in-race HUD (milestones 1–3; plan, baseline and owner playtest in
+docs/THREE_LAP_PLAN.md, generated sector maps in docs/CIRCUIT_MAPS.md).
+
+- **Neon Foundry circuit** (layout v3, 2,963-stud lap, 10 gates/lap, two route choices, a 7.4°
+  banked maintenance ascent with a boost lane back to the grid) and **Sky Carnival circuit**
+  (layout v2, 3,305 studs, counter-clockwise, drum bounce / bridge and kicker hops / wide arc,
+  cloud drop, stacked 1.5-turn ribbon helix home). Both close exactly (offline solver).
+  Lap MODEL 70 s / 77 s flying; race MODEL 3.5 / 3.9 min. Volcano Vault is off rotation until
+  it has a validated circuit. Fallback: `TrackDefinitions.CircuitRaces = false`.
+- **Laps on the existing authority:** race distance (lap base + lap distance), ordered target list
+  (gates every lap, lap lines, finish), lap times, respawn by last target, finisher deck, race
+  clock 480 s + 90 s leader grace (provisional), chaos gates once per lap, Time Trial = 1 lap with
+  its own key, circuit records under the new layout versions.
+- **In-race HUD:** LAP n/3 · P x/N · one clock; lap stripe with checkpoint ticks, lap pips,
+  CP x/y; deadline chip only when actionable; LAP / FINAL LAP / WRONG WAY / MISSED CHECKPOINT
+  cues in the one callout lane; one countdown title; decluttered fixed-size name tags (bots named
+  in the standings); RESET docked above the stick with a hold fill; CAM / LIST top right;
+  tutorial cards → short edge cues; speed in STUDS/S; sign gantries instead of billboards.
+- **Also fixed from the owner's v36 footage:** case opening now opens the case first (pop, shake,
+  lid burst, then the spool; 3D build failure falls back to the ribbon; Reduced Motion = short
+  fade-open); the ABILITIES dock tile no longer prints overlapping text; the map vote is a compact
+  list under the hub card with no second timer.
+
+**Verified here:** 874 offline checks (new Circuits.spec: closure, targets, early/reversed/duplicate/
+skipped/neighbouring-road crossings, lap-3 finish, tracker wrap and respawn hints, stacked-helix
+progress, branch-equal progress, boost lanes, deck, bots, name tags, case pose), Luau compile +
+lint, place assembly, both boot smokes. **Not verified:** anything that needs a Roblox runtime —
+real lap times, gap jumps, hairpin/helix feel, bots finishing three laps, frame times, HUD fit on
+the phone, two-client races.
 
 ## 2026-11-26 — Visible redesign, design system v2 (v36, private)
 

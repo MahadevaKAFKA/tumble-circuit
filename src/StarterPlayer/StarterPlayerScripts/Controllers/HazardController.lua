@@ -57,7 +57,7 @@ function HazardController.new(courseRoot, motor, sound, layout)
 	self.cooldowns = {}
 	self.reducedMotion = false
 	for _, hz in ipairs(layout and layout.Hazards or {}) do
-		local entry = { Kind = hz.Kind, Id = hz.Id, Definition = hz.Definition, Frame = hz.Frame, FromFrame = hz.FromFrame, Length = hz.Length, Offset = hz.Offset, parts = {} }
+		local entry = { Kind = hz.Kind, Id = hz.Id, Definition = hz.Definition, Frame = hz.Frame, FromFrame = hz.FromFrame, ToFrame = hz.ToFrame, Length = hz.Length, Offset = hz.Offset, parts = {} }
 		self.resolved[#self.resolved + 1] = entry
 		self.byId[hz.Id] = entry
 	end
@@ -189,7 +189,7 @@ function HazardController:EnvironmentAccel(position)
 	local fanBoost = HazardSim.FanMultiplier(self.modifier, workspace:GetServerTimeNow())
 	local total = nil
 	for _, hz in ipairs(self.resolved) do
-		if hz.Params and (hz.Kind == "Fan" or hz.Kind == "Conveyor") then
+		if hz.Params and (hz.Kind == "Fan" or hz.Kind == "Conveyor" or hz.Kind == "Boost") then
 			local push = HazardSim.EnvironmentAccel(hz, t, position)
 			if push then
 				total = (total or Vector3.new(0, 0, 0)) + push * (hz.Kind == "Fan" and fanBoost or 1)

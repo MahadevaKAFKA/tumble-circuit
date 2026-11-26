@@ -384,6 +384,7 @@ end
 function Lab:_play(result, epic, legendary)
 	local box = CapsuleOdds.Box(result.box)
 	result.boxName = box.Name
+	result.boxColor = Lab.BoxColors[box.Id]
 	local rng = Random.new()
 	local mixed = box.Mixed == true -- Starter / Apex: the masks show each entrant's category
 	self.revealing = result.req or result.requestId

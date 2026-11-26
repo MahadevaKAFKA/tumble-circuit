@@ -31,10 +31,12 @@ function Spec.run(m)
 	end
 	local TD, TV = m.TrackDefinitions, m.TrackValidator
 	local radius = m.PhysicsConfig.Ball.Radius
-	local def = TD.Race
+	-- 2026-11-26: the v2 single-run Foundry is the one-flag fallback (CircuitRaces = false), so
+	-- it must keep validating; the three-lap circuit has its own spec (Circuits.spec)
+	local def = TD.NeonFoundry
 	local layout = TD.Generate(def, radius)
 
-	check("the race track is the Neon Foundry", def == TD.NeonFoundry)
+	check("the single-run Foundry is kept as the fallback world", TD.LegacyWorlds[1] == TD.NeonFoundry)
 	local errors = TV.Validate(def, layout)
 	check("Neon Foundry passes TrackValidator with 0 errors", #errors == 0, table.concat(errors, " | "))
 	check("12-16 modules", #layout.Modules >= 12 and #layout.Modules <= 16, #layout.Modules)

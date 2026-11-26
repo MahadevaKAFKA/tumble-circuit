@@ -149,26 +149,30 @@ function TouchControls.new(input)
 	end
 
 	local big = ui.TouchButtonSize
-	-- v2 thumb cluster (right-handed; LeftHanded mirrors it): BRAKE in the corner, TRICK
-	-- (AbilityController) to its left, RESET at the inner edge, abilities above
+	-- three-lap brief thumb zones (right-handed; LeftHanded mirrors everything): the RIGHT thumb
+	-- keeps the driving actions - BRAKE in the corner, TRICK to its left, BOOST / SHIELD above
+	-- (AbilityController). RESET leaves the primary thumb zone: a small hold button docked
+	-- above the steering stick, with a fill that shows the hold. CAM / LIST are one tap away
+	-- as two small chips in the top-right corner, nowhere near either thumb.
 	self.brakeButton = holdButton("Brake", "BRAKE", big, UDim2.new(1, -28, 1, -28), palette.Coral)
-	self.recoverButton = holdButton("Recover", "RESET", 72, UDim2.new(1, -(28 + big + 16 + 92 + 14), 1, -40), palette.Yellow)
+	self.recoverButton = holdButton("Recover", "RESET", 64, UDim2.new(0, 24 + 64, 1, -236), palette.Yellow)
 	local fill = new("Frame", {
 		Name = "HoldFill",
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 0, 1, 0),
-		Size = UDim2.fromScale(0, 0.12),
-		BackgroundColor3 = palette.White,
+		Size = UDim2.fromScale(1, 0),
+		BackgroundColor3 = palette.Yellow,
+		BackgroundTransparency = 0.25,
 		BorderSizePixel = 0,
-		ZIndex = 2,
+		ZIndex = 0,
 	}, self.recoverButton)
 	self.recoverFill = fill
 
 	local cam = new("TextButton", {
 		Name = "Camera",
-		AnchorPoint = Vector2.new(1, 1),
-		Size = UDim2.fromOffset(88, 36),
-		Position = UDim2.new(1, -28, 1, -290),
+		AnchorPoint = Vector2.new(1, 0),
+		Size = UDim2.fromOffset(76, 32),
+		Position = UDim2.new(1, -14, 0, 10),
 		BackgroundColor3 = GLASS,
 		BackgroundTransparency = 0.35,
 		Text = "CAM",
@@ -186,9 +190,9 @@ function TouchControls.new(input)
 	self.camButton = cam
 	local list = new("TextButton", {
 		Name = "Standings",
-		AnchorPoint = Vector2.new(1, 1),
-		Size = UDim2.fromOffset(88, 36),
-		Position = UDim2.new(1, -(28 + 88 + 10), 1, -290),
+		AnchorPoint = Vector2.new(1, 0),
+		Size = UDim2.fromOffset(76, 32),
+		Position = UDim2.new(1, -(14 + 76 + 8), 0, 10),
 		BackgroundColor3 = GLASS,
 		BackgroundTransparency = 0.35,
 		Text = "LIST",
@@ -369,7 +373,7 @@ function TouchControls:SetVisible(visible)
 end
 
 function TouchControls:SetRecoverProgress(progress)
-	self.recoverFill.Size = UDim2.fromScale(progress, 0.12)
+	self.recoverFill.Size = UDim2.fromScale(1, math.clamp(progress or 0, 0, 1)) -- fills upward while held
 end
 
 function TouchControls:Destroy()

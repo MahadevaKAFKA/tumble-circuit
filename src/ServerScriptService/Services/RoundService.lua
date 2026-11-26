@@ -69,6 +69,12 @@ function RoundService.new(deps)
 	self.lastResolution = nil -- { roundId, mapId, counts, counted, fellBack }
 	self.hubs = deps.hubs -- prompt 03/04 (optional): per-player hub (HubService); set by the bootstrap
 	self.party = deps.party -- B1 (optional): keeps Roblox party members on neighbouring slots
+	if self.physics then
+		-- circuits: a new marble's tracker starts on the right lap (grid = just behind the line)
+		self.physics.hintFor = function(entity, zone)
+			return self:ProgressHint(entity, zone)
+		end
+	end
 	self.ordinals = {} -- [player] = stable join ordinal
 	self.nextOrdinal = 0
 	self.finishCounter = 0
@@ -424,15 +430,46 @@ function RoundService:_enterCountdown()
 	self:_setTimer(T.CountdownSeconds)
 end
 
+-- Race S of where an entity's marble appears (circuits; nil = no hint needed).
+function RoundService:ProgressHint(entity, zone)
+	if zone ~= ZONES.Race then
+		return nil
+	end
+	if self.timeTrial and self.timeTrial.ProgressHint then
+		local hint = self.timeTrial:ProgressHint(entity)
+		if hint then
+			return hint
+		end
+	end
+	local racer = self.racerByPlayer[entity]
+	local layout = self.track:GetLayout(ZONES.Race)
+	if not racer or not layout.Loop then
+		return nil
+	end
+	local target = self.state == S.Racing and self.checkpoints:GetConfirmedTarget(entity) or nil
+	if target then
+		return target.S + RaceConfig.Recovery.CheckpointRespawnAhead
+	end
+	local slot = layout.GridSlots[((racer.slot - 1) % #layout.GridSlots) + 1]
+	return slot.Frame.S - layout.LapLength
+end
+
+function RoundService:_raceSeconds()
+	local def = self.track:GetLayout(ZONES.Race).Definition
+	return def.MaxRaceSeconds or T.MaxRaceSeconds
+end
+
 function RoundService:_enterRacing()
 	self.graceStarted = false
+	self.leaderGrace = false
 	self.raceStartClock = os.clock()
 	self.raceStartedAt = workspace:GetServerTimeNow()
 	self.track:SetStartGateClosed(false)
 	local layout = self.track:GetLayout(ZONES.Race)
 	local starts = {}
+	local behind = layout.Loop and layout.LapLength or 0 -- circuits: the grid is behind the line
 	for _, racer in ipairs(self.racers) do
-		starts[racer.player] = layout.GridSlots[((racer.slot - 1) % #layout.GridSlots) + 1].Frame.S
+		starts[racer.player] = layout.GridSlots[((racer.slot - 1) % #layout.GridSlots) + 1].Frame.S - behind
 	end
 	-- Checkpoint records first: Release respawns each human racer (fresh free marble, owner
 	-- playtest 2026-11-23), and the spawn resolver reads them. Bots keep A4's own release.
@@ -444,7 +481,7 @@ function RoundService:_enterRacing()
 			self.marbles:Release(racer.player)
 		end
 	end
-	self:_setTimer(T.MaxRaceSeconds)
+	self:_setTimer(self:_raceSeconds())
 end
 
 function RoundService:_enterResults()
@@ -638,8 +675,8 @@ function RoundService:ResolveSpawn(player, reason)
 				return { CFrame = self.track:GetFinishRespawnCFrame(), Zone = ZONES.Race, Frozen = false }
 			end
 			if state == S.Racing then
-				local index = self.checkpoints:GetConfirmed(player)
-				local cf = index > 0 and self.track:GetCheckpointRespawnCFrame(index) or self.track:GetGridCFrame(racer.slot)
+				local target = self.checkpoints:GetConfirmedTarget(player)
+				local cf = target and target.RespawnFrame and self.track:FrameCFrame(target.RespawnFrame) or self.track:GetGridCFrame(racer.slot)
 				return { CFrame = cf, Zone = ZONES.Race, Frozen = false }
 			end
 		end
@@ -682,18 +719,30 @@ function RoundService:_onProgress(player, info)
 	if not events then
 		return
 	end
+	local layout = self.track:GetLayout(ZONES.Race)
 	for _, event in ipairs(events) do
-		if event.kind == "Checkpoint" then
+		if event.kind == "Checkpoint" or event.kind == "Lap" then
 			local remote = self.remotes:FindFirstChild("CheckpointFeedback")
+			if event.kind == "Lap" then
+				racer.lapTimes = racer.lapTimes or {}
+				racer.lapTimes[#racer.lapTimes + 1] = event.lapSeconds
+			end
 			if remote and not racer.isBot then
 				remote:FireClient(player, {
 					roundId = self.roundId,
-					index = event.index,
-					total = #self.track:GetLayout(ZONES.Race).Checkpoints,
+					kind = event.kind,
+					index = event.checkpoint or 0, -- checkpoint within the lap (0 on a lap line)
+					total = #layout.Checkpoints,
+					lap = event.kind == "Lap" and (event.lap + 1) or event.lap, -- the lap now being driven
+					laps = layout.Loop and layout.Laps or 1,
+					lapSeconds = event.lapSeconds,
 					serverTime = workspace:GetServerTimeNow(),
 				})
 			end
 		elseif event.kind == "Finish" then
+			if event.laps and #event.laps > 0 then
+				racer.lapTimes = event.laps
+			end
 			table.insert(self.pendingFinishes, { racer = racer, time = event.time, seconds = event.seconds, ordinal = racer.ordinal })
 		elseif event.kind == "Rejected" then
 			self:_warnOnce(player, "cp" .. event.reason, string.format("%s crossing (%s) by %s", self.roundId, event.reason, player.Name))
@@ -719,12 +768,46 @@ function RoundService:_flushFinishes()
 			racer.finishOrdinal = self.finishCounter
 			racer.seconds = item.seconds
 			if notice then
-				notice:FireAllClients({ roundId = self.roundId, userId = racer.userId, name = racer.name, isBot = racer.isBot == true, place = self.finishCounter, seconds = item.seconds })
+				notice:FireAllClients({ roundId = self.roundId, userId = racer.userId, name = racer.name, isBot = racer.isBot == true, place = self.finishCounter, seconds = item.seconds, laps = racer.lapTimes })
 			end
+			self:_clearFinisher(racer)
 		end
 	end
+	self:_startLeaderGrace()
 	self:_maybeBroadcastStandings(true)
 	self:_checkRaceComplete()
+end
+
+-- Circuits: a finished marble would keep rolling into the next lap among racers still on it,
+-- so after a short roll-out it moves to the finisher deck beside the line (spectating view).
+function RoundService:_clearFinisher(racer)
+	local layout = self.track:GetLayout(ZONES.Race)
+	if not layout.Loop then
+		return
+	end
+	local delay = RaceConfig.Timers.FinishRollOutSeconds or 1.2
+	if racer.isBot then
+		if self.bots and self.bots.ScheduleRespawn then
+			self.bots:ScheduleRespawn(racer.player, REASONS.Finished, delay)
+		end
+	elseif racer.player and racer.player.Parent then
+		self.marbles:ScheduleRespawn(racer.player, REASONS.Finished, delay)
+	end
+end
+
+-- Circuits: once the leader finishes, everyone else gets a bounded grace (never more than the
+-- race clock had left) - initial value from the lap model until slow-finisher data exists.
+function RoundService:_startLeaderGrace()
+	local layout = self.track:GetLayout(ZONES.Race)
+	if self.leaderGrace or not layout.Loop or self.state ~= S.Racing or self.finishCounter < 1 then
+		return
+	end
+	self.leaderGrace = true
+	local grace = layout.Definition.FinishGraceSeconds or RaceConfig.Timers.FinishGraceSeconds or 90
+	if self.deadline and self.deadline - os.clock() > grace then
+		self:_setTimer(grace)
+		self:Broadcast()
+	end
 end
 
 -- Everyone finished -> results. Every human finished but bots still rolling -> short grace.
@@ -840,7 +923,9 @@ function RoundService:GetSnapshot()
 		stateEndsAt = self.stateEndsAt,
 		raceStartedAt = self.raceStartedAt,
 		trackId = self.track:GetLayout(ZONES.Race).Definition.Id,
-		checkpointTotal = #self.track:GetLayout(ZONES.Race).Checkpoints,
+		checkpointTotal = #self.track:GetLayout(ZONES.Race).Checkpoints, -- per lap
+		laps = self.track:GetLayout(ZONES.Race).Loop and self.track:GetLayout(ZONES.Race).Laps or 1,
+		finishGrace = self.leaderGrace == true, -- the clock is now the finish grace (show it)
 		racers = racers,
 		queued = queued,
 		humanCount = #Players:GetPlayers(),

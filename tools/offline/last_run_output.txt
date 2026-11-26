@@ -89,6 +89,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/LabController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MapSelectController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ModesController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/NameplateController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PhaseStripController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
@@ -115,6 +116,7 @@ ok    src/Tests/Unit/B3Progression.spec.lua
 ok    src/Tests/Unit/BotNavigation.spec.lua
 ok    src/Tests/Unit/CCapsules.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
+ok    src/Tests/Unit/Circuits.spec.lua
 ok    src/Tests/Unit/DCommerce.spec.lua
 ok    src/Tests/Unit/Dressing.spec.lua
 ok    src/Tests/Unit/Economy.spec.lua
@@ -138,6 +140,7 @@ ok    src/Tests/Unit/UIOverhaul.spec.lua
 ok    src/Tests/Unit/UIState.spec.lua
 ok    src/Tests/Unit/Worlds.spec.lua
 ok    tools/offline/boot_smoke.lua
+ok    tools/offline/circuit_solver.lua
 ok    tools/offline/harness.lua
 ok    tools/offline/roblox_shim.lua
 ok    tools/offline/route_map.lua
@@ -146,7 +149,7 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 141.5 ms
+PRINT	[Track] built 2 maps (4764 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 139.4 ms
 PRINT	[TumbleCircuit] server ready (A6.0, protocol v15)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
@@ -222,7 +225,7 @@ PASS  hazard telegraph lasts 0.5-1.0 s before activating
 info  tunables: accel 35, lateral cap 22, terminal 80, air 40%, brake x0.65, deadzone 0.12 (spec hypotheses 35/22/80/40%/0.65/0.12)
 info  camera turn-rate kick at 35 studs/s, 60 fps: 1.31 deg/s per frame (raw polyline: ~20)
 info  floor: 19 flat quads as boxes, 252 wedges for curved/banked quads
-info  course parts: 727 total, 440 collidable
+info  course parts: 745 total, 440 collidable
 info  route 947 studs; 1-D MODEL (full throttle, no braking/steering losses) clean run ~17.9 s, end speed 60 -- not a measurement
 
 -- A2 round specs --
@@ -309,7 +312,7 @@ PASS  no client remote can name targets, positions, impulses or cooldowns
 PASS  protocol version bumped for A3
 
 -- A4 track validation specs --
-PASS  the race track is the Neon Foundry
+PASS  the single-run Foundry is kept as the fallback world
 PASS  Neon Foundry passes TrackValidator with 0 errors
 PASS  12-16 modules
 PASS  every module exit meets the next entry (no gap, same facing)
@@ -361,7 +364,7 @@ PASS  lane model: bots never drive into the split-lane divider
 PASS  lane model: bots stay on the course width the whole race
 PASS  lane model: skilled bots (1.2) hit no more hazards than 0.8 bots
 PASS  lane model: a skill 1.0 bot averages <= 4 hazard hits + tile drops per run
-info  kinematic lane model (fixed 38 studs/s, NOT physics): skill 0.8: 1.3 hazard hits, 0.6 tile drops per run; skill 1.0: 2.1 hazard hits, 0.7 tile drops per run; skill 1.2: 0.7 hazard hits, 0.3 tile drops per run
+info  kinematic lane model (fixed 38 studs/s, NOT physics): skill 0.8: 0.0 hazard hits, 0.0 tile drops per run; skill 1.0: 0.0 hazard hits, 0.0 tile drops per run; skill 1.2: 0.0 hazard hits, 0.0 tile drops per run
 
 -- A4 chaos gate specs --
 PASS  1 racer: top
@@ -423,7 +426,8 @@ PASS  free roam: no auto-align pulling sideways motion back
 PASS  track steering unchanged off the platform (stick up = along the track)
 
 -- B1 world specs --
-PASS  three worlds in rotation: Foundry, Sky Carnival, Volcano Vault
+PASS  three worlds: Foundry, Sky Carnival, Volcano Vault (a circuit replaces a single run once validated)
+PASS  the single-run worlds are kept as the one-flag fallback
 PASS  Neon Foundry: stable unique id
 PASS  Neon Foundry: TrackValidator 0 errors (all 3 hazard seeds)
 PASS  Neon Foundry: 12-16 modules
@@ -457,9 +461,9 @@ PASS  no world comes within 150 studs of the hub
 info  Neon Foundry: 2931 studs, 16 modules, drop 184, 1-D model clean run 64 s (a model, not a measurement)
 info  Sky Carnival: 2530 studs, 14 modules, drop 162, 1-D model clean run 54 s (a model, not a measurement)
 info  Volcano Vault: 2300 studs, 14 modules, drop 158, 1-D model clean run 49 s (a model, not a measurement)
-info  Neon Foundry: 2050 parts, 1270 collidable
-info  Sky Carnival: 1851 parts, 1141 collidable
-info  Volcano Vault: 1807 parts, 1127 collidable
+info  Neon Foundry: 2076 parts, 1093 collidable
+info  Sky Carnival: 2688 parts, 1527 collidable
+info  Volcano Vault: 1843 parts, 1127 collidable
 
 -- B1 rules specs --
 PASS  rotation: nothing raced -> world 1, then 2, 3, back to 1
@@ -797,7 +801,7 @@ info  Foundry dressing: 675 local parts (206 detail, hidden on Low)
 -- Protocol key specs --
 PASS  every Protocol attribute / reason / zone key used in code exists
 PASS  no Protocol table is defined twice (a second one silently replaces the first)
-info  102 protocol key uses scanned
+info  119 protocol key uses scanned
 
 -- UI overhaul specs --
 PASS  display preferences exist with the handoff defaults (100%, 95%, Standard, Follow map, ...)
@@ -883,8 +887,8 @@ PASS  BasaltDeck: practice lane gets its own road colour
 PASS  a map without a profile gets no backdrop (unbuilt maps stay off)
 PASS  same layout -> same backdrop (deterministic on every client)
 PASS  UI 'Follow map' accents match the environment accents
-info  NeonFoundry_A4 backdrop parts: Low 428 / Standard 713 / High 731
-info  SkyCarnival_B1 backdrop parts: Low 3 / Standard 120 / High 220
+info  NeonFoundry_A4 backdrop parts: Low 877 / Standard 1042 / High 1060
+info  SkyCarnival_B1 backdrop parts: Low 3 / Standard 110 / High 235
 info  VolcanoVault_B1 backdrop parts: Low 5 / Standard 64 / High 68
 
 -- Motion specs (UI entrances, race entry) --
@@ -1067,4 +1071,56 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-825 passed, 0 failed (+ 0 syntax failures)
+-- Three-lap circuit specs --
+PASS  standard races use the circuit (one flag back to the single run)
+PASS  circuit passes the generator validator
+PASS  circuit passes TrackValidator (all hazard seeds)
+PASS  the lap closes on itself (< 0.05 studs before the snap)
+PASS  start/finish seam: same point, same facing, same width
+PASS  8-12 checkpoint sectors per lap
+PASS  three laps, 2200-3600 stud lap
+PASS  lap MODEL inside the 55-80 s clean-lap target
+PASS  race MODEL 3-5 min before hazards and mistakes are added
+PASS  race clock is the course's own (not the old 180 s)
+PASS  a real return leg: the lap climbs back (<= 9 degrees) to the grid level
+PASS  the climb has a marked boost lane along it (assisted ascent)
+PASS  no recovery costs more than 650 studs (checkpoint gaps around the lap)
+PASS  the lap stays far from the Orbital Garage (no road over the hub)
+PASS  split A: both lanes share one progress scale (+-2 studs)
+PASS  split B: both lanes share one progress scale (+-2 studs)
+PASS  split B risk line: right-lane gap with a kicker right before it, safe left lane walled
+PASS  both branches sit between equivalent gates (a gate before and after each split)
+PASS  targets: every lap's gates, two lap lines, one finish
+PASS  targets strictly ascend in race distance
+PASS  lap state: start = LAP 1 CP 0; after a lap line + 3 gates = LAP 2 CP 3; final lap = 3
+PASS  a clean three-lap run: every gate on every lap, two LAP events, one finish
+PASS  three lap times recorded (lap 1 from GO, laps 2-3 line to line)
+PASS  frozen on the grid: crossing the line / a gate early counts nothing
+PASS  a reversed line crossing never counts (no lap, no gate)
+PASS  duplicate contact with a gate counts once
+PASS  a jump past gates is rejected and nothing after the last gate counts
+PASS  one lap only = lap 2 (not finished)
+PASS  a gate crossed outside the corridor (a neighbouring road) does not count
+PASS  a one-lap Time Trial judge finishes at the line after one lap
+PASS  tracker: race distance keeps growing across the start/finish line
+PASS  tracker: rolling back over the line goes back below 0 (no phantom lap)
+PASS  respawn hint: a lap-2 checkpoint respawn tracks as lap 2
+PASS  boost lane pushes along the road in its lane only
+PASS  finisher deck sits clear of the road (finishers leave the lap)
+PASS  bots always take the walled safe lane at a risk split
+PASS  bots aim for a boost lane
+PASS  Sky Carnival circuit validates (generator + TrackValidator)
+PASS  Sky Carnival is a race-ready circuit in the rotation
+PASS  different topology: Foundry turns right once, Sky Carnival turns left twice (a stacked helix)
+PASS  helix turns are stacked with real headroom (>= 30 studs between the turns)
+PASS  progress never jumps between the stacked helix turns
+PASS  Sky Carnival lap MODEL inside 55-80 s, race 3-5 min
+PASS  Sky Carnival choices: drum bounce over the cloud gap (or the bridge), two kicker hops (or the wide arc)
+PASS  name tags: never the stacked row - none closer than 16 studs, overlaps hidden, at most 3
+PASS  name tags: none at all on the start grid
+PASS  case opening: pops in, shakes harder, the lid flies off with a flash
+PASS  Reduced Motion: the case opens without any shake
+info  Neon Foundry circuit: lap 2963 studs, model standing 70.9 s / flying 69.8 s / race 211 s (MODEL, not a measurement)
+info  Sky Carnival circuit: lap 3305 studs, model flying lap 76.9 s, race 232 s (MODEL)
+
+874 passed, 0 failed (+ 0 syntax failures)

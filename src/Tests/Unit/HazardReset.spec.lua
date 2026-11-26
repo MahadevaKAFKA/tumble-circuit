@@ -19,7 +19,7 @@ function Spec.run(m)
 		end
 	end
 	local HS, TD = m.HazardSim, m.TrackDefinitions
-	local layout = TD.Generate(TD.Race, m.PhysicsConfig.Ball.Radius)
+	local layout = TD.Generate(TD.NeonFoundry, m.PhysicsConfig.Ball.Radius)
 	local function resolve(seed)
 		local out = {}
 		for _, hz in ipairs(layout.Hazards) do
@@ -64,7 +64,7 @@ function Spec.run(m)
 		end
 	end
 	check("seed classes 0/1/2 produce different hazard timing", differ >= 4, differ)
-	check("Params never mutates the definition (no cross-round leakage)", TD.Race.Hazards[5].Speed == 1.1 and s1.Sweeper1.Params.Speed ~= s0.Sweeper1.Params.Speed)
+	check("Params never mutates the definition (no cross-round leakage)", TD.NeonFoundry.Hazards[5].Speed == 1.1 and s1.Sweeper1.Params.Speed ~= s0.Sweeper1.Params.Speed)
 	check("seed classes wrap: 3 hazard variations exist", HS.SeedClasses == 3)
 
 	-- 3) bounded kicks: sample positions around every contact hazard at many times

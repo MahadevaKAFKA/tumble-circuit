@@ -31,6 +31,20 @@ function MapLoader.ValidateCourse(layout, killY)
 		return errors
 	end
 	local startS, finishS = layout.StartLineS, layout.FinishLineS
+	if layout.Loop then
+		finishS = layout.LapLength -- a circuit's lap ends where it began (the line, one lap on)
+		local previous = -math.huge
+		for i, target in ipairs(layout.Targets or {}) do
+			if not finite(target.S) or target.S <= previous then
+				err("lap target %d is out of order", i)
+				break
+			end
+			previous = target.S
+		end
+		if #(layout.Targets or {}) < 2 then
+			err("a circuit needs lap targets")
+		end
+	end
 	if not (finite(startS) and finite(finishS) and startS < finishS) then
 		err("start line must come before the finish line")
 		return errors

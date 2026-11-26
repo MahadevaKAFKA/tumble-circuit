@@ -65,7 +65,9 @@ function Spec.run(m)
 					if spec.Layer == "Track" or spec.Layer == "TrackDetail" or spec.Layer == "Under" then
 						-- on / under the course by design (Dressing.spec checks these)
 					elseif spec.Layer == "Near" then
-						if along < 3 and lateral < sec.Width / 2 + 2 and up < 18 then
+						-- in the lane = above THIS road's surface (a stacked helix has framing for the
+						-- lower turn far below the upper one)
+						if along < 3 and lateral < sec.Width / 2 + 2 and up > -1 and up < 18 then
 							tooClose = tooClose + 1
 						end
 					elseif flat < 150 and math.abs(d.Y) < 60 then

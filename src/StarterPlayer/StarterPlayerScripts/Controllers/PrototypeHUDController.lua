@@ -149,7 +149,7 @@ function HUD.new(input)
 		Size = UDim2.new(1, 0, 0.24, 0),
 		TextColor3 = UIKit.Colors.Muted,
 		Font = UIKit.Fonts.Bold or Enum.Font.GothamBold,
-		Text = "KM/H", -- 1 stud ~ 0.28 m, so studs/s ~ km/h (display only)
+		Text = "STUDS/S", -- the raw Roblox unit until a km/h conversion is measured (brief 3)
 	})
 
 	self.hint = label(root, {

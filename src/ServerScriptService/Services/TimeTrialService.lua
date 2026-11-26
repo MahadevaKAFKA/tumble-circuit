@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local PlayerDataSchema = require(Shared:WaitForChild("PlayerDataSchema"))
 local Protocol = require(Shared:WaitForChild("Protocol"))
+local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local TimeTrialRules = require(Shared:WaitForChild("TimeTrialRules"))
 local Utility = require(Shared:WaitForChild("Utility"))
@@ -76,10 +77,32 @@ function TimeTrialService:IsRunning(player)
 	return self.runs[player] ~= nil
 end
 
+-- circuits: a Time Trial is RaceConfig.TimeTrialLaps laps (1 by default) - its record key
+-- carries the lap count when it is not 1 lap, so 1-lap and full-race trials never mix
+function TimeTrialService:_laps()
+	local layout = self.track:GetLayout(ZONES.Race)
+	return layout.Loop and (RaceConfig.TimeTrialLaps or 1) or nil
+end
+
 function TimeTrialService:_key()
 	local def = self.track:GetLayout(ZONES.Race).Definition
 	local seed = self.hazards and self.hazards:GetSeed() or 0
-	return PlayerDataSchema.BestTimeKey(def.Id, def.LayoutVersion, seed, TimeTrialRules.Mode), def
+	local laps = self:_laps()
+	local mode = TimeTrialRules.Mode .. ((laps and laps > 1) and (laps .. "L") or "")
+	return PlayerDataSchema.BestTimeKey(def.Id, def.LayoutVersion, seed, mode), def
+end
+
+-- RoundService asks this first for a Time Trial marble's race S (circuits)
+function TimeTrialService:ProgressHint(player)
+	local run = self.runs[player]
+	if not run then
+		return nil
+	end
+	local target = run.phase == "Running" and run.judge:GetConfirmedTarget(player) or nil
+	if target then
+		return target.S + RaceConfig.Recovery.CheckpointRespawnAhead
+	end
+	return run.startS
 end
 
 function TimeTrialService:StartTrial(player)
@@ -104,7 +127,7 @@ function TimeTrialService:StartTrial(player)
 		startS = startS,
 		phase = "Countdown",
 		goAt = workspace:GetServerTimeNow() + TimeTrialRules.CountdownSeconds,
-		judge = CheckpointService.new(self.track),
+		judge = CheckpointService.new(self.track, self:_laps()),
 		recorder = TimeTrialRules.NewRecorder(),
 		best = profile and profile.data.bestTimes[key] or nil,
 	}
@@ -166,8 +189,8 @@ function TimeTrialService:ResolveSpawn(player, reason)
 		return { CFrame = run.startCFrame, Zone = ZONES.Race, Frozen = true, Ghost = true }
 	end
 	if run.phase == "Running" then
-		local index = run.judge:GetConfirmed(player)
-		local cf = index > 0 and self.track:GetCheckpointRespawnCFrame(index) or run.startCFrame
+		local target = run.judge:GetConfirmedTarget(player)
+		local cf = target and target.RespawnFrame and self.track:FrameCFrame(target.RespawnFrame) or run.startCFrame
 		return { CFrame = cf, Zone = ZONES.Race, Frozen = false, Ghost = true }
 	end
 	return nil
@@ -188,7 +211,7 @@ function TimeTrialService:_onProgress(player, info)
 	end
 	for _, event in ipairs(run.judge:Process(player, info) or {}) do
 		if event.kind == "Checkpoint" then
-			self:_send(player, { phase = "Checkpoint", index = event.index, total = #self.track:GetLayout(ZONES.Race).Checkpoints })
+			self:_send(player, { phase = "Checkpoint", index = event.checkpoint or event.index, total = #self.track:GetLayout(ZONES.Race).Checkpoints })
 		elseif event.kind == "Finish" then
 			self:_finish(player, run, event.seconds)
 			return

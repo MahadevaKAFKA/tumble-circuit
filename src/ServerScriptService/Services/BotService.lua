@@ -57,13 +57,33 @@ function BotService:_bindWorld()
 	for _, piece in ipairs(layout.Pieces) do
 		segmentKind[piece.Segment] = segmentKind[piece.Segment] or piece.Definition.Kind
 	end
+	-- circuits: a split whose lane has an open-floor gap is a RISK line - bots always take the
+	-- walled safe lane there; elsewhere the inside of the turn is the shortcut
+	local riskySide = {}
+	for _, piece in ipairs(layout.Pieces) do
+		local half = piece.Definition.HalfFloor
+		if half == "Left" then
+			riskySide[piece.Segment] = 1 -- the right lane is open
+		elseif half == "Right" then
+			riskySide[piece.Segment] = -1
+		end
+	end
 	for _, piece in ipairs(layout.Pieces) do
 		local a, b = layout.Sections[piece.FirstSection].S, layout.Sections[piece.LastSection].S
 		if piece.Definition.Divider then
-			table.insert(self.splitRanges, { a - 30, b })
+			local yaw = piece.Definition.Yaw or 0
+			local risky = riskySide[piece.Segment]
+			table.insert(self.splitRanges, { a - 30, b, inside = yaw < 0 and -1 or 1, forced = risky and -risky or nil })
 		end
 		if segmentKind[piece.Segment] == "DropShaft" then
 			table.insert(self.dropRanges, { a - 30, b })
+		end
+	end
+	-- boost lanes (assisted ascent / conveyor carry): bots aim for them like a sensible racer
+	self.boostRanges = {}
+	for _, hz in ipairs(layout.Hazards or {}) do
+		if hz.Kind == "Boost" and hz.FromFrame and hz.ToFrame then
+			table.insert(self.boostRanges, { hz.FromFrame.S - 20, hz.ToFrame.S, offset = hz.Offset or 0 })
 		end
 	end
 end
@@ -235,6 +255,16 @@ local function inRanges(ranges, s)
 	return false
 end
 
+-- the range itself (split / boost metadata), or nil
+local function rangeAt(ranges, s)
+	for _, r in ipairs(ranges or {}) do
+		if s >= r[1] and s <= r[2] then
+			return r
+		end
+	end
+	return nil
+end
+
 function BotService:_hazardContext(s, speed)
 	return BotBrain.HazardContext(self.hazards:GetResolved(), self.layout.Sections, s, speed, self.hazards:Time())
 end
@@ -267,7 +297,7 @@ function BotService:_maybeUseAbility(bot, entry, info, speed, hazards, now)
 	end
 	local hazardAhead = math.huge
 	for _, hz in ipairs(hazards) do
-		local ahead = hz.s - info.s
+		local ahead = hz.s - (info.localS or info.s)
 		if ahead > 0 and ahead < hazardAhead and (hz.kind == "PulseBumper" or hz.kind == "Sweeper" or hz.kind == "Hammer") then
 			hazardAhead = ahead
 		end
@@ -358,6 +388,7 @@ function BotService:_stepBot(bot, entry, dt, now, hazardTime, cfgBumper)
 		local ball = entry.ball
 		if ball and ball.Parent and entry.motor then
 			local info = entry.tracker:Update(ball.Position)
+			local ls = info.localS or info.s -- circuits: hazards / splits are laid out per lap
 			local section = self.layout.Sections[math.min(info.index, #self.layout.Sections)]
 			local target = RouteTracker.HorizontalTangentAtS(self.layout.Route, info.s + 4)
 			if target then
@@ -370,17 +401,18 @@ function BotService:_stepBot(bot, entry, dt, now, hazardTime, cfgBumper)
 			local steer, throttle, brake = 0, 0, false
 			if racing then
 				mode = MarbleMotorController.Modes.Play
-				local hazards = self:_hazardContext(info.s, v.Magnitude)
+				local hazards = self:_hazardContext(ls, v.Magnitude)
 				self:_maybeUseAbility(bot, entry, info, v.Magnitude, hazards, now)
 				steer, throttle, brake = BotBrain.Decide(entry.brain, {
 					lateral = rel:Dot(section.Right),
 					lateralVelocity = v:Dot(section.Right),
 					speed = v.Magnitude,
-					s = info.s,
+					s = ls,
 					halfWidth = section.Width / 2,
 					hazards = hazards,
-					splitAhead = inRanges(self.splitRanges, info.s),
-					dropAhead = inRanges(self.dropRanges, info.s),
+					splitAhead = rangeAt(self.splitRanges, ls),
+					dropAhead = inRanges(self.dropRanges, ls),
+					boostLane = (rangeAt(self.boostRanges, ls) or {}).offset,
 					skill = bot.skill,
 					rng = entry.rng,
 					now = now,

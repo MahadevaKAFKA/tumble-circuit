@@ -78,8 +78,16 @@ function ChaosGateService:Start()
 end
 
 function ChaosGateService:_check(entity, info)
-	for _, gate in ipairs(self.gates) do
-		local key = gate.Id
+	local layout = self.track and self.track:GetLayout(Protocol.Zones.Race)
+	local lapLength = layout and layout.Loop and layout.LapLength or nil
+	for _, rawGate in ipairs(self.gates) do
+		-- circuits: every gate can be collected once PER LAP (progress is race distance)
+		local gate, key = rawGate, rawGate.Id
+		if lapLength then
+			local lap = math.floor(info.s / lapLength)
+			gate = { Id = rawGate.Id, S = lap * lapLength + rawGate.S, Offset = rawGate.Offset, Width = rawGate.Width, Frame = rawGate.Frame }
+			key = rawGate.Id .. ":" .. lap
+		end
 		self.collected[entity] = self.collected[entity] or {}
 		if not self.collected[entity][key] and ChaosGateService.Crossed(gate, info.prevS, info.s, info.lateral or 0) then
 			self.collected[entity][key] = true

@@ -71,7 +71,7 @@ function EconomyService:GrantRace(roundId, results)
 					seconds = entry.seconds,
 					active = entry.active == true,
 					checkpoint = entry.checkpoint,
-					progressFraction = (entry.progressS or 0) / layout.Route.total,
+					progressFraction = (entry.progressS or 0) / ((layout.LapLength or layout.Route.total) * (layout.Loop and layout.Laps or 1)),
 					botPractice = humans == 1 and bots > 0,
 				}
 				local notice

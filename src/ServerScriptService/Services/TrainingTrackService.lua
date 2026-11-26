@@ -356,8 +356,18 @@ end
 
 function TrainingTrackService:GetFinishRespawnCFrame()
 	local layout = self.layouts[ZONES.Race]
+	if layout.FinisherDeck then
+		-- circuits: the finisher deck beside the line (finished marbles leave the road)
+		local deck = layout.FinisherDeck
+		return CFrame.lookAt(deck.Position + deck.Up * (PhysicsConfig.Ball.Radius + GameConfig.Spawn.SpawnLift), deck.Position + deck.Up * (PhysicsConfig.Ball.Radius + GameConfig.Spawn.SpawnLift) + deck.Forward)
+	end
 	local frame = TrackDefinitions.SampleAtH(layout, layout.FinishLineFrame.H + 10)
 	return frameToCFrame(frame, 0)
+end
+
+-- A layout frame -> a spawn CFrame (respawn at a confirmed lap target)
+function TrainingTrackService:FrameCFrame(frame, lateral)
+	return frameToCFrame(frame, lateral or 0)
 end
 
 -- B1 Time Trial: a solo start just past the start gate (the gate stays closed between races)

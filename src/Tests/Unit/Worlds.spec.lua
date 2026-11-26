@@ -19,10 +19,11 @@ function Spec.run(m)
 	end
 	local TD, TV = m.TrackDefinitions, m.TrackValidator
 	local radius = m.PhysicsConfig.Ball.Radius
-	check("three worlds in rotation: Foundry, Sky Carnival, Volcano Vault", #TD.Worlds == 3 and TD.Worlds[1] == TD.NeonFoundry and TD.Worlds[2] == TD.SkyCarnival and TD.Worlds[3] == TD.VolcanoVault)
+	check("three worlds: Foundry, Sky Carnival, Volcano Vault (a circuit replaces a single run once validated)", #TD.Worlds == 3 and TD.Worlds[1].Id == "NeonFoundry_A4" and TD.Worlds[2].Id == "SkyCarnival_B1" and TD.Worlds[3].Id == "VolcanoVault_B1")
+	check("the single-run worlds are kept as the one-flag fallback", #TD.LegacyWorlds == 3 and TD.LegacyWorlds[1] == TD.NeonFoundry and TD.LegacyWorlds[2] == TD.SkyCarnival and TD.LegacyWorlds[3] == TD.VolcanoVault)
 	local ids, layouts = {}, {}
-	for _, def in ipairs(TD.Worlds) do
-		check(def.DisplayName .. ": stable unique id", def.Id and not ids[def.Id] and TD.World(def.Id) == def, def.Id)
+	for _, def in ipairs(TD.LegacyWorlds) do
+		check(def.DisplayName .. ": stable unique id", def.Id and not ids[def.Id], def.Id)
 		ids[def.Id] = true
 		local layout = TD.Generate(def, radius)
 		layouts[#layouts + 1] = layout
@@ -53,8 +54,8 @@ function Spec.run(m)
 	-- every world builds: finite part sizes, under the 2048-stud part limit, themed floors
 	local B = m.Builder or m.TrainingTrackBuilder
 	if B then
-		for i, def in ipairs(TD.Worlds) do
-			local ok, specs = pcall(B.ComputeSpecs, layouts[i])
+		for _, def in ipairs(TD.Worlds) do
+			local ok, specs = pcall(B.ComputeSpecs, TD.Generate(def, radius))
 			local sane, parts, collide = ok, 0, 0
 			if ok then
 				for _, spec in ipairs(specs) do

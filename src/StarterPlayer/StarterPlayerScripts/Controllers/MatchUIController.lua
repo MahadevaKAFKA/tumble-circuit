@@ -475,6 +475,10 @@ end
 
 -- e.g. "BOOST + SHIELD": the equipped pair, shown on the LOADOUT button itself
 function MatchUI:SetLoadoutText(text)
+	self.loadoutText = text
+	if self.dock and self.loadoutButton.Parent == self.dock then
+		return -- docked: the tile shows its icon + label only (owner screenshot: text overlapped)
+	end
 	UIKit.setText(self.loadoutButton, "ABILITIES\n" .. text)
 end
 

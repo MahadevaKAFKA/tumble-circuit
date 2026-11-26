@@ -240,8 +240,141 @@ TrackDefinitions.NeonFoundry = {
 	ArrowSpacing = 18,
 }
 
--- The race track used by the round (A4: the Neon Foundry). Training stays as the A1 reference.
-TrackDefinitions.Race = TrackDefinitions.NeonFoundry
+---------------------------------------------------------------------------------------------
+-- 2026-11-26 three-lap brief: NEON FOUNDRY CIRCUIT (layout v3). A closed lap that starts and
+-- ends on the main straight: wide launch straight -> turbine bank -> bumper field -> split A
+-- (outside conveyor carry | inside sweeper shortcut) -> inspection hall drop + braked hairpin ->
+-- alternating conveyor lines -> split B (wide safe rail | narrow ramp-and-gap carry) -> hammer
+-- -> banked maintenance ascent (boost lane on the outside) -> final turn -> main straight/grid.
+-- The three closure values (ConveyorLines / MainStraight lengths, climb pitch C) come from
+-- tools/offline/circuit_solver.lua. Records use layout v3, so v2 single-run times are kept apart.
+---------------------------------------------------------------------------------------------
+TrackDefinitions.NeonFoundryCircuit = {
+	Id = "NeonFoundry_A4", -- the map id (hub, ballots, signage) - the LAYOUT version separates records
+	DisplayName = "Neon Foundry",
+	LayoutVersion = 3,
+	Loop = true,
+	Laps = 3,
+	Origin = Vector3.new(0, 420, 0), -- the start/finish line
+	StartHeadingDeg = -90, -- the lap runs away from the Orbital Garage (320 studs clear of the hub)
+	FloorThickness = 1.6,
+	RailThickness = 1.2,
+	DefaultRails = { 4.5, 4.5 },
+	MaxStepLength = 24,
+	MaxYawStepDeg = 5,
+	MaxPitchStepDeg = 2,
+	MaxBankStepDeg = 3,
+	Solve = { A = "PassingA", B = "PassingB", Climb = { "AscentIn", "AscentBankA", "AscentBankB", "AscentBankC", "AscentOut" } },
+	Pieces = {
+		{ Name = "LineExit", Segment = "LaunchStraight", Kind = "StraightRamp", Length = 60, Pitch = { 0, 0 }, Width = { 30, 30 }, Rails = { 5, 5 }, Arrows = true },
+		{ Name = "LaunchStraight", Segment = "LaunchStraight", Length = 200, Pitch = { 0, 2 }, Width = { 30, 26 }, Arrows = true },
+		{ Name = "TurbineIn", Segment = "TurbineBank", Kind = "STurn", Length = 60, Yaw = 25, Pitch = { 2, 2 }, Bank = { 0, 12 }, Width = { 26, 26 }, Rails = { 7, 4.5 } },
+		{ Name = "TurbineBank", Segment = "TurbineBank", Length = 200, Yaw = 100, Pitch = { 2, 2 }, Bank = { 12, 12 }, Width = { 26, 26 }, Rails = { 8, 4.5 } },
+		{ Name = "TurbineOut", Segment = "TurbineBank", Length = 60, Yaw = 25, Pitch = { 2, 2 }, Bank = { 12, 0 }, Width = { 26, 26 }, Rails = { 7, 4.5 } },
+		{ Name = "FieldIn", Segment = "BumperField", Kind = "BumperField", Length = 30, Pitch = { 2, 2 }, Width = { 26, 30 }, Arrows = true },
+		{ Name = "Field", Segment = "BumperField", Length = 140, Pitch = { 2, 1 }, Width = { 30, 30 } },
+		{ Name = "FieldOut", Segment = "BumperField", Length = 30, Pitch = { 1, 1 }, Width = { 30, 26 } },
+		{ Name = "PassingA", Segment = "PassingA", Kind = "Passing", Length = 317.77, Pitch = { 1, 1 }, Width = { 26, 26 }, Arrows = true },
+		{ Name = "SplitAIn", Segment = "SplitA", Kind = "SplitLane", Length = 24, Yaw = -10, Pitch = { 1, 2 }, Bank = { 0, -6 }, Width = { 26, 34 } },
+		{ Name = "SplitACurve", Segment = "SplitA", Length = 120, Yaw = -60, Pitch = { 2, 2 }, Bank = { -6, -6 }, Width = { 34, 34 }, Rails = { 5, 7 }, Divider = { From = 4, To = 116, Height = 4.5 } },
+		{ Name = "SplitAOut", Segment = "SplitA", Length = 24, Yaw = -10, Pitch = { 2, 2 }, Bank = { -6, 0 }, Width = { 34, 26 } },
+		{ Name = "HallApproach", Segment = "InspectionHall", Kind = "DropShaft", Length = 60, Pitch = { 2, 2 }, Width = { 26, 26 }, Rails = { 6, 6 }, Roof = true },
+		{ Name = "HallDrop", Segment = "InspectionHall", Length = 40, Pitch = { 2, 14 }, Width = { 26, 26 }, Rails = { 7, 7 } },
+		{ Name = "HallDropOut", Segment = "InspectionHall", Length = 40, Pitch = { 14, 0 }, Width = { 26, 26 }, Rails = { 7, 7 } },
+		{ Name = "HallBrake", Segment = "InspectionHall", Length = 40, Pitch = { 0, 0 }, Width = { 26, 26 }, Rails = { 6, 6 }, Roof = true },
+		{ Name = "HairpinA", Segment = "InspectionHall", Length = 70, Yaw = 75, Pitch = { 0, 0 }, Bank = { 0, 14 }, Width = { 26, 26 }, Rails = { 8, 4.5 }, Roof = true },
+		{ Name = "HairpinB", Segment = "InspectionHall", Length = 70, Yaw = 75, Pitch = { 0, 0 }, Bank = { 14, 0 }, Width = { 26, 26 }, Rails = { 8, 4.5 }, Roof = true },
+		{ Name = "HallExit", Segment = "InspectionHall", Length = 40, Pitch = { 0, 1 }, Width = { 26, 24 }, Arrows = true },
+		{ Name = "ConveyorLines", Segment = "ConveyorLines", Kind = "SideConveyor", Length = 190, Pitch = { 1, 1 }, Width = { 24, 24 }, Rails = { 6, 6 } },
+		{ Name = "PassingB", Segment = "PassingB", Kind = "Passing", Length = 129.92, Pitch = { 1, 1 }, Width = { 24, 24 }, Arrows = true },
+		{ Name = "SplitBIn", Segment = "SplitB", Kind = "SplitLane", Length = 24, Yaw = 5, Pitch = { 1, 2 }, Bank = { 0, 6 }, Width = { 24, 34 } },
+		{ Name = "SplitBCurveA", Segment = "SplitB", Length = 60, Yaw = 22, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 2, To = 60, Height = 4.5 } },
+		{ Name = "SplitBGap", Segment = "SplitB", Length = 6, Yaw = 2, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 0, To = 6, Height = 4.5 }, HalfFloor = "Left" },
+		{ Name = "SplitBCurveB", Segment = "SplitB", Length = 60, Yaw = 21, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 0, To = 58, Height = 4.5 } },
+		{ Name = "SplitBOut", Segment = "SplitB", Length = 24, Yaw = 5, Pitch = { 2, 2 }, Bank = { 6, 0 }, Width = { 34, 26 } },
+		{ Name = "HammerRun", Segment = "Hammer", Kind = "SwingingHammer", Length = 80, Pitch = { 2, 1 }, Width = { 26, 26 } },
+		{ Name = "AscentIn", Segment = "MaintenanceAscent", Kind = "GuidedAscent", Length = 40, Pitch = { 1, -7.431 }, Width = { 26, 28 }, Rails = { 6, 6 } },
+		{ Name = "AscentBankA", Segment = "MaintenanceAscent", Length = 60, Yaw = 10, Pitch = { -7.431, -7.431 }, Bank = { 0, 10 }, Width = { 28, 28 }, Rails = { 7, 5 } },
+		{ Name = "AscentBankB", Segment = "MaintenanceAscent", Length = 280, Yaw = 40, Pitch = { -7.431, -7.431 }, Bank = { 10, 10 }, Width = { 28, 28 }, Rails = { 7, 5 } },
+		{ Name = "AscentBankC", Segment = "MaintenanceAscent", Length = 60, Yaw = 10, Pitch = { -7.431, -7.431 }, Bank = { 10, 0 }, Width = { 28, 28 }, Rails = { 7, 5 } },
+		{ Name = "AscentOut", Segment = "MaintenanceAscent", Length = 50, Pitch = { -7.431, 0 }, Width = { 28, 26 }, Rails = { 6, 6 } },
+		{ Name = "FinalTurnA", Segment = "FinalTurn", Kind = "Finish", Length = 35, Yaw = 12.5, Pitch = { 0, 0 }, Bank = { 0, 8 }, Width = { 26, 28 }, Rails = { 6, 4.5 } },
+		{ Name = "FinalTurnB", Segment = "FinalTurn", Length = 35, Yaw = 12.5, Pitch = { 0, 0 }, Bank = { 8, 0 }, Width = { 28, 30 }, Rails = { 6, 4.5 } },
+		{ Name = "MainStraight", Segment = "MainStraight", Kind = "Start", Length = 200, Pitch = { 0, 0 }, Width = { 30, 30 }, Rails = { 5, 5 }, Arrows = true },
+	},
+	Spawn = { Piece = "MainStraight", At = 152 },
+	StartLine = { Piece = "LineExit", At = 0 },
+	FinishLine = { Piece = "LineExit", At = 0 },
+	Checkpoints = {
+		{ Name = "Turbine Bank", Piece = "TurbineIn", At = 2 },
+		{ Name = "Bumper Field", Piece = "FieldIn", At = 4 },
+		{ Name = "Split A", Piece = "SplitAIn", At = 2 },
+		{ Name = "Inspection Hall", Piece = "HallApproach", At = 10 },
+		{ Name = "Hairpin", Piece = "HallBrake", At = 4 },
+		{ Name = "Conveyor Lines", Piece = "ConveyorLines", At = 4 },
+		{ Name = "Split B", Piece = "SplitBIn", At = 2 },
+		{ Name = "Hammer", Piece = "HammerRun", At = 4 },
+		{ Name = "Ascent", Piece = "AscentIn", At = 2 },
+		{ Name = "Final Turn", Piece = "FinalTurnA", At = 2 },
+	},
+	Grid = { Piece = "MainStraight", Rows = { 190, 184, 178, 172 }, Columns = { -9.3, -3.1, 3.1, 9.3 } }, -- re-anchored by the solver
+	StartGate = { Piece = "MainStraight", At = 197, Height = 5 },
+	Features = {
+		{ Kind = "TrickRamp", Piece = "LaunchStraight", At = 120, Offset = -6.5, Width = 9, Length = 7, Height = 3.4 },
+		-- split B risk line: the kicker carries a fast marble over the 6-stud gap in the right lane
+		{ Kind = "TrickRamp", Piece = "SplitBCurveA", At = 59, Offset = 8.5, Width = 12, Length = 6, Height = 2.2 },
+	},
+	Hazards = {
+		{ Kind = "PulseBumper", Id = "BumperA", Piece = "Field", At = 30, Offset = -7, Radius = 3, Height = 4.5 },
+		{ Kind = "PulseBumper", Id = "BumperB", Piece = "Field", At = 72, Offset = 7, Radius = 3, Height = 4.5, PhaseOffset = 1.0 },
+		{ Kind = "PulseBumper", Id = "BumperC", Piece = "Field", At = 112, Offset = -1, Radius = 3, Height = 4.5, PhaseOffset = 2.1 },
+		-- split A: inside lane = a short arm sweeper (faster line), outside lane = a forward conveyor
+		{ Kind = "Sweeper", Id = "Sweeper1", Piece = "SplitACurve", At = 60, Offset = -9, ArmLength = 6, ArmHeight = 2.2, ArmThickness = 1.4, Speed = 1.1, Direction = 1, PostRadius = 1.2 },
+		{ Kind = "Boost", Id = "CarryA1", Piece = "SplitACurve", From = 6, To = 60, Offset = 8.8, Width = 15, Accel = 10 },
+		{ Kind = "Boost", Id = "CarryA2", Piece = "SplitACurve", From = 60, To = 114, Offset = 8.8, Width = 15, Accel = 10 },
+		{ Kind = "Conveyor", Id = "Conveyor1", Piece = "ConveyorLines", From = 12, To = 82, Direction = 1, Accel = 18 },
+		{ Kind = "Conveyor", Id = "Conveyor2", Piece = "ConveyorLines", From = 106, To = 176, Direction = -1, Accel = 18 },
+		{ Kind = "Hammer", Id = "Hammer1", Piece = "HammerRun", At = 44, Amplitude = 8, Period = 3.0, HeadSize = 3.4 },
+		-- maintenance ascent: the outside (left) lane is boost-assisted - roughly cancels the climb
+		{ Kind = "Boost", Id = "Lift1", Piece = "AscentIn", From = 16, To = 40, Offset = -6, Width = 13, Accel = 17 },
+		{ Kind = "Boost", Id = "Lift2", Piece = "AscentBankA", From = 0, To = 60, Offset = -6, Width = 13, Accel = 17 },
+		{ Kind = "Boost", Id = "Lift3", Piece = "AscentBankB", From = 0, To = 70, Offset = -6, Width = 13, Accel = 17 },
+		{ Kind = "Boost", Id = "Lift4", Piece = "AscentBankB", From = 70, To = 140, Offset = -6, Width = 13, Accel = 17 },
+		{ Kind = "Boost", Id = "Lift5", Piece = "AscentBankB", From = 140, To = 210, Offset = -6, Width = 13, Accel = 17 },
+		{ Kind = "Boost", Id = "Lift6", Piece = "AscentBankB", From = 210, To = 280, Offset = -6, Width = 13, Accel = 17 },
+		{ Kind = "Boost", Id = "Lift7", Piece = "AscentBankC", From = 0, To = 60, Offset = -6, Width = 13, Accel = 17 },
+		{ Kind = "Boost", Id = "Lift8", Piece = "AscentOut", From = 0, To = 30, Offset = -6, Width = 13, Accel = 17 },
+	},
+	ChaosGates = {
+		{ Id = "Gate1", Piece = "TurbineBank", At = 100, Offset = -7, Width = 9 },
+		{ Id = "Gate2", Piece = "ConveyorLines", At = 94, Offset = 6, Width = 9 },
+		{ Id = "Gate3", Piece = "FinalTurnB", At = 12, Offset = -7, Width = 9 },
+	},
+	WarningStrips = {
+		{ Piece = "HallBrake", From = 2, To = 38 },
+	},
+	Signs = {
+		{ Piece = "LaunchStraight", At = 96, Text = "TRICK RAMP - LEFT", Lift = 9 },
+		{ Piece = "TurbineIn", At = 0, Text = "TURBINE BANK", Lift = 9 },
+		{ Piece = "FieldIn", At = 0, Text = "BUMPER FIELD - CORAL KICKS", Lift = 9 },
+		{ Piece = "SplitAIn", At = 0, Text = "INSIDE: SWEEPER SHORTCUT  |  OUTSIDE: CONVEYOR", Lift = 9 },
+		{ Piece = "HallApproach", At = 30, Text = "DROP + HAIRPIN - BRAKE", Lift = 9 },
+		{ Piece = "ConveyorLines", At = 0, Text = "CONVEYOR LINES", Lift = 9 },
+		{ Piece = "SplitBIn", At = 0, Text = "LEFT: SAFE RAIL  |  RIGHT: RAMP + GAP", Lift = 9 },
+		{ Piece = "AscentIn", At = 0, Text = "ASCENT - BOOST LANE LEFT", Lift = 9 },
+	},
+	Gates = {
+		{ Kind = "Start", Piece = "LineExit", At = 0, Text = "START  /  FINISH" },
+	},
+	Validation = { MinSegments = 10, MaxSegments = 16, MinLength = 2200, MaxLength = 3600 },
+	ArrowSpacing = 18,
+	MaxRaceSeconds = 480, -- provisional, from the lap MODEL (no slow-finisher data yet)
+}
+
+-- 2026-11-26 three-lap brief: true = standard races are three-lap circuits; false = the v2
+-- single-run courses (development fallback / rollback - one flag). While true, a map without a
+-- validated circuit stays OFF rotation and out of the vote (MapRegistry asks RaceReady).
+TrackDefinitions.CircuitRaces = true
 
 ---------------------------------------------------------------------------------------------
 -- B1: two more worlds. Same module contract and the same proven hazard kinds as the Foundry
@@ -495,7 +628,172 @@ TrackDefinitions.VolcanoVault = {
 }
 
 -- B1: every race world, in rotation order. Ids are stable (best times are keyed by them).
-TrackDefinitions.Worlds = { TrackDefinitions.NeonFoundry, TrackDefinitions.SkyCarnival, TrackDefinitions.VolcanoVault }
+---------------------------------------------------------------------------------------------
+-- 2026-11-26 three-lap brief: SKY CARNIVAL CIRCUIT (layout v2). A different shape and skill
+-- from the Foundry: it turns LEFT (counter-clockwise), the choices are about BOUNCES not
+-- sweepers, and the lap climbs home on a 300-degree ribbon helix with a lift lane:
+-- float deck -> carousel bank -> cloud gap (inside: drum bounce over the gap | outside: bridge)
+-- -> balloon field -> sweep -> wind lane -> sky arc (inside: two short kicker hops | outside:
+-- wide arc) -> drum landing -> ribbon helix (lift lane outside) -> final turn -> main straight.
+---------------------------------------------------------------------------------------------
+TrackDefinitions.SkyCarnivalCircuit = {
+	Id = "SkyCarnival_B1",
+	DisplayName = "Sky Carnival",
+	LayoutVersion = 2, -- v1 = the single run (records stay apart)
+	Loop = true,
+	Laps = 3,
+	Origin = Vector3.new(2600, 560, 0),
+	StartHeadingDeg = 90,
+	FloorThickness = 1.6,
+	RailThickness = 1.2,
+	DefaultRails = { 4.5, 4.5 },
+	MaxStepLength = 24,
+	MaxYawStepDeg = 5,
+	MaxPitchStepDeg = 2,
+	MaxBankStepDeg = 3,
+	Theme = TrackDefinitions.SkyCarnival.Theme,
+	FinisherDeckSide = -1,
+	Solve = { A = "CarouselStraight", B = "CloudStraight", Climb = { "HelixIn", "HelixA", "HelixB", "HelixC", "HelixOut" } },
+	Pieces = {
+		-- leg 1: line -> float deck (forward)
+		{ Name = "LineExit", Segment = "FloatDeck", Kind = "StraightRamp", Length = 60, Pitch = { 0, 0 }, Width = { 30, 30 }, Rails = { 5, 5 }, Arrows = true },
+		{ Name = "FloatDeck", Segment = "FloatDeck", Length = 240, Pitch = { 0, 3 }, Width = { 30, 26 }, Arrows = true },
+		{ Name = "FieldIn", Segment = "BalloonField", Kind = "BumperField", Length = 30, Pitch = { 3, 3 }, Width = { 26, 30 }, Arrows = true },
+		{ Name = "Field", Segment = "BalloonField", Length = 140, Pitch = { 3, 3 }, Width = { 30, 30 } },
+		{ Name = "FieldOut", Segment = "BalloonField", Length = 30, Pitch = { 3, 3 }, Width = { 30, 26 } },
+		{ Name = "WindLane", Segment = "WindLane", Kind = "FanTunnel", Length = 200, Pitch = { 3, 3 }, Width = { 26, 26 }, Rails = { 6, 6 } },
+		-- carousel: a banked left-hand half circle onto the back leg
+		{ Name = "CarouselIn", Segment = "CarouselBank", Kind = "STurn", Length = 45, Yaw = -20, Pitch = { 3, 3 }, Bank = { 0, -12 }, Width = { 26, 26 }, Rails = { 4.5, 7 } },
+		{ Name = "CarouselBankA", Segment = "CarouselBank", Length = 90, Yaw = -70, Pitch = { 3, 2 }, Bank = { -12, -12 }, Width = { 26, 26 }, Rails = { 4.5, 8 } },
+		{ Name = "CarouselStraight", Segment = "CarouselBank", Length = 83.35, Pitch = { 2, 2 }, Bank = { -12, -12 }, Width = { 26, 26 }, Rails = { 4.5, 8 } },
+		{ Name = "CarouselBankB", Segment = "CarouselBank", Length = 90, Yaw = -70, Pitch = { 2, 2 }, Bank = { -12, -12 }, Width = { 26, 26 }, Rails = { 4.5, 8 } },
+		{ Name = "CarouselOut", Segment = "CarouselBank", Length = 45, Yaw = -20, Pitch = { 2, 2 }, Bank = { -12, 0 }, Width = { 26, 26 }, Rails = { 4.5, 7 } },
+		-- leg 2 (back): cloud gap choice (inside drum bounce | outside bridge)
+		{ Name = "GapSplitIn", Segment = "CloudGap", Kind = "SplitLane", Length = 24, Yaw = -5, Pitch = { 2, 2 }, Bank = { 0, -6 }, Width = { 26, 34 } },
+		{ Name = "GapApproach", Segment = "CloudGap", Length = 50, Yaw = -12, Pitch = { 2, 2 }, Bank = { -6, -6 }, Width = { 34, 34 }, Rails = { 5, 7 }, Divider = { From = 2, To = 50, Height = 4.5 } },
+		{ Name = "CloudGapA", Segment = "CloudGap", Length = 8, Yaw = -2, Pitch = { 2, 2 }, Bank = { -6, -6 }, Width = { 34, 34 }, Rails = { 5, 7 }, Divider = { From = 0, To = 8, Height = 4.5 }, HalfFloor = "Right" },
+		{ Name = "GapLanding", Segment = "CloudGap", Length = 50, Yaw = -16, Pitch = { 2, 2 }, Bank = { -6, -6 }, Width = { 34, 34 }, Rails = { 5, 7 }, Divider = { From = 0, To = 48, Height = 4.5 } },
+		{ Name = "GapSplitOut", Segment = "CloudGap", Length = 24, Yaw = -5, Pitch = { 2, 2 }, Bank = { -6, 0 }, Width = { 34, 26 } },
+		{ Name = "CloudStraight", Segment = "CloudStraight", Kind = "Passing", Length = 143.0, Pitch = { 2, 2 }, Width = { 26, 26 }, Arrows = true },
+		{ Name = "SweepA", Segment = "Sweep", Kind = "STurn", Length = 60, Yaw = 20, Pitch = { 2, 2 }, Bank = { 0, 8 }, Width = { 26, 26 }, Rails = { 6, 4.5 } },
+		{ Name = "SweepB", Segment = "Sweep", Length = 60, Yaw = 20, Pitch = { 2, 2 }, Bank = { 8, 0 }, Width = { 26, 26 }, Rails = { 6, 4.5 } },
+		-- sky arc choice (inside: two short kicker hops | outside: the wide arc)
+		{ Name = "ArcIn", Segment = "SkyArc", Kind = "SplitLane", Length = 24, Yaw = 6, Pitch = { 2, 2 }, Bank = { 0, 6 }, Width = { 26, 34 } },
+		{ Name = "ArcA", Segment = "SkyArc", Length = 50, Yaw = 14, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 2, To = 50, Height = 4.5 } },
+		{ Name = "HopGap1", Segment = "SkyArc", Length = 6, Yaw = 2, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 0, To = 6, Height = 4.5 }, HalfFloor = "Left" },
+		{ Name = "ArcB", Segment = "SkyArc", Length = 40, Yaw = 12, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 0, To = 40, Height = 4.5 } },
+		{ Name = "HopGap2", Segment = "SkyArc", Length = 6, Yaw = 2, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 0, To = 6, Height = 4.5 }, HalfFloor = "Left" },
+		{ Name = "ArcC", Segment = "SkyArc", Length = 50, Yaw = 18, Pitch = { 2, 2 }, Bank = { 6, 6 }, Width = { 34, 34 }, Rails = { 7, 5 }, Divider = { From = 0, To = 48, Height = 4.5 } },
+		{ Name = "ArcOut", Segment = "SkyArc", Length = 24, Yaw = 6, Pitch = { 2, 2 }, Bank = { 6, 0 }, Width = { 34, 26 } },
+		{ Name = "ArcRecoverA", Segment = "ArcRecover", Kind = "STurn", Length = 60, Yaw = -30, Pitch = { 2, 2 }, Bank = { 0, -8 }, Width = { 26, 26 }, Rails = { 4.5, 6 } },
+		{ Name = "ArcRecoverB", Segment = "ArcRecover", Length = 60, Yaw = -30, Pitch = { 2, 2 }, Bank = { -8, 0 }, Width = { 26, 26 }, Rails = { 4.5, 6 } },
+		-- the cloud drop (this map's big moment), then the stable drum landing
+		{ Name = "DropIn", Segment = "CloudDrop", Kind = "DropShaft", Length = 30, Pitch = { 2, 12 }, Width = { 26, 28 }, Rails = { 7, 7 } },
+		{ Name = "DropMid", Segment = "CloudDrop", Length = 70, Pitch = { 12, 12 }, Width = { 28, 28 }, Rails = { 8, 8 } },
+		{ Name = "DropOut", Segment = "CloudDrop", Length = 40, Pitch = { 12, 1 }, Width = { 28, 26 }, Rails = { 7, 7 } },
+		{ Name = "DrumZone", Segment = "DrumLanding", Kind = "TrampolinePad", Length = 60, Pitch = { 1, 1 }, Width = { 26, 26 } },
+		{ Name = "LandingRun", Segment = "DrumLanding", Length = 70, Pitch = { 1, 1 }, Width = { 26, 26 }, Arrows = true },
+		-- ribbon helix: one and a half climbing left turns (stacked), out onto the main straight
+		{ Name = "HelixIn", Segment = "RibbonHelix", Kind = "GuidedAscent", Length = 40, Pitch = { 1, -5.298 }, Width = { 26, 28 }, Rails = { 6, 6 } },
+		{ Name = "HelixA", Segment = "RibbonHelix", Length = 60, Yaw = -30, Pitch = { -5.298, -5.298 }, Bank = { 0, -10 }, Width = { 28, 28 }, Rails = { 5, 7 } },
+		{ Name = "HelixB", Segment = "RibbonHelix", Length = 840, Yaw = -480, Pitch = { -5.298, -5.298 }, Bank = { -10, -10 }, Width = { 28, 28 }, Rails = { 5, 8 } },
+		{ Name = "HelixC", Segment = "RibbonHelix", Length = 60, Yaw = -30, Pitch = { -5.298, -5.298 }, Bank = { -10, 0 }, Width = { 28, 28 }, Rails = { 5, 7 } },
+		{ Name = "HelixOut", Segment = "RibbonHelix", Length = 40, Pitch = { -5.298, 0 }, Width = { 28, 30 }, Rails = { 6, 6 } },
+		{ Name = "MainStraight", Segment = "MainStraight", Kind = "Start", Length = 200, Pitch = { 0, 0 }, Width = { 30, 30 }, Rails = { 5, 5 }, Arrows = true },
+	},
+	Spawn = { Piece = "MainStraight", At = 152 },
+	StartLine = { Piece = "LineExit", At = 0 },
+	FinishLine = { Piece = "LineExit", At = 0 },
+	Checkpoints = {
+		{ Name = "Balloon Field", Piece = "FieldIn", At = 4 },
+		{ Name = "Wind Lane", Piece = "WindLane", At = 4 },
+		{ Name = "Carousel", Piece = "CarouselIn", At = 2 },
+		{ Name = "Cloud Gap", Piece = "GapSplitIn", At = 2 },
+		{ Name = "Cloud Straight", Piece = "CloudStraight", At = 8 },
+		{ Name = "Sky Arc", Piece = "ArcIn", At = 2 },
+		{ Name = "Cloud Drop", Piece = "DropIn", At = 2 },
+		{ Name = "Drum", Piece = "DrumZone", At = 2 },
+		{ Name = "Helix", Piece = "HelixIn", At = 2 },
+		{ Name = "Helix Top", Piece = "HelixB", At = 460 },
+	},
+	Grid = { Piece = "MainStraight", Rows = { 190, 183.5, 177, 170.5 }, Columns = { -9.3, -3.1, 3.1, 9.3 } },
+	StartGate = { Piece = "MainStraight", At = 197, Height = 5 },
+	Features = {
+		-- sky arc hops: a kicker before each short inside-lane gap
+		{ Kind = "TrickRamp", Piece = "ArcA", At = 49, Offset = 8.5, Width = 12, Length = 6, Height = 2.2 },
+		{ Kind = "TrickRamp", Piece = "ArcB", At = 39, Offset = 8.5, Width = 12, Length = 6, Height = 2.2 },
+	},
+	Hazards = {
+		-- cloud gap bounce: a drum in the inside (left) lane throws you over the 8-stud gap
+		{ Kind = "Trampoline", Id = "GapDrum", Style = "Drum", Piece = "GapApproach", At = 43, Offset = -8.5, Width = 12, Length = 5, UpDeltaV = 34 },
+		{ Kind = "PulseBumper", Id = "BalloonA", Style = "Balloon", Piece = "Field", At = 28, Offset = 7, Radius = 3, Height = 4.5 },
+		{ Kind = "PulseBumper", Id = "BalloonB", Style = "Balloon", Piece = "Field", At = 70, Offset = -7, Radius = 3, Height = 4.5, PhaseOffset = 1.2 },
+		{ Kind = "PulseBumper", Id = "BalloonC", Style = "Balloon", Piece = "Field", At = 110, Offset = 1, Radius = 3, Height = 4.5, PhaseOffset = 2.3 },
+		{ Kind = "Fan", Id = "Wind1", Style = "Wind", Piece = "WindLane", From = 12, To = 148, Direction = -1, Accel = 24, OnSeconds = 2.4, OffSeconds = 2.0, TelegraphSeconds = 0.7 },
+		-- the stable drum landing: a full-lane drum, then a long flat landing run
+		{ Kind = "Trampoline", Id = "Drum1", Style = "Drum", Piece = "DrumZone", At = 30, Offset = 0, Width = 18, Length = 6, UpDeltaV = 30 },
+		-- ribbon helix lift lane (outside = right)
+		{ Kind = "Boost", Id = "Lift1", Piece = "HelixIn", From = 14, To = 40, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift2", Piece = "HelixA", From = 0, To = 60, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift3", Piece = "HelixB", From = 0, To = 60, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift4", Piece = "HelixB", From = 60, To = 120, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift5", Piece = "HelixB", From = 120, To = 180, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift6", Piece = "HelixB", From = 180, To = 240, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift7", Piece = "HelixB", From = 240, To = 300, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift8", Piece = "HelixB", From = 300, To = 360, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift9", Piece = "HelixB", From = 360, To = 420, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift10", Piece = "HelixB", From = 420, To = 480, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift11", Piece = "HelixB", From = 480, To = 540, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift12", Piece = "HelixB", From = 540, To = 600, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift13", Piece = "HelixB", From = 600, To = 660, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift14", Piece = "HelixB", From = 660, To = 720, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift15", Piece = "HelixB", From = 720, To = 780, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift16", Piece = "HelixB", From = 780, To = 840, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift17", Piece = "HelixC", From = 0, To = 60, Offset = 6, Width = 13, Accel = 13 },
+		{ Kind = "Boost", Id = "Lift18", Piece = "HelixOut", From = 0, To = 26, Offset = 6, Width = 13, Accel = 13 },
+	},
+	ChaosGates = {
+		{ Id = "Gate1", Piece = "CarouselStraight", At = 60, Offset = 7, Width = 9 },
+		{ Id = "Gate2", Piece = "CloudStraight", At = 60, Offset = -6, Width = 9 },
+		{ Id = "Gate3", Piece = "LandingRun", At = 40, Offset = 6, Width = 9 },
+	},
+	Signs = {
+		{ Piece = "CarouselIn", At = 0, Text = "CAROUSEL BANK", Lift = 9 },
+		{ Piece = "GapSplitIn", At = 0, Text = "INSIDE: DRUM BOUNCE  |  OUTSIDE: BRIDGE", Lift = 9 },
+		{ Piece = "FieldIn", At = 0, Text = "BALLOON FIELD", Lift = 9 },
+		{ Piece = "WindLane", At = 0, Text = "WIND LANE - GUSTS", Lift = 9 },
+		{ Piece = "DropIn", At = 0, Text = "CLOUD DROP - BRAKE TO LAND", Lift = 9 },
+		{ Piece = "ArcIn", At = 0, Text = "INSIDE: TWO HOPS  |  OUTSIDE: WIDE ARC", Lift = 9 },
+		{ Piece = "DrumZone", At = 0, Text = "DRUM - BOUNCE AND LAND", Lift = 9 },
+		{ Piece = "HelixIn", At = 0, Text = "RIBBON HELIX - LIFT LANE RIGHT", Lift = 9 },
+	},
+	Gates = {
+		{ Kind = "Start", Piece = "LineExit", At = 0, Text = "START  /  FINISH" },
+	},
+	Validation = { MinSegments = 10, MaxSegments = 16, MinLength = 2200, MaxLength = 3600 },
+	ArrowSpacing = 18,
+	MaxRaceSeconds = 480, -- provisional, from the lap MODEL
+}
+
+TrackDefinitions.LegacyWorlds = { TrackDefinitions.NeonFoundry, TrackDefinitions.SkyCarnival, TrackDefinitions.VolcanoVault }
+TrackDefinitions.Circuits = {
+	NeonFoundry_A4 = TrackDefinitions.NeonFoundryCircuit,
+	SkyCarnival_B1 = TrackDefinitions.SkyCarnivalCircuit,
+}
+TrackDefinitions.Worlds = {}
+for _, legacy in ipairs(TrackDefinitions.LegacyWorlds) do
+	local circuit = TrackDefinitions.CircuitRaces and TrackDefinitions.Circuits[legacy.Id] or nil
+	TrackDefinitions.Worlds[#TrackDefinitions.Worlds + 1] = circuit or legacy
+end
+-- Can this map host a standard race right now? (circuits on: only maps with a circuit)
+function TrackDefinitions.RaceReady(id)
+	if not TrackDefinitions.CircuitRaces then
+		return true
+	end
+	return TrackDefinitions.Circuits[id] ~= nil
+end
+-- The race track used by the round by default (the Neon Foundry). Training stays the A1 reference.
+TrackDefinitions.Race = TrackDefinitions.Worlds[1]
 TrackDefinitions.WorldsById = {}
 for index, def in ipairs(TrackDefinitions.Worlds) do
 	TrackDefinitions.WorldsById[def.Id] = def
@@ -681,6 +979,7 @@ end
 ---------------------------------------------------------------------------------------------
 function TrackDefinitions.Generate(def, ballRadius)
 	ballRadius = ballRadius or 2
+	local closureError = nil
 	local sections = {}
 	local pieces = {}
 	local pieceByName = {}
@@ -767,6 +1066,29 @@ function TrackDefinitions.Generate(def, ballRadius)
 		pieceByName[piece.Name] = record
 	end
 
+	-- Closed circuits (2026-11-26 three-lap brief): the authored pieces end where they began.
+	-- The closure is solved offline (tools/offline/circuit_solver.lua) to a few hundredths of a
+	-- stud; the tiny residual of the numeric walk is spread over the last piece so the ribbon
+	-- meets its own start exactly (no step at the start/finish line).
+	if def.Loop then
+		local first, last = sections[1], sections[#sections]
+		local residual = last.Position - first.Position
+		closureError = residual.Magnitude
+		local fromIndex = #sections
+		for i = #sections, 1, -1 do
+			if sections[i].PieceIndex ~= #def.Pieces then
+				break
+			end
+			fromIndex = i
+		end
+		local h0, h1 = sections[fromIndex].H, last.H
+		for i = fromIndex, #sections do
+			local u = (h1 > h0) and (sections[i].H - h0) / (h1 - h0) or 1
+			sections[i].Position = sections[i].Position - residual * u
+		end
+		last.Position = first.Position
+	end
+
 	-- Route along the ball centre (floor + normal * radius); section i <-> route point i.
 	local routePoints = {}
 	for i, sec in ipairs(sections) do
@@ -786,9 +1108,15 @@ function TrackDefinitions.Generate(def, ballRadius)
 		Sections = sections,
 		Pieces = pieces,
 		PieceByName = pieceByName,
-		Route = { points = routePoints, cumulative = cumulative, total = cumulative[#cumulative] },
+		Route = { points = routePoints, cumulative = cumulative, total = cumulative[#cumulative], loop = def.Loop == true },
 		TotalH = h,
+		Loop = def.Loop == true,
+		ClosureError = closureError or 0,
 	}
+	if layout.Loop then
+		layout.LapLength = layout.Route.total
+		layout.Laps = def.Laps or 3
+	end
 
 	local minY, maxY = math.huge, -math.huge
 	for _, sec in ipairs(sections) do
@@ -865,7 +1193,7 @@ function TrackDefinitions.Generate(def, ballRadius)
 	do
 		local spacing, height = def.GrappleSpacing or 150, def.GrappleHeight or 10
 		local fromS = (layout.StartLineS or 0) + 120
-		local toS = (layout.FinishLineS or layout.Route.total) - 80
+		local toS = (layout.Loop and layout.LapLength or layout.FinishLineS or layout.Route.total) - 80
 		local h = 0
 		for _, sec in ipairs(layout.Sections) do
 			if sec.S >= fromS and sec.S <= toS and sec.S >= h then
@@ -931,7 +1259,81 @@ function TrackDefinitions.Generate(def, ballRadius)
 		layout.Gates[#layout.Gates + 1] = { Kind = "Checkpoint", Text = "CHECKPOINT " .. i, Frame = cp.Frame }
 	end
 
+	-- Laps: the start/finish line is S = 0 of the lap; a lap restart respawns just past it.
+	if layout.Loop and layout.StartLineFrame then
+		layout.LineRespawnFrame = TrackDefinitions.SampleAtH(layout, layout.StartLineFrame.H + 6)
+		-- finisher deck: a flat pad beside the line where finished marbles wait (off the road)
+		local f = TrackDefinitions.SampleAtH(layout, layout.StartLineFrame.H + 20)
+		local side = (def.FinisherDeckSide or 1)
+		local flatRight = Vector3.new(f.Right.X, 0, f.Right.Z).Unit
+		local flatForward = Vector3.new(f.Forward.X, 0, f.Forward.Z).Unit
+		layout.FinisherDeck = {
+			Position = f.Position + flatRight * side * (f.Width / 2 + 34) - Vector3.new(0, 2, 0),
+			Forward = flatForward,
+			Right = flatRight,
+			Up = Vector3.new(0, 1, 0),
+			Size = Vector3.new(36, 1.6, 44),
+		}
+	end
+	layout.Targets = TrackDefinitions.Targets(layout)
+
 	return layout
+end
+
+-- The ordered list a racer must cross, as distances along the WHOLE race ("race S"):
+-- a linear course = its checkpoints then the finish; a circuit = for every lap its checkpoints,
+-- then the start/finish line (a lap) and, after the last lap, the finish. Race S of lap k =
+-- (k - 1) * LapLength + lap S, so the same ordered/swept-crossing rules judge laps too: the
+-- grid is behind the line (negative race S), a backwards crossing never matches the next
+-- target, and a skipped gate leaves the next target unconfirmed.
+function TrackDefinitions.Targets(layout, laps)
+	local out = {}
+	if not layout.Loop then
+		for i, cp in ipairs(layout.Checkpoints or {}) do
+			out[#out + 1] = { Kind = "Checkpoint", Lap = 1, Checkpoint = i, S = cp.S, RespawnFrame = cp.RespawnFrame, Name = cp.Name }
+		end
+		out[#out + 1] = { Kind = "Finish", Lap = 1, S = layout.FinishLineS }
+	else
+		laps = laps or layout.Laps or 1
+		local L = layout.LapLength
+		for lap = 1, laps do
+			local base = (lap - 1) * L
+			for i, cp in ipairs(layout.Checkpoints or {}) do
+				out[#out + 1] = { Kind = "Checkpoint", Lap = lap, Checkpoint = i, S = cp.S and (base + cp.S), RespawnFrame = cp.RespawnFrame, Name = cp.Name }
+			end
+			out[#out + 1] = { Kind = lap < laps and "Lap" or "Finish", Lap = lap, S = lap * L, RespawnFrame = layout.LineRespawnFrame }
+		end
+	end
+	for i, t in ipairs(out) do
+		t.Index = i
+	end
+	return out
+end
+
+-- Lap state from a count of confirmed targets (HUD + standings): lap (1-based, capped at laps),
+-- checkpoint within the lap, checkpoints per lap.
+function TrackDefinitions.LapState(layout, confirmed, laps)
+	local per = #(layout.Checkpoints or {})
+	if not layout.Loop then
+		return 1, math.min(confirmed, per), per, 1
+	end
+	laps = laps or layout.Laps or 1
+	local stride = per + 1
+	local lap = math.floor(confirmed / stride) + 1
+	local cp = confirmed % stride
+	if lap > laps then
+		return laps, per, per, laps
+	end
+	return lap, cp, per, laps
+end
+
+-- Lap-local S (0 .. LapLength) of a race S on a circuit; identity on a linear course.
+function TrackDefinitions.LapS(layout, raceS)
+	if not layout.Loop or not raceS then
+		return raceS
+	end
+	local L = layout.LapLength
+	return raceS - math.floor(raceS / L) * L
 end
 
 -- Interpolated frame at absolute horizontal distance h.
@@ -1048,7 +1450,37 @@ function TrackDefinitions.Validate(def, layout)
 	if not layout.FinishLineS then
 		fail("finish line does not resolve")
 	end
-	if layout.SpawnFrame and layout.StartLineS and layout.SpawnFrame.S >= layout.StartLineS then
+	local loop = layout.Loop == true
+	local lapLength = layout.LapLength or layout.Route.total
+	if loop then
+		-- a circuit closes on itself: position, heading, pitch, bank and width all match
+		if (layout.ClosureError or 0) > 1.0 then
+			fail(string.format("circuit does not close (%.2f studs off) - re-run tools/offline/circuit_solver.lua", layout.ClosureError))
+		end
+		local yawSum = 0
+		for _, piece in ipairs(def.Pieces) do
+			yawSum = yawSum + (piece.Yaw or 0)
+		end
+		-- a whole number of turns: 360 for a plain loop, 720 when a stacked helix adds one
+		local turns = math.abs(yawSum) / 360
+		if turns < 0.99 or math.abs(turns - math.floor(turns + 0.5)) > 0.01 / 360 then
+			fail(string.format("circuit turns %.2f degrees in total (must be a whole number of turns)", yawSum))
+		end
+		local p1, pn = def.Pieces[1], def.Pieces[#def.Pieces]
+		for _, key in ipairs({ "Pitch", "Bank", "Width" }) do
+			local a = pieceValue(p1, key, key == "Width" and { 22, 22 } or { 0, 0 })
+			local b = pieceValue(pn, key, key == "Width" and { 22, 22 } or { 0, 0 })
+			if math.abs(a[1] - b[2]) > 0.01 then
+				fail("circuit " .. key .. " does not match across the start/finish line")
+			end
+		end
+		if p1.StartCap or pn.EndCap then
+			fail("a circuit has no start back wall or finish end wall")
+		end
+		if layout.SpawnFrame and layout.SpawnFrame.S < lapLength - 120 then
+			fail("circuit spawn must be on the main straight behind the line")
+		end
+	elseif layout.SpawnFrame and layout.StartLineS and layout.SpawnFrame.S >= layout.StartLineS then
 		fail("spawn must be before the start line")
 	end
 	local previous = layout.StartLineS or 0
@@ -1061,7 +1493,11 @@ function TrackDefinitions.Validate(def, layout)
 			previous = cp.S
 		end
 	end
-	if layout.FinishLineS and layout.FinishLineS <= previous then
+	if loop then
+		if previous > lapLength - diameter * 5 then
+			fail("the last checkpoint must leave room before the start/finish line")
+		end
+	elseif layout.FinishLineS and layout.FinishLineS <= previous then
 		fail("finish line must come after every checkpoint")
 	end
 
@@ -1084,11 +1520,19 @@ function TrackDefinitions.Validate(def, layout)
 			end
 		end
 	end
-	if layout.StartGateFrame and layout.StartLineS and layout.StartGateFrame.S > layout.StartLineS then
-		fail("start gate must be on or before the start line")
-	end
-	if layout.FinishLineS and layout.FinishLineS >= layout.Route.total - diameter * 2 then
-		fail("finish line needs a run-off area after it")
+	if loop then
+		for i, slot in ipairs(layout.GridSlots) do
+			if slot.Frame.S < lapLength - 80 then
+				fail("grid slot " .. i .. " must be on the main straight just behind the line")
+			end
+		end
+	else
+		if layout.StartGateFrame and layout.StartLineS and layout.StartGateFrame.S > layout.StartLineS then
+			fail("start gate must be on or before the start line")
+		end
+		if layout.FinishLineS and layout.FinishLineS >= layout.Route.total - diameter * 2 then
+			fail("finish line needs a run-off area after it")
+		end
 	end
 
 	for _, zone in ipairs(layout.TrickZones or {}) do
@@ -1152,6 +1596,14 @@ function TrackDefinitions.Validate(def, layout)
 				if d.TelegraphSeconds < 0.5 or d.TelegraphSeconds > 1 then
 					fail("fan " .. tostring(hz.Id) .. " telegraph must be 0.5-1 s")
 				end
+			elseif hz.Kind == "Boost" then
+				-- assisted ascent: a visible forward push that roughly cancels a climb (never a launcher)
+				if not d.Accel or d.Accel <= 0 or d.Accel > 30 then
+					fail("boost " .. tostring(hz.Id) .. " accel must be 0-30 studs/s^2")
+				end
+				if not hz.Length or hz.Length > 70 then
+					fail("boost " .. tostring(hz.Id) .. " strips are at most 70 studs (they follow the road in short pieces)")
+				end
 			end
 		end
 	end
@@ -1167,7 +1619,11 @@ function TrackDefinitions.Validate(def, layout)
 	local secs = layout.Sections
 	for i = 1, #secs do
 		for j = i + 1, #secs do
-			if secs[j].S - secs[i].S > 80 then
+			local apart = secs[j].S - secs[i].S
+			if loop then
+				apart = math.min(apart, lapLength - apart) -- around the line the lap meets itself
+			end
+			if apart > 80 then
 				local d = (secs[j].Position - secs[i].Position).Magnitude
 				if d < 30 then
 					fail(string.format("course passes within %.1f studs of itself (sections %d/%d)", d, i, j))
@@ -1184,6 +1640,62 @@ function TrackDefinitions.Validate(def, layout)
 	end
 
 	return errors
+end
+
+-- Lap-time MODEL for a circuit (same 1-D rolling model as below, plus boost strips): a standing
+-- start from the grid, then a flying lap. Returns standingLap, flyingLap, raceSeconds(laps).
+-- Not a measurement - real times come from phone playtests.
+function TrackDefinitions.EstimateLapSeconds(layout, movement, gravity, laps)
+	gravity = gravity or 196.2
+	laps = laps or layout.Laps or 3
+	local rollFactor = 5 / 7
+	local sections = layout.Sections
+	local boosts = {}
+	for _, hz in ipairs(layout.Hazards or {}) do
+		if hz.Kind == "Boost" and hz.FromFrame then
+			boosts[#boosts + 1] = { a = hz.FromFrame.S, b = hz.ToFrame.S, accel = hz.Definition.Accel or 0 }
+		end
+	end
+	local v = 0.1
+	local function run(fromS, toS)
+		local t = 0
+		for i = 1, #sections - 1 do
+			local a, b = sections[i], sections[i + 1]
+			local ds = b.S - a.S
+			if b.S > fromS and a.S < toS and ds > 0 then
+				local sinPitch = math.sin(rad((a.PitchDeg + b.PitchDeg) / 2))
+				local throttle = 0
+				if v < movement.ThrottleTargetSpeed then
+					throttle = movement.AlongTrackAccel * math.min(1, (movement.ThrottleTargetSpeed - v) / movement.ThrottleTaperRange)
+				end
+				local boost = 0
+				for _, bz in ipairs(boosts) do
+					if a.S >= bz.a and a.S < bz.b then
+						boost = boost + bz.accel
+					end
+				end
+				local resist = (movement.RollingResistance or 0) + movement.LinearDrag * v
+				local accel = rollFactor * gravity * sinPitch + throttle + boost - resist
+				if v > movement.TerminalSpeed then
+					accel = accel - math.min(movement.TerminalDragMax, (v - movement.TerminalSpeed) * movement.TerminalDragResponse)
+				end
+				local vNext = math.sqrt(math.max(1, v * v + 2 * accel * ds))
+				t = t + ds / ((v + vNext) / 2)
+				v = vNext
+			end
+		end
+		return t
+	end
+	if not layout.Loop then
+		local t = run(layout.StartLineS or 0, layout.FinishLineS or layout.Route.total)
+		return t, t, t
+	end
+	local L = layout.LapLength
+	local grid = layout.GridSlots[1] and layout.GridSlots[1].Frame.S or (L - 20)
+	local lead = run(grid, L) -- grid to the line (the clock starts at GO, so this counts too)
+	local standing = run(0, L)
+	local flying = run(0, L)
+	return standing + lead, flying, lead + standing + flying * (laps - 1)
 end
 
 ---------------------------------------------------------------------------------------------

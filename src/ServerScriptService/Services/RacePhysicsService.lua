@@ -42,7 +42,19 @@ function RacePhysicsService.new(trackService, marbleService)
 	self.Fell = Utility.Signal.new() -- (player, zone)
 	self.MovementRejected = Utility.Signal.new() -- (player, info)
 	self.SampleComplete = Utility.Signal.new() -- () after every player was observed this sample
+	-- Circuits: (entity, zone) -> race S of where that entity's marble just appeared, so its
+	-- tracker counts from the right lap (RoundService / TimeTrialService set this)
+	self.hintFor = nil
 	return self
+end
+
+function RacePhysicsService:_newTracker(entity, zone, layout)
+	local hint = nil
+	if layout.Loop and self.hintFor then
+		local ok, value = pcall(self.hintFor, entity, zone)
+		hint = ok and value or nil
+	end
+	return RouteTracker.new(layout.Route, { hintS = hint })
 end
 
 function RacePhysicsService:GetEnvelope()
@@ -64,7 +76,7 @@ function RacePhysicsService:Start()
 			zone = zone,
 			hubId = hubId,
 			layout = layout,
-			tracker = RouteTracker.new(layout.Route),
+			tracker = self:_newTracker(player, zone, layout),
 			history = {},
 			offRouteSeconds = 0,
 			lastS = nil,
@@ -173,7 +185,7 @@ function RacePhysicsService:Track(entity, ball, zone, onFell)
 		ball = ball,
 		zone = zone,
 		layout = layout,
-		tracker = RouteTracker.new(layout.Route),
+		tracker = self:_newTracker(entity, zone, layout),
 		history = {},
 		offRouteSeconds = 0,
 		onFell = onFell,

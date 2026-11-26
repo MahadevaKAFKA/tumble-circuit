@@ -13,7 +13,15 @@ RaceConfig.Timers = {
 	ResultsSeconds = 12,
 	CleanupSeconds = 1,
 	GoBannerSeconds = 1, -- client shows "GO!" this long after Racing begins
+	-- Circuits (2026-11-26 three-lap brief). PROVISIONAL until phone slow-finisher data exists:
+	-- the course's own MaxRaceSeconds (Foundry: 480 s = ~2.3x the lap model's clean race) is the
+	-- hard cap; once the leader finishes everyone else gets this long (never more than was left).
+	FinishGraceSeconds = 90,
+	FinishRollOutSeconds = 1.2, -- a finisher rolls on this long, then moves to the finisher deck
 }
+
+-- Time Trial on a circuit: 1 lap (its own record key); set to 3 for full-race trials
+RaceConfig.TimeTrialLaps = 1
 
 RaceConfig.Recovery = {
 	FallRespawnDelaySeconds = 1.5, -- master target 1.5-2 s
