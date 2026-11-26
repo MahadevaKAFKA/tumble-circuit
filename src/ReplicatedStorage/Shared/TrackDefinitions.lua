@@ -550,6 +550,108 @@ TrackDefinitions.PracticeChute = {
 }
 
 ---------------------------------------------------------------------------------------------
+-- Promo pack prompts 04 / 07: map hubs (gated until their lifecycle tests pass). Same contract
+-- as the Garage: deck centre / in-radius / spawn ring / practice lane leaving toward +X.
+-- Positions mirror the Garage's offset from the Foundry start (120 below, 320 behind it).
+---------------------------------------------------------------------------------------------
+TrackDefinitions.BalloonTerminal = {
+	Center = Vector3.new(2600, 440, 320),
+	Radius = 40, -- octagon in-radius
+	FloorThickness = 2,
+	RimHeight = 5,
+	SpawnRingRadius = 16,
+	SpawnSlots = 16,
+	ChuteHeadingDeg = 90,
+	Style = "Terminal",
+	LandingTarget = { Piece = "LandingDeck", At = 8 }, -- where a clean drum bounce comes down (estimate)
+}
+
+TrackDefinitions.BalloonPractice = {
+	Id = "BalloonPractice_P04",
+	DisplayName = "Bounce Practice",
+	LayoutVersion = 1,
+	Origin = Vector3.new(2638, 440, 320),
+	StartHeadingDeg = 90,
+	FloorThickness = 1.6,
+	RailThickness = 1.2,
+	DefaultRails = { 4.5, 4.5 },
+	MaxStepLength = 24,
+	MaxYawStepDeg = 5,
+	MaxPitchStepDeg = 2,
+	MaxBankStepDeg = 3,
+	Theme = TrackDefinitions.SkyCarnival.Theme,
+	Pieces = {
+		{ Name = "ChuteLip", Segment = "Lip", Length = 8, Pitch = { 0, 0 }, Width = { 22, 22 } },
+		{ Name = "CanvasRamp", Segment = "Ramp", Length = 50, Pitch = { 0, 6 }, Width = { 22, 24 }, Arrows = true },
+		{ Name = "DrumApproach", Segment = "Drum", Length = 16, Pitch = { 6, 3 }, Width = { 24, 26 } },
+		{ Name = "DrumZone", Segment = "Drum", Length = 30, Pitch = { 3, 2 }, Width = { 26, 26 }, Rails = { 6, 6 } },
+		{ Name = "LandingDeck", Segment = "Landing", Length = 50, Pitch = { 2, 2 }, Width = { 26, 26 }, Rails = { 7, 7 } },
+		{ Name = "ChuteBasin", Segment = "Basin", Length = 26, Pitch = { 2, -3 }, Width = { 26, 28 }, Rails = { 6, 6 }, EndCap = true },
+	},
+	Spawn = { Piece = "ChuteLip", At = 2 },
+	StartLine = { Piece = "ChuteLip", At = 8 },
+	FinishLine = { Piece = "ChuteBasin", At = 10 }, -- crossing it returns the marble to the hub
+	Hazards = {
+		{ Kind = "Trampoline", Id = "PracticeDrum", Style = "Drum", Piece = "DrumZone", At = 10, Offset = 0, Width = 14, Length = 8, UpDeltaV = 36 },
+	},
+	Signs = {
+		{ Piece = "ChuteLip", At = 4, Text = "BOUNCE PRACTICE", Lift = 9 },
+		{ Piece = "DrumApproach", At = 2, Text = "DRUM - LAND ON THE TARGET", Lift = 9 },
+	},
+	Validation = { MinSegments = 3, MaxSegments = 6, MinLength = 100, MaxLength = 400 },
+	ArrowSpacing = 14,
+}
+
+TrackDefinitions.BasaltDeck = {
+	Center = Vector3.new(-2600, 320, 320),
+	Radius = 40, -- hexagon in-radius
+	FloorThickness = 2,
+	RimHeight = 5,
+	SpawnRingRadius = 16,
+	SpawnSlots = 16,
+	ChuteHeadingDeg = 90,
+	Style = "Basalt",
+}
+
+TrackDefinitions.BasaltPractice = {
+	Id = "BasaltPractice_P04",
+	DisplayName = "Piston Practice",
+	LayoutVersion = 1,
+	Origin = Vector3.new(-2562, 320, 320),
+	StartHeadingDeg = 90,
+	FloorThickness = 1.6,
+	RailThickness = 1.2,
+	DefaultRails = { 4.5, 4.5 },
+	MaxStepLength = 24,
+	MaxYawStepDeg = 5,
+	MaxPitchStepDeg = 2,
+	MaxBankStepDeg = 3,
+	Theme = TrackDefinitions.VolcanoVault.Theme,
+	Pieces = {
+		{ Name = "ChuteLip", Segment = "Lip", Length = 8, Pitch = { 0, 0 }, Width = { 22, 22 } },
+		{ Name = "InspectionRamp", Segment = "Ramp", Length = 40, Pitch = { 0, 5 }, Width = { 22, 22 }, Arrows = true },
+		{ Name = "PistonLane", Segment = "Piston", Length = 50, Pitch = { 5, 3 }, Width = { 22, 22 }, Rails = { 6, 6 } },
+		{ Name = "BrakeStraight", Segment = "Brake", Length = 40, Pitch = { 3, 2 }, Width = { 22, 22 }, Arrows = true },
+		{ Name = "ShortDrop", Segment = "Drop", Length = 24, Pitch = { 2, 10 }, Width = { 22, 22 }, Rails = { 7, 7 } },
+		{ Name = "DropEase", Segment = "Drop", Length = 20, Pitch = { 10, 3 }, Width = { 22, 22 }, Rails = { 7, 7 } },
+		{ Name = "ChuteBasin", Segment = "Basin", Length = 26, Pitch = { 3, -3 }, Width = { 22, 26 }, Rails = { 6, 6 }, EndCap = true },
+	},
+	Spawn = { Piece = "ChuteLip", At = 2 },
+	StartLine = { Piece = "ChuteLip", At = 8 },
+	FinishLine = { Piece = "ChuteBasin", At = 10 },
+	Hazards = {
+		{ Kind = "Hammer", Id = "DemoPiston", Style = "Piston", Piece = "PistonLane", At = 25, Amplitude = 6, Period = 4.6, HeadSize = 3.4 },
+	},
+	Signs = {
+		{ Piece = "ChuteLip", At = 4, Text = "PISTON PRACTICE", Lift = 9 },
+		{ Piece = "PistonLane", At = 2, Text = "SLOW PISTON - WATCH THE CYCLE", Lift = 9 },
+		{ Piece = "BrakeStraight", At = 4, Text = "BRAKE BEFORE THE DROP", Lift = 9 },
+	},
+	Validation = { MinSegments = 3, MaxSegments = 6, MinLength = 100, MaxLength = 400 },
+	ArrowSpacing = 14,
+}
+
+---------------------------------------------------------------------------------------------
 -- Frame math
 ---------------------------------------------------------------------------------------------
 

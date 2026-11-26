@@ -25,7 +25,7 @@ MapRegistry.DefaultHubId = "OrbitalGarage" -- the spawn hub, always available
 
 -- Builder names the server knows how to run (TrainingTrackService resolves them).
 MapRegistry.TrackBuilders = { SplineCourse = true }
-MapRegistry.HubBuilders = { RingDeck = true }
+MapRegistry.HubBuilders = { RingDeck = true, ThemedDeck = true }
 
 -- Development feature gates. Off on live servers unless listed in GameConfig; on in Studio.
 MapRegistry.Gates = { NewHubs = "NewHubs" }
@@ -50,7 +50,7 @@ MapRegistry.Maps = {
 	{
 		Id = "SkyCarnival_B1",
 		Track = "SkyCarnival_B1",
-		Hub = "OrbitalGarage", -- its own Balloon Terminal arrives behind the NewHubs gate (04/07)
+		Hub = "BalloonTerminal", -- gated (04/07): players without the gate use Orbital Garage
 		Builder = "SplineCourse",
 		Profile = "SkyCarnival",
 		Status = "Live",
@@ -66,7 +66,7 @@ MapRegistry.Maps = {
 	{
 		Id = "VolcanoVault_B1",
 		Track = "VolcanoVault_B1",
-		Hub = "OrbitalGarage",
+		Hub = "BasaltDeck", -- gated (04/09)
 		Builder = "SplineCourse",
 		Profile = "VolcanoVault",
 		Status = "Live",
@@ -95,6 +95,38 @@ MapRegistry.Hubs = {
 			DisplayName = "Orbital Garage",
 			Blurb = "The spawn hub above the Neon Foundry.",
 			BoardTitle = "ORBITAL GARAGE",
+		},
+	},
+	{
+		Id = "BalloonTerminal",
+		ModelName = "BalloonTerminal",
+		Builder = "ThemedDeck",
+		Map = "SkyCarnival_B1",
+		Profile = "BalloonTerminal",
+		Status = "Gated",
+		Gate = "NewHubs",
+		Geometry = TrackDefinitions.BalloonTerminal,
+		Chute = TrackDefinitions.BalloonPractice,
+		Meta = {
+			DisplayName = "Balloon Terminal",
+			Blurb = "A canvas boarding deck in the clouds below the Sky Carnival.",
+			BoardTitle = "BALLOON TERMINAL",
+		},
+	},
+	{
+		Id = "BasaltDeck",
+		ModelName = "BasaltInspectionDeck",
+		Builder = "ThemedDeck",
+		Map = "VolcanoVault_B1",
+		Profile = "BasaltDeck",
+		Status = "Gated",
+		Gate = "NewHubs",
+		Geometry = TrackDefinitions.BasaltDeck,
+		Chute = TrackDefinitions.BasaltPractice,
+		Meta = {
+			DisplayName = "Basalt Inspection Deck",
+			Blurb = "A furnace-lit inspection deck above the Volcano Vault.",
+			BoardTitle = "BASALT INSPECTION DECK",
 		},
 	},
 }

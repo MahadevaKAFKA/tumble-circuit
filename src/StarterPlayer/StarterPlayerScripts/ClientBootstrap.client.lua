@@ -55,6 +55,7 @@ local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 local RouteTracker = require(Shared:WaitForChild("RouteTracker"))
 local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 local MapRegistry = require(Shared:WaitForChild("MapRegistry"))
+local VisualProfiles = require(Shared:WaitForChild("VisualProfiles"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local PlaceholderIds = require(Shared:WaitForChild("PlaceholderIds"))
 
@@ -1056,6 +1057,111 @@ local clientStart = os.clock()
 local boardTimer = 0
 local lastAnchored = nil
 
+---------------------------------------------------------------------------------------------
+-- Prompt 04: per-hub practice hazards, per-zone visual profiles, MAPS selector pads
+---------------------------------------------------------------------------------------------
+-- Practice-lane hazards (Balloon Terminal drum, Basalt piston) run on the client exactly like
+-- the course's (HazardSim from a fixed seed and server time), only for the hub you are in.
+local hubHazards = {}
+local function hubHazardsFor(hubId)
+	local cached = hubHazards[hubId or ""]
+	if cached ~= nil then
+		return cached or nil
+	end
+	local entry = MapRegistry.RawHub(hubId)
+	local layout = hubLayouts[hubId or ""]
+	local model = entry and workspace:FindFirstChild(entry.ModelName)
+	local chuteRoot = model and model:FindFirstChild("PracticeChute")
+	if layout and chuteRoot and #(layout.Hazards or {}) > 0 then
+		local controller = HazardController.new(chuteRoot, motor, sound, layout)
+		controller:SetShieldQuery(function()
+			return abilities:IsShielded()
+		end)
+		controller:SetReducedMotion(reducedMotion)
+		controller:SetRound(0, 0)
+		hubHazards[hubId] = controller
+		maid:Give(function()
+			controller:Destroy()
+		end)
+		return controller
+	end
+	hubHazards[hubId or ""] = false
+	return nil
+end
+
+-- Visual profile of the zone you are in, applied to YOUR Lighting only (never the server's, so
+-- another player's hub or race never changes yours). Every profile writes every field, so
+-- leaving a zone unwinds the previous one completely. Behind the NewHubs gate: players without
+-- it keep the one night profile every build so far has used.
+local function myFeatures()
+	local out = {}
+	local text = player:GetAttribute(Protocol.PlayerAttributes.Features)
+	for name in string.gmatch(type(text) == "string" and text or "", "[^,]+") do
+		out[name] = true
+	end
+	return out
+end
+local appliedProfile = nil
+local function applyZoneProfile()
+	local name = VisualProfiles.Default
+	if myFeatures().NewHubs then
+		if currentZone == ZONES.Hub then
+			local hub = MapRegistry.RawHub(currentHubId)
+			name = hub and hub.Profile or name
+		else
+			local map = MapRegistry.RawMap(activeWorldId)
+			name = map and map.Profile or name
+		end
+	end
+	if name == appliedProfile then
+		return
+	end
+	local profile, fellBack = VisualProfiles.Get(name)
+	if fellBack then
+		warn("[Visual] profile " .. tostring(name) .. " missing; using " .. VisualProfiles.Default)
+	end
+	local ok, err = pcall(VisualProfiles.Apply, Lighting, profile, { bloom = Lighting:FindFirstChild("TC_Bloom"), grade = Lighting:FindFirstChild("TC_Grade") })
+	if not ok then
+		warn("[Visual] profile apply failed: " .. tostring(err)) -- the previous look stays; play goes on
+	end
+	appliedProfile = name
+end
+maid:Give(player:GetAttributeChangedSignal(Protocol.PlayerAttributes.Features):Connect(applyZoneProfile))
+
+-- MAPS selector pads (themed hubs): rolling onto one opens Map Selection once; leaving re-arms
+local selectorPads = {}
+for _, entry in ipairs(MapRegistry.Hubs) do
+	local model = workspace:FindFirstChild(entry.ModelName)
+	local decor = model and model:FindFirstChild("Decor")
+	if decor then
+		for _, part in ipairs(decor:GetChildren()) do
+			if part:GetAttribute("TC_Selector") then
+				selectorPads[#selectorPads + 1] = { part = part, radius = part:GetAttribute("Radius") or 3.5, hubId = entry.Id }
+			end
+		end
+	end
+end
+local onPad = false
+local function checkSelectorPads(position)
+	if currentZone ~= ZONES.Hub or #selectorPads == 0 then
+		onPad = false
+		return
+	end
+	local inside = false
+	for _, pad in ipairs(selectorPads) do
+		if pad.hubId == currentHubId then
+			local d = position - pad.part.Position
+			if Vector3.new(d.X, 0, d.Z).Magnitude <= pad.radius and math.abs(d.Y) < 6 then
+				inside = true
+			end
+		end
+	end
+	if inside and not onPad and not ui:GetModal() then
+		openModal("MapSelect")
+	end
+	onPad = inside
+end
+
 -- Hub platform free roam (owner playtest 2026-11-25): on the round platform there is no track, so
 -- the track-relative steering and auto-align fought the player. On the platform the stick moves the
 -- marble relative to the camera; on the practice chute (and the race) steering follows the track.
@@ -1082,6 +1188,7 @@ local function whereLabel(zone, index)
 end
 
 RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, function(dt)
+	applyZoneProfile() -- prompt 04: no-op unless your zone / hub / race map changed
 	hud:RecordFrame(dt)
 	modes:Step(workspace:GetServerTimeNow()) -- B1: Time Trial timer + PB ghost
 	local ball = currentBall
@@ -1142,6 +1249,11 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 			hazards:Step(ball)
 		else
 			hazards:Step(nil) -- keep the bumper's colours in sync while away
+			local practiceHazards = hubHazardsFor(currentHubId) -- prompt 04
+			if practiceHazards then
+				practiceHazards:Step(ball)
+			end
+			checkSelectorPads(ball.Position)
 		end
 
 		-- Stuck hint: racing, trying to move, slow, and no route progress for a while.

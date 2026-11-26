@@ -45,6 +45,7 @@ local modules = {
 	PlaceholderIds = require(Shared:WaitForChild("PlaceholderIds")),
 	Builder = require(Builders:WaitForChild("TrainingTrackBuilder")),
 	HubBuilder = require(Builders:WaitForChild("HubBuilder")),
+	ThemedHubBuilder = require(Builders:WaitForChild("ThemedHubBuilder")),
 	RaceRules = require(Services:WaitForChild("RaceRules")),
 	CheckpointService = require(Services:WaitForChild("CheckpointService")),
 	AbilityConfig = require(Shared:WaitForChild("AbilityConfig")),
@@ -144,6 +145,7 @@ report("C capsule / season specs", require(Unit:WaitForChild("CCapsules.spec")).
 report("D commerce / security specs", require(Unit:WaitForChild("DCommerce.spec")).run(modules))
 report("Prompt 02 map registry specs", require(Unit:WaitForChild("MapRegistry.spec")).run(modules))
 report("Prompt 03 map selection specs", require(Unit:WaitForChild("MapSelection.spec")).run(modules))
+report("Prompts 04/07 hub lifecycle specs", require(Unit:WaitForChild("HubLifecycle.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }

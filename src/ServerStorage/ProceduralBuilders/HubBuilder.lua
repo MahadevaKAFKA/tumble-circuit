@@ -248,6 +248,9 @@ local function boardGui(part, title)
 	surface.Parent = part
 end
 
+HubBuilder.BoardGui = boardGui -- prompt 04: themed hubs reuse the same board contract
+HubBuilder.HeadingVectors = headingVectors
+
 function HubBuilder.Build(hub, parent, name, chuteWidth, makePart, title)
 	local root = Instance.new("Folder")
 	root.Name = name

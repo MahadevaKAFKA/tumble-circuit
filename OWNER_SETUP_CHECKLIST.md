@@ -26,6 +26,12 @@ private, with **every product off**.
       BUILD_STATUS performance); don't raise it to 20 without a 16+ player test.
 - [ ] Thumbnails / icon / description: briefs and copy in `docs/LAUNCH_KIT.md` (make real
       screenshots from the game — none are invented).
+- [ ] **Gated hubs** (promo pack 04/07). Balloon Terminal and Basalt Inspection Deck, with
+      their per-map lighting, are shown only to your own account
+      (`GameConfig.Features.OwnerSeesGated`). Before going public, either:
+      - set `OwnerSeesGated = false`, so nobody sees them; or
+      - ask for them to be moved to `Status = "Live"` in `MapRegistry`, but only after the
+        hub lifecycle tests in BUILD_STATUS have passed on your phone.
 - [ ] Visibility: only you switch the experience to Public (Creator Dashboard → Settings). After
       that, the Deploy workflow refuses to publish updates unless you tick `allow_public` when you
       run it — so an update never goes live by accident.

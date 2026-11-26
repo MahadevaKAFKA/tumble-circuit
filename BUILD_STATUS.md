@@ -1,7 +1,8 @@
 # BUILD_STATUS — Tumble Circuit: Chaos Drop
 
 **Active milestone:** Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
-02 map + hub registry (v21) and 03 map selection / ballots (v22) done. Baseline: docs/AUDIT_BASELINE.md.
+02 registry (v21), 03 map selection / ballots (v22), 04 + 07 per-map hubs (v23, gated) done.
+Baseline: docs/AUDIT_BASELINE.md.
 **State:** A1–A6 played and approved on the owner's phone. The owner reported on 2026-11-26
 that v16–v20 (B1–D) "work as intended". The real race times and two-player features have not
 been measured yet. Nothing is purchasable: every product id is nil and paid capsules are off.
@@ -10,6 +11,61 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Prompts 04 + 07: a hub per map, Sky Carnival slice behind a gate (v23, private)
+
+- **Two new hubs, built from `ThemedHubBuilder`**, each with its own silhouette, materials and
+  landmark:
+  - **Balloon Terminal** (Sky Carnival): an octagonal canvas deck in cream and blue, with a
+    tethered balloon, striped awnings and clouds.
+  - **Basalt Inspection Deck** (Volcano Vault): a hexagonal basalt deck, with a furnace window,
+    a chimney and amber instrument panels.
+  - Both share the Garage's contract: spawn ring, next-race board, rim open to the practice
+    lane. Each also has a MAPS kiosk and a selector pad next to the spawn ring (rolling onto
+    the pad opens Map Selection), a RACE DEPARTURES sign with a painted lane, and a PRACTICE
+    arch.
+  - Each sits 120 studs below and 320 behind its course's start, mirroring the Garage, so its
+    map is in view.
+- **Practice lanes teach the map's skill.**
+  - Balloon: one wide drum (14 studs, a softer kick than the course's), roomy rails, and a
+    painted landing target. The target's spot is an estimate until someone plays it.
+  - Basalt: one slow demonstration piston (a 4.6 s cycle; the course's is 3.2 s) and a BRAKE
+    straight before a short drop.
+  - Hazards in a hub run on your client from a fixed seed, the same model as on the course.
+- **Lifecycle.**
+  - The hub you choose is yours alone. Lighting changes only on your client and only in the
+    zone you're in; every profile sets every field, so leaving a zone fully undoes it. A missing
+    profile falls back to the night look.
+  - Racers from any hub share one queue and one race, and each returns to the hub they chose. If
+    that hub failed to load, they return to Orbital Garage.
+- **Gate (`NewHubs`).**
+  - On live servers only the experience's creator account sees the new hubs and the per-map
+    lighting. Everyone else keeps Orbital Garage and the night lighting, unchanged.
+  - Studio turns the gate on for everyone. The three race maps stay in rotation for everyone.
+  - Sky Carnival's own route is unchanged here; prompt 08's route refinements are a separate
+    milestone.
+- **Compared with the baseline** (offline counts): +443 built parts (5,995 → 6,438, +7.4%),
+  136 place instances, 122 scripts. Frame time, memory and load time on the phone: **pending**.
+  Read them from the overlay in Orbital Garage, then in Balloon Terminal.
+- **Results.** Offline: 638 passing, including 41 new in HubLifecycle.spec. It covers:
+  - every hub validating;
+  - placement clearances and distinct silhouettes and landmarks;
+  - practice obstacles and the gate on and off;
+  - card states and the two-player lifecycle (different hubs, one race, back to each hub);
+  - the failed-hub fallback, queue continuity on leave, a missing practice spawn and a missing
+    profile.
+
+  Runtime: **pending**.
+- **Phone test, on your account** (the gate is on for you):
+  1. MAPS → Sky Carnival → VISIT HUB: you land on the octagonal deck with the balloon, and the
+     sky turns to day.
+  2. Roll onto the pink pad next to the MAPS kiosk: Map Selection opens.
+  3. PRACTICE: you start on the bounce lane. Hit the drum and land near the rings.
+  4. JOIN RACE: you race, then come back to Balloon Terminal.
+  5. Visit Volcano's hub: piston lane, BRAKE sign.
+  6. Visit Orbital Garage: the night lighting returns.
+- **Two clients.** A friend, or a second account without the gate, stays in Orbital Garage
+  with night lighting. Both join one race, and each returns to their own hub.
 
 ## 2026-11-26 — Prompt 03: Map Selection, ballots, personal destinations (v22, private)
 

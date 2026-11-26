@@ -68,6 +68,7 @@ ok    src/ServerScriptService/Services/TrainingTrackService.lua
 ok    src/ServerScriptService/Services/VoteRules.lua
 ok    src/ServerStorage/ProceduralBuilders/BotFactory.lua
 ok    src/ServerStorage/ProceduralBuilders/HubBuilder.lua
+ok    src/ServerStorage/ProceduralBuilders/ThemedHubBuilder.lua
 ok    src/ServerStorage/ProceduralBuilders/TrainingTrackBuilder.lua
 ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/AbilityController.lua
@@ -108,6 +109,7 @@ ok    src/Tests/Unit/DCommerce.spec.lua
 ok    src/Tests/Unit/FreeLook.spec.lua
 ok    src/Tests/Unit/HazardReset.spec.lua
 ok    src/Tests/Unit/HubFreeRoam.spec.lua
+ok    src/Tests/Unit/HubLifecycle.spec.lua
 ok    src/Tests/Unit/MapRegistry.spec.lua
 ok    src/Tests/Unit/MapSelection.spec.lua
 ok    src/Tests/Unit/MicroSkill.spec.lua
@@ -677,6 +679,49 @@ PASS  card: Visit is disabled with a reason when you're already there
 PASS  card: while racing Visit says AFTER RACE and Practice is disabled
 PASS  card: a map the server dropped cannot be voted for (and says why)
 
+-- Prompts 04/07 hub lifecycle specs --
+PASS  OrbitalGarage: practice lane + deck validate (spawns, entry, return)
+PASS  OrbitalGarage: short practice lane (100-400 studs)
+PASS  BalloonTerminal: practice lane + deck validate (spawns, entry, return)
+PASS  BalloonTerminal: short practice lane (100-400 studs)
+PASS  BasaltDeck: practice lane + deck validate (spawns, entry, return)
+PASS  BasaltDeck: short practice lane (100-400 studs)
+PASS  no hub or practice lane comes within 150 studs of any race course
+PASS  hubs are far apart (one hub's look never reaches another's)
+PASS  Balloon Terminal sits below and behind the Sky Carnival start (view toward its map)
+PASS  OrbitalGarage: builds (all part sizes valid), 100 parts
+PASS  OrbitalGarage: has the shared next-race board
+PASS  BalloonTerminal: builds (all part sizes valid), 88 parts
+PASS  BalloonTerminal: has the shared next-race board
+PASS  BalloonTerminal: MAPS kiosk with a selector pad near spawn
+PASS  BalloonTerminal: rim is open toward the practice lane
+PASS  BalloonTerminal: selector pad is a short roll from the spawn ring, on the deck
+PASS  BasaltDeck: builds (all part sizes valid), 57 parts
+PASS  BasaltDeck: has the shared next-race board
+PASS  BasaltDeck: MAPS kiosk with a selector pad near spawn
+PASS  BasaltDeck: rim is open toward the practice lane
+PASS  BasaltDeck: selector pad is a short roll from the spawn ring, on the deck
+PASS  three silhouettes: round Garage, octagon Terminal, hexagon Basalt
+PASS  each map hub has its own landmark
+PASS  Balloon Terminal paints a landing target on its practice lane
+PASS  Balloon Terminal lane: one wide drum (bounce control and landing)
+PASS  Basalt lane: one slow demonstration piston (burst timing), slower than the course's
+PASS  Orbital Garage lane unchanged (no hazards)
+PASS  Basalt lane teaches braking before its drop
+PASS  new hubs are gated behind NewHubs
+PASS  without the gate: Sky Carnival's hub resolves to Orbital Garage
+PASS  with the gate: Sky Carnival -> Balloon Terminal, Volcano -> Basalt Deck
+PASS  the race maps stay Live (gating a hub never removes a race)
+PASS  card without the gate explains the hub is in testing
+PASS  card with the gate visits Balloon Terminal
+PASS  player A visits Balloon Terminal; friend F stays in Orbital Garage
+PASS  both queue from different hubs and enter the same next race
+PASS  after results each returns to the hub they chose
+PASS  if Balloon Terminal failed to load, A lands in Orbital Garage
+PASS  queue continuity: one client leaves, the other's ballot and place stay
+PASS  a hub with a missing practice spawn is rejected at load (then not offered)
+PASS  every hub's visual profile exists (a missing one falls back to the night profile)
+
 -- A5 persistence specs --
 PASS  defaults are deterministic
 PASS  defaults carry every field (current schema)
@@ -790,4 +835,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-597 passed, 0 failed (+ 0 syntax failures)
+638 passed, 0 failed (+ 0 syntax failures)

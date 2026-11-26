@@ -27,6 +27,7 @@ local VisualProfiles = require(Shared:WaitForChild("VisualProfiles"))
 local Builders = ServerStorage:WaitForChild("ProceduralBuilders")
 local Builder = require(Builders:WaitForChild("TrainingTrackBuilder"))
 local HubBuilder = require(Builders:WaitForChild("HubBuilder"))
+local ThemedHubBuilder = require(Builders:WaitForChild("ThemedHubBuilder"))
 local MapLoader = require(script.Parent:WaitForChild("MapLoader"))
 local TrackValidator = require(script.Parent:WaitForChild("TrackValidator"))
 local Utility = require(Shared:WaitForChild("Utility"))
@@ -40,6 +41,9 @@ local TRACK_BUILDERS = {
 local HUB_BUILDERS = {
 	RingDeck = function(entry, parent, chuteWidth)
 		return HubBuilder.Build(entry.Geometry, parent, entry.ModelName, chuteWidth, Builder.MakePart, entry.Meta and entry.Meta.BoardTitle)
+	end,
+	ThemedDeck = function(entry, parent, chuteWidth, chuteLayout) -- prompt 04: map hubs
+		return ThemedHubBuilder.Build(entry.Geometry, parent, entry.ModelName, chuteWidth, Builder.MakePart, entry.Meta and entry.Meta.BoardTitle, chuteLayout)
 	end,
 }
 
@@ -121,7 +125,7 @@ local function buildHub(self, entry, radius)
 	for _, message in ipairs(MapLoader.ValidateHub(geometry, chute, spawns, killY)) do
 		errors[#errors + 1] = message
 	end
-	local root, hubCount = build(entry, workspace, entry.Chute.Pieces[1].Width[1])
+	local root, hubCount = build(entry, workspace, entry.Chute.Pieces[1].Width[1], chute)
 	local _, chuteCount = Builder.Build(chute, root, "PracticeChute")
 	root:SetAttribute("HubId", entry.Id)
 	return { entry = entry, layout = chute, root = root, spawns = spawns, cursor = 0, killY = killY, count = hubCount + chuteCount }, errors

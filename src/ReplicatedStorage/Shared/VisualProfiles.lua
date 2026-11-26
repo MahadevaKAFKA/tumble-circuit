@@ -59,6 +59,7 @@ VisualProfiles.Profiles = {
 }
 VisualProfiles.Profiles.OrbitalGarage = VisualProfiles.Profiles.NeonFoundry
 VisualProfiles.Profiles.BalloonTerminal = VisualProfiles.Profiles.SkyCarnival
+VisualProfiles.Profiles.BasaltDeck = VisualProfiles.Profiles.VolcanoVault
 
 VisualProfiles.Fields = {
 	"ClockTime", "Brightness", "Ambient", "OutdoorAmbient", "EnvironmentDiffuseScale",
