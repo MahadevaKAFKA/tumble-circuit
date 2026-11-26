@@ -3,6 +3,8 @@ ok    PLACEHOLDER_IDS.lua
 ok    src/ReplicatedStorage/Shared/AbilityConfig.lua
 ok    src/ReplicatedStorage/Shared/CapsuleOdds.lua
 ok    src/ReplicatedStorage/Shared/Catalog.lua
+ok    src/ReplicatedStorage/Shared/ChallengeConfig.lua
+ok    src/ReplicatedStorage/Shared/CupConfig.lua
 ok    src/ReplicatedStorage/Shared/Dressing.lua
 ok    src/ReplicatedStorage/Shared/EconomyModel.lua
 ok    src/ReplicatedStorage/Shared/EnvironmentProfiles.lua
@@ -37,6 +39,7 @@ ok    src/ServerScriptService/Services/BallotRules.lua
 ok    src/ServerScriptService/Services/BotBrain.lua
 ok    src/ServerScriptService/Services/BotService.lua
 ok    src/ServerScriptService/Services/CapsuleService.lua
+ok    src/ServerScriptService/Services/ChallengeService.lua
 ok    src/ServerScriptService/Services/ChaosGateService.lua
 ok    src/ServerScriptService/Services/CheckpointService.lua
 ok    src/ServerScriptService/Services/CosmeticService.lua
@@ -81,6 +84,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/AbilityController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CapsuleRevealController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ChallengeController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/DevPanelController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/EnvironmentController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController.lua
@@ -120,6 +124,7 @@ ok    src/Tests/Unit/B2Abilities.spec.lua
 ok    src/Tests/Unit/B3Progression.spec.lua
 ok    src/Tests/Unit/BotNavigation.spec.lua
 ok    src/Tests/Unit/CCapsules.spec.lua
+ok    src/Tests/Unit/Challenges.spec.lua
 ok    src/Tests/Unit/ChaosGate.spec.lua
 ok    src/Tests/Unit/Circuits.spec.lua
 ok    src/Tests/Unit/DCommerce.spec.lua
@@ -156,7 +161,8 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (8947 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 279.7 ms
+PRINT	[Track] challenge drop_shaft built (785 studs, 3 gates)
+PRINT	[Track] built 3 maps (8947 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 367.2 ms
 PRINT	[TumbleCircuit] server ready (A6.0, protocol v16)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
@@ -535,7 +541,7 @@ PASS  Bounce Burst: one bounded upward bounce on the next hit, only once
 -- B3 progression specs --
 PASS  35 marbles: 12 Common / 10 Rare / 7 Epic / 4 Legendary / 2 Mythic
 PASS  12 trails, 8 finish bursts, 8 emotes
-PASS  D exclusives: 3 Founder + 3 Season 1 premium + 2 direct-purchase launch animations, nothing else
+PASS  D exclusives: 3 Founder + 3 Season 1 premium + 2 direct-purchase launch animations + 1 mastery reward, nothing else
 PASS  ids are stable lowercase slugs (not display names), <= 40 chars
 PASS  starters and defaults exist (Cobalt, Dust, Confetti, 3 emotes)
 PASS  level rewards every 5 levels (5..50), all real items
@@ -808,7 +814,7 @@ info  Foundry dressing: 675 local parts (206 detail, hidden on Low)
 -- Protocol key specs --
 PASS  every Protocol attribute / reason / zone key used in code exists
 PASS  no Protocol table is defined twice (a second one silently replaces the first)
-info  120 protocol key uses scanned
+info  142 protocol key uses scanned
 
 -- UI overhaul specs --
 PASS  display preferences exist with the handoff defaults (100%, 95%, Standard, Follow map, ...)
@@ -1155,4 +1161,56 @@ PASS  a round is ranked only with 4+ humans who ALL opted in; otherwise Casual w
 PASS  rank card: placement progress, the wait note and a pending (never invented) result
 info  200 simulated 6-player races: ratings 1404 (best) ... 606 (weakest)
 
-895 passed, 0 failed (+ 0 syntax failures)
+-- Challenge specs (Drop Shaft loop, mastery, ghosts) --
+PASS  a challenge key carries id, revision, ruleset and scoring (a revision never mixes times)
+PASS  medals: 21.00 is gold, 21.01 silver, 28.00 bronze, 28.01 none
+PASS  codes resolve case-insensitively against the allowlist only
+PASS  weekly windows are UTC weeks from the epoch; the rotation starts with the Drop Shaft
+PASS  the share line names the challenge, the time and the code
+PASS  Neon Foundry mastery: 3 goals (clean circuit, fast sector, signature line) -> the Foundry exhaust trail
+PASS  the Drop Shaft course generates and validates
+PASS  a single run (not a loop): 3 gates then the finish; the qualifying line sits between the lip and the landing gate
+PASS  split delta: negative = ahead of your best; nil without a best
+PASS  signature line: the first landing must reach the qualifying line
+PASS  TRY: placed frozen on the challenge start (tagged with the challenge id) and sat out of the next race
+PASS  no ghost yet: the attempt says so plainly (and that no friend has shared one)
+PASS  GO: the attempt runs and the marble is released (free on the start)
+PASS  a fall ends the attempt cleanly: Failed + frozen back on the start, no time saved
+PASS  RETRY is one action: a 2 s countdown on the start, attempt 2
+PASS  a valid finish saves best + gold medal + splits under the challenge key
+PASS  the result card carries the share line and the code
+PASS  mastery: Fast Sector (gold) and Signature Line (landed past the qualifying line) - no reward yet (2/3)
+PASS  the PB ghost is kept (server samples of the valid run)
+PASS  a slower finish never replaces the best or downgrades the medal
+PASS  split deltas compare against the saved best (positive = behind)
+PASS  Clean Circuit goals map to their circuits
+PASS  all three Foundry goals grant the Foundry exhaust trail once
+PASS  a friend's unshared ghost is never shown (honest fallback note)
+PASS  SHARE MY GHOST is explicit and confirmed
+PASS  after sharing, a friend in the server races it (named)
+PASS  not friends -> no ghost, even when shared
+PASS  a shared ghost from another challenge version never matches
+PASS  a typed code opens the card (resolved on the server)
+PASS  an unknown code is refused with a plain reason
+PASS  QUIT ends the attempt and sends you back to the hub
+PASS  racers in the current round cannot start an attempt
+PASS  too-fast times (< 8 s) can never be a best
+PASS  the mock attempt flow ran to the end
+PASS  gate order: crossings sort by interpolated time even when samples arrive late
+PASS  signed gap to the racer ahead (B is +0.50 to A)
+PASS  story: 'Climbed from P6 to P2 · clean race · best lap 1:04.2 (lap 2)'
+PASS  story: lights to flag / a drop with its cause / a DNF says what happened
+PASS  gap chip: '+0.84 to MIA (P2)' / '-1.20 [BOT] SAM behind' / 'P1 AT THIS GATE'
+PASS  the Foundry Cup pilot is staging-only with no prize
+PASS  qualifier: the top 12 weekly times, ties to whoever set the time first
+PASS  final points 25/18/15, DNF 0; tied on points and wins -> qualifier time decides
+PASS  client split delta text: -0.42 ahead, +1.10 behind
+PASS  client countdown: 3 / 2 / 1 / GO
+PASS  Clean Capture guide: a centred 9:16 frame in a landscape viewport
+PASS  Clean Capture guide fits a portrait viewport too
+PASS  result card: 'THE DROP SHAFT · 24.81 s · SILVER' and NEW BEST
+PASS  challenge card: medal targets, no-time line, mastery 2/3, weekly window
+info  Drop Shaft: 785 studs start->finish, qualifying line at S 418
+info  mock gold run: 15.94 s
+
+943 passed, 0 failed (+ 0 syntax failures)

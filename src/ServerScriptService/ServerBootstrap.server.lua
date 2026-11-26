@@ -169,6 +169,11 @@ local ranked = RankService.new({ data = playerData, round = round, remotes = rem
 round.ranked = ranked
 ranked:Start()
 timeTrial:Start()
+-- challenges brief: solo challenge attempts (Drop Shaft), Weekly board, share codes, mastery
+local ChallengeService = require(Services:WaitForChild("ChallengeService"))
+local challenges = ChallengeService.new({ track = track, marbles = marbles, physics = physics, round = round, remotes = remotes, data = playerData, cosmetics = cosmetics, timeTrial = timeTrial, telemetry = telemetry })
+round.challenges = challenges
+challenges:Start()
 cosmetics:Start()
 quests:Start()
 leaderboards:Start()
@@ -226,7 +231,7 @@ bots:Start() -- bots only spawn at Preparing, so they can start after the folder
 perf:Start()
 
 -- Studio integration tests can reach the live services through this table (never replicated).
-_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev, social = social, party = party, timeTrial = timeTrial, cosmetics = cosmetics, quests = quests, leaderboards = leaderboards, telemetry = telemetry, capsules = capsules, seasons = seasons, products = products, anticheat = anticheat, hubs = hubs }
+_G.TumbleCircuitServer = { track = track, marbles = marbles, physics = physics, checkpoints = checkpoints, progress = progress, round = round, abilities = abilities, micro = micro, remotes = remotes, hazards = hazards, bots = bots, chaos = chaos, perf = perf, playerData = playerData, economy = economy, dev = dev, social = social, party = party, timeTrial = timeTrial, challenges = challenges, cosmetics = cosmetics, quests = quests, leaderboards = leaderboards, telemetry = telemetry, capsules = capsules, seasons = seasons, products = products, anticheat = anticheat, hubs = hubs }
 
 serverReady = true
 print(string.format("[TumbleCircuit] server ready (%s, protocol v%d)", GameConfig.Version, RoundProtocol.Version))

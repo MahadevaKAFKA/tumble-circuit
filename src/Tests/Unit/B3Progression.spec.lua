@@ -42,7 +42,7 @@ function Spec.run(m)
 			exclusives = exclusives + 1
 		end
 	end
-	check("D exclusives: 3 Founder + 3 Season 1 premium + 2 direct-purchase launch animations, nothing else", exclusives == 8 and C.Items.launch_spring.Exclusive == "Shop" and C.Items.launch_afterimage.Exclusive == "Shop")
+	check("D exclusives: 3 Founder + 3 Season 1 premium + 2 direct-purchase launch animations + 1 mastery reward, nothing else", exclusives == 9 and C.Items.trail_foundry_exhaust.Exclusive == "Mastery" and C.Items.launch_spring.Exclusive == "Shop" and C.Items.launch_afterimage.Exclusive == "Shop")
 	local idsOk = true
 	for id, item in pairs(C.Items) do
 		if not string.match(id, "^[a-z0-9_]+$") or item.Id ~= id or #id > 40 then
@@ -179,7 +179,7 @@ function Spec.run(m)
 	local HM = m.HubMenusPure
 	if HM then
 		local state = { owned = { cobalt = true, lime_pop = true }, favorites = { lime_pop = true } }
-		check("garage filters: owned / favorites / rarity", #HM.FilterItems("Marble", "Owned", state) == 2 and #HM.FilterItems("Marble", "Favorites", state) == 1 and #HM.FilterItems("Marble", "Mythic", state) == 2 and #HM.FilterItems("Trail", "All", state) == 14)
+		check("garage filters: owned / favorites / rarity", #HM.FilterItems("Marble", "Owned", state) == 2 and #HM.FilterItems("Marble", "Favorites", state) == 1 and #HM.FilterItems("Marble", "Mythic", state) == 2 and #HM.FilterItems("Trail", "All", state) == 15)
 		check("reset timer text", HM.Duration(90061) == "1d 1h" and HM.Duration(3720) == "1h 2m")
 	end
 	local SP = m.SocialPure

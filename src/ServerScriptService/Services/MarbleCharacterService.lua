@@ -124,6 +124,8 @@ local function createBall(player, cframe, zone, frozen, look, hubId)
 	ball:SetAttribute(BALL.Zone, zone)
 	if zone == Protocol.Zones.Hub then
 		ball:SetAttribute(BALL.HubId, hubId or MapRegistry.DefaultHubId) -- prompt 03/04
+	elseif hubId then
+		ball:SetAttribute(BALL.HubId, hubId) -- challenges brief: a race-zone marble on a challenge course
 	end
 	ball:SetAttribute(BALL.Protected, true)
 	ball:SetAttribute(BALL.Frozen, frozen)

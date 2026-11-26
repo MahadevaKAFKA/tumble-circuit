@@ -157,6 +157,8 @@ Catalog.Items.launch_afterimage.Exclusive = "Shop"
 -- D: Founder's Style Pack exclusives (a permanent Game Pass). Never in capsules, the Shard
 -- Shop, level rewards or the season; visual only like everything else.
 add("Trail", "trail_founder_gold", "Founder Gold", "Legendary", { Colors = { rgb(255, 230, 150), rgb(255, 170, 40) }, Profile = "Twin", Exclusive = "Founder" })
+-- 2026-11-26 challenges brief: map mastery reward (earned once; never sold, never in a case)
+add("Trail", "trail_foundry_exhaust", "Foundry Exhaust", "Epic", { Colors = { rgb(255, 150, 60), rgb(90, 110, 160) }, Profile = "Wide", Exclusive = "Mastery" })
 add("Emote", "emote_founder_wave", "Founder wave!", "Legendary", { Icon = "*", Exclusive = "Founder" })
 add("Emote", "emote_founder_salute", "Salute!", "Legendary", { Icon = "^", Exclusive = "Founder" })
 -- D: Season 1 premium lane (season-keyed purchase; only claimable during Season 1)
@@ -191,7 +193,9 @@ Catalog.LevelRewards = {
 -- How a not-yet-owned item is earned (shown in the garage; never a buy button)
 function Catalog.HowToEarn(id)
 	local item = Catalog.Items[id]
-	if item and item.Exclusive == "Founder" then
+	if item and item.Exclusive == "Mastery" then
+		return "Neon Foundry mastery: Clean Circuit + Fast Sector + Signature Line"
+	elseif item and item.Exclusive == "Founder" then
 		return "Founder's Style Pack (optional, in SHOP when on sale)"
 	elseif item and item.Exclusive == "Shop" then
 		return "Direct purchase in SHOP (optional; not on sale yet)"

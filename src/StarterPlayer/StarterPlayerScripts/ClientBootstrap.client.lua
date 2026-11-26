@@ -422,9 +422,13 @@ end))
 local rank = maid:Give(RankController.new({ remotes = remote, toast = function(text, seconds)
 	hud:Toast(text, seconds)
 end }))
+-- challenges brief: solo challenges (MORE > CHALLENGE), share codes, ghosts, Clean Capture
+local challenge = maid:Give(require(Controllers:WaitForChild("ChallengeController")).new({ remotes = remote, toast = function(text, seconds)
+	hud:Toast(text, seconds)
+end }))
 if not GameConfig.UI.LegacyHud then
 	-- v2 hub (owner feedback 2026-11-26): profile chip + PLAY card top right, icon dock bottom
-	matchUi:UseDockLayout({ buttons = { modes.trialButton, modes.partyButton, rank.openButton }, emotes = social.emoteBar })
+	matchUi:UseDockLayout({ buttons = { modes.trialButton, modes.partyButton, rank.openButton, challenge.openButton }, emotes = social.emoteBar })
 	modes:SetCardMode(true)
 	raceHud:UseStrip()
 end
@@ -539,6 +543,9 @@ local function canSteer()
 	if modes:IsInTrial() then
 		return true -- B1 Time Trial (the server froze the marble during its countdown)
 	end
+	if challenge:IsActive() then
+		return true -- challenges brief: frozen on the start until GO, free after
+	end
 	local me = myEntry()
 	return roundState() == S.Racing and me ~= nil and not me.finished
 end
@@ -553,6 +560,9 @@ local function canRecover()
 	if modes:IsInTrial() then
 		return true -- B1: back to your last Time Trial checkpoint
 	end
+	if challenge:IsActive() then
+		return true -- challenges brief: a reset ends the attempt; you wait on the start for RETRY
+	end
 	local state = roundState()
 	return state == S.Racing or state == S.Results
 end
@@ -560,6 +570,7 @@ end
 -- UIController layers: each ScreenGui shows only when the current screen / modal lists it.
 ui:Register("Title", function() end) -- the title overlay is driven by the PLAY flow below
 modes:RegisterLayers(ui) -- B1: "Modes" (lobby) and "TimeTrial"
+challenge:RegisterLayers(ui) -- challenges brief: the attempt layer
 -- B3: GARAGE / QUESTS / BOARDS modals
 local hubMenus = maid:Give(HubMenusController.new({
 	remotes = remote,
@@ -595,7 +606,7 @@ ui:Register("Phase", function(visible)
 	phaseStrip:SetVisible(visible)
 end)
 ui:Register("Hud", function(visible)
-	hud:SetHudVisible(visible)
+	hud:SetHudVisible(visible and not challenge:IsCleanCapture()) -- Clean Capture keeps only the timer
 end)
 ui:Register("RaceHud", function(visible)
 	raceHud:SetVisible(visible)
@@ -635,6 +646,7 @@ local function refreshGates()
 		started = uiState == "Live",
 		spectating = spectate.active,
 		timeTrial = modes:IsInTrial(), -- B1
+		challenge = challenge:IsActive(), -- challenges brief
 		roundState = roundState(),
 		inRace = me ~= nil,
 		resultsDismissed = snapshot ~= nil and resultsDismissedRound == snapshot.roundId,
@@ -782,6 +794,9 @@ local function bindBall(ball)
 		currentHubId = hubLayouts[hubId or ""] and hubId or MapRegistry.DefaultHubId
 		layouts[ZONES.Hub] = hubLayouts[currentHubId]
 	end
+	-- challenges brief: a challenge marble's tracker / camera follow the challenge course
+	local challengeLayout = challenge:BindCourse(currentZone == ZONES.Race and ball:GetAttribute(BALL.HubId) or nil)
+	layouts[ZONES.Race] = challengeLayout or worldLayouts[activeWorldId]
 	-- circuits: start the tracker on the lap the server has confirmed (grid = just behind the line)
 	local hintS = nil
 	local raceLayout = layouts[ZONES.Race]
@@ -851,6 +866,9 @@ end))
 -- Round snapshots and server notices
 ---------------------------------------------------------------------------------------------
 local lastState = nil
+maid:Give(challenge.Changed:Connect(function()
+	refreshGates() -- an attempt started / ended, or Clean Capture toggled
+end))
 maid:Give(modes.Changed:Connect(function()
 	refreshGates() -- B1: Time Trial started / ended changes the screen
 end))
@@ -862,7 +880,7 @@ local function setWorld(worldId)
 		return
 	end
 	activeWorldId = worldId
-	layouts[ZONES.Race] = layout
+	layouts[ZONES.Race] = challenge:BoundLayout() or layout
 	local old = hazards
 	hazards = HazardController.new(course:FindFirstChild(worldId) or course, motor, sound, layout)
 	hazards:SetShieldQuery(function()
@@ -924,6 +942,17 @@ maid:Give(remote.RoundSnapshot.OnClientEvent:Connect(function(snap)
 	refreshGates()
 end))
 maid:Give(remote.CheckpointFeedback.OnClientEvent:Connect(function(data)
+	-- challenges brief: the signed gap at each gate + a RIVAL tag on the marble just ahead
+	local gapText, gapTone = RaceHUD.GapText(data)
+	if gapText then
+		raceHud:ShowGap(gapText, gapTone)
+	end
+	if type(data) == "table" and data.kind == "GapBehind" then
+		return
+	end
+	if type(data) == "table" and type(data.aheadUserId) == "number" then
+		raceHud:SetRival(marblesFolder:FindFirstChild(Protocol.MarbleName(data.aheadUserId)), string.format("RIVAL  +%.2f", data.aheadGap or 0))
+	end
 	if type(data) == "table" and type(data.index) == "number" and type(data.total) == "number" then
 		if data.kind == "Lap" and type(data.lap) == "number" and type(data.laps) == "number" then
 			raceHud:FlashLap(data.lap, data.laps, type(data.lapSeconds) == "number" and data.lapSeconds or nil)
@@ -1459,6 +1488,7 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	end -- prompt 04: no-op unless your zone / hub / race map changed
 	hud:RecordFrame(dt)
 	modes:Step(workspace:GetServerTimeNow()) -- B1: Time Trial timer + PB ghost
+	challenge:Step(workspace:GetServerTimeNow()) -- challenges brief: timer, splits, ghosts, 9:16 guide
 	local ball = currentBall
 	if ball and ball.Anchored ~= lastAnchored then
 		lastAnchored = ball.Anchored -- released at GO
@@ -1670,6 +1700,9 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	readability:Step(PhysicsConfig.Ball.Radius)
 	if amRacing() and rank.panel.Visible then
 		rank:Close() -- never over a race
+	end
+	if amRacing() and challenge.cardPanel.Visible then
+		challenge:Close()
 	end
 	raceHud:Update({ now = now, device = input.device, queued = queued, spectatingName = spectatingName, stuck = stuck.shown, progress = progressFraction, rivals = rivalFractions })
 	results:Update(now)

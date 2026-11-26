@@ -124,6 +124,15 @@ modules.RankService = H.module("ServerScriptService/Services/RankService")
 modules.RankPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/RankController")
 modules.PhaseStripPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/PhaseStripController")
 modules.CameraPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CameraController")
+-- challenges brief: Players is a table the spec fills (GetPlayers) for the friend-ghost checks
+modules.ChallengePlayers = {}
+H.stubServices = { Players = modules.ChallengePlayers, DataStoreService = {} }
+modules.ChallengeConfig = H.module("ReplicatedStorage/Shared/ChallengeConfig")
+modules.CupConfig = H.module("ReplicatedStorage/Shared/CupConfig")
+modules.ChallengeService = H.module("ServerScriptService/Services/ChallengeService")
+H.stubServices = { Players = {}, RunService = {}, TweenService = {}, UserInputService = {} }
+modules.ChallengePure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/ChallengeController")
+modules.RaceHUDPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController")
 H.stubServices = {}
 
 -- A5 UI text scan: every string literal in client code (comments stripped).
@@ -317,6 +326,7 @@ local suites = {
 	{ "A6 social specs", root .. "/src/Tests/Unit/Social.spec.lua" },
 	{ "Three-lap circuit specs", root .. "/src/Tests/Unit/Circuits.spec.lua" },
 	{ "Ranked test specs", root .. "/src/Tests/Unit/Ranked.spec.lua" },
+	{ "Challenge specs (Drop Shaft loop, mastery, ghosts)", root .. "/src/Tests/Unit/Challenges.spec.lua" },
 }
 local passed, failed = 0, 0
 -- Boot smoke (2026-11-26): both bootstrap main chunks run end to end against proxy Roblox APIs

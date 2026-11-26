@@ -375,6 +375,77 @@ TrackDefinitions.NeonFoundryCircuit = {
 	MaxRaceSeconds = 480, -- provisional, from the lap MODEL (no slow-finisher data yet)
 }
 
+---------------------------------------------------------------------------------------------
+-- 2026-11-26 challenges brief: THE DROP SHAFT (challenge course, revision 1). A short authored
+-- Foundry sector built on its own (identical for every attempt, whatever map is racing):
+-- start pad + gate -> launch slope (the same "controlled launch" speed for everyone) ->
+-- approach -> marked braking zone -> the lip (a kicker on the right = the precision entry) ->
+-- the shaft -> a wide landing with the qualifying line -> split hairpin (inside: the faster,
+-- marked line | outside: wide and safe) -> exit straight -> finish basin. No moving hazards.
+---------------------------------------------------------------------------------------------
+TrackDefinitions.DropShaftChallenge = {
+	Id = "DropShaft_C1",
+	DisplayName = "The Drop Shaft",
+	LayoutVersion = 1,
+	Origin = Vector3.new(1300, 640, -200),
+	StartHeadingDeg = 0,
+	FloorThickness = 1.6,
+	RailThickness = 1.2,
+	DefaultRails = { 5, 5 },
+	MaxStepLength = 24,
+	MaxYawStepDeg = 5,
+	MaxPitchStepDeg = 2,
+	MaxBankStepDeg = 3,
+	Roadside = true,
+	Pieces = {
+		{ Name = "StartPad", Segment = "Start", Kind = "Start", Length = 30, Pitch = { 0, 0 }, Width = { 26, 26 }, Rails = { 5, 5 }, StartCap = true },
+		{ Name = "LaunchSlope", Segment = "Launch", Kind = "StraightRamp", Length = 50, Pitch = { 0, 8 }, Width = { 26, 26 }, Arrows = true },
+		{ Name = "Approach", Segment = "Approach", Length = 120, Pitch = { 8, 2 }, Width = { 26, 26 } },
+		{ Name = "BrakeZone", Segment = "Approach", Length = 50, Pitch = { 2, 2 }, Width = { 26, 26 } },
+		{ Name = "Lip", Segment = "Shaft", Kind = "DropShaft", Length = 14, Pitch = { 2, 4 }, Width = { 26, 26 } },
+		{ Name = "DropIn", Segment = "Shaft", Length = 30, Pitch = { 4, 16 }, Width = { 26, 30 }, Rails = { 7, 7 } },
+		{ Name = "Shaft", Segment = "Shaft", Length = 50, Pitch = { 16, 16 }, Width = { 30, 30 }, Rails = { 8, 8 } },
+		{ Name = "DropOut", Segment = "Shaft", Length = 40, Pitch = { 16, 1 }, Width = { 30, 32 }, Rails = { 7, 7 } },
+		{ Name = "Landing", Segment = "Landing", Length = 70, Pitch = { 1, 1 }, Width = { 32, 32 }, Rails = { 6, 6 } },
+		{ Name = "SplitIn", Segment = "Hairpin", Kind = "SplitLane", Length = 24, Yaw = 10, Pitch = { 1, 1 }, Bank = { 0, 8 }, Width = { 32, 34 } },
+		{ Name = "Hairpin", Segment = "Hairpin", Length = 150, Yaw = 150, Pitch = { 1, 1 }, Bank = { 8, 8 }, Width = { 34, 34 }, Rails = { 8, 5 }, Divider = { From = 4, To = 146, Height = 4.5 } },
+		{ Name = "SplitOut", Segment = "Hairpin", Length = 24, Yaw = 20, Pitch = { 1, 1 }, Bank = { 8, 0 }, Width = { 34, 26 } },
+		{ Name = "ExitStraight", Segment = "Exit", Length = 120, Pitch = { 1, 2 }, Width = { 26, 26 }, Arrows = true },
+		{ Name = "FinishStraight", Segment = "Finish", Kind = "Finish", Length = 40, Pitch = { 2, 1 }, Width = { 26, 28 } },
+		{ Name = "FinishBasin", Segment = "Finish", Length = 40, Pitch = { 1, -3 }, Width = { 28, 30 }, Rails = { 6, 6 }, EndCap = true },
+	},
+	Spawn = { Piece = "StartPad", At = 14 },
+	StartLine = { Piece = "StartPad", At = 30 },
+	FinishLine = { Piece = "FinishStraight", At = 40 },
+	Checkpoints = {
+		{ Name = "Lip", Piece = "Lip", At = 2 },
+		{ Name = "Landing", Piece = "Landing", At = 56 },
+		{ Name = "Hairpin Exit", Piece = "ExitStraight", At = 10 },
+	},
+	Grid = { Piece = "StartPad", Rows = { 18 }, Columns = { -6.5, 0, 6.5 } },
+	StartGate = { Piece = "StartPad", At = 27, Height = 5 },
+	Features = {
+		-- the precision entry: hit this kicker fast and you land beyond the qualifying line
+		{ Kind = "TrickRamp", Piece = "BrakeZone", At = 49, Offset = 7, Width = 9, Length = 6, Height = 2.4 },
+	},
+	Hazards = {},
+	WarningStrips = {
+		{ Piece = "BrakeZone", From = 2, To = 40 },
+	},
+	Signs = {
+		{ Piece = "BrakeZone", At = 0, Text = "BRAKE ZONE  |  RIGHT KICKER = PRECISION ENTRY", Lift = 9 },
+		{ Piece = "Landing", At = 30, Text = "QUALIFYING LINE", Lift = 8 },
+		{ Piece = "SplitIn", At = 0, Text = "INSIDE: FAST LINE  |  OUTSIDE: SAFE", Lift = 9 },
+	},
+	Gates = {
+		{ Kind = "Start", Piece = "StartPad", At = 30, Text = "DROP SHAFT" },
+		{ Kind = "Finish", Piece = "FinishStraight", At = 40, Text = "FINISH" },
+	},
+	QualifyingLine = { Piece = "Landing", At = 30 }, -- mastery "Signature Line": first landing beyond this
+	Validation = { MinSegments = 6, MaxSegments = 10, MinLength = 500, MaxLength = 1200 },
+	ArrowSpacing = 16,
+}
+
 -- 2026-11-26 three-lap brief: true = standard races are three-lap circuits; false = the v2
 -- single-run courses (development fallback / rollback - one flag). While true, a map without a
 -- validated circuit stays OFF rotation and out of the vote (MapRegistry asks RaceReady).

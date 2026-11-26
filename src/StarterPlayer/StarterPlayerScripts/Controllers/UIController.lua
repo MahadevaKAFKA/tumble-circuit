@@ -21,10 +21,11 @@ UIController.Screens = {
 		-- 3D board; the lobby column now carries the countdown / waiting line itself.
 		-- AbilitiesRace here = B2 try-it buttons (only shown after TRY in the ability menu)
 		layers = { "Hud", "Lobby", "Modes", "Touch", "Social", "AbilitiesRace", "Phase" }, -- loadout summary lives on the LOADOUT button; Phase = the one MAP · PHASE · TIMER strip
-		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2", "Garage", "Quests", "More", "Boards", "Lab", "Shop", "Maps", "HubDrawer", "ProfileDrawer", "ExitPractice", "Ranked", "RankedToggle" },
+		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2", "Garage", "Quests", "More", "Boards", "Lab", "Shop", "Maps", "HubDrawer", "ProfileDrawer", "ExitPractice", "Ranked", "RankedToggle", "Challenge", "ChallengeTry", "ChallengeCode", "ChallengeCapture", "ChallengeShare" },
 	},
 	-- B1 solo Time Trial: timer card + QUIT; no abilities, no lobby column
 	TimeTrial = { layers = { "Hud", "TimeTrial", "Touch" }, buttons = { "QuitTrial", "Brake", "Reset", "Camera" } },
+	Challenge = { layers = { "Hud", "Challenge", "Touch" }, buttons = { "ChallengeRetry", "ChallengeQuit", "ChallengeShare", "ChallengeGhost", "Brake", "Reset", "Camera" } },
 	Race = {
 		layers = { "Hud", "RaceHud", "AbilitiesRace", "Touch", "Social", "Phase" }, -- Social: chaos banner only
 		buttons = { "Ability1", "Ability2", "Trick", "Brake", "Reset", "Camera" },
@@ -62,6 +63,7 @@ UIController.Actions = {
 	"Maps", "MapVisit", "MapPractice", "MapBallot", "MapPage", -- promo pack 03 (Map Selection)
 	"SettingsTab", "SettingsReset", "HubDrawer", "ProfileDrawer", "ExitPractice", -- UI overhaul
 	"Ranked", "RankedToggle", -- brief 3 E (opt-in Ranked test card)
+	"Challenge", "ChallengeTry", "ChallengeRetry", "ChallengeQuit", "ChallengeShare", "ChallengeGhost", "ChallengeCode", "ChallengeCapture", -- challenges brief
 }
 
 local RACE_STATES = { Preparing = true, Countdown = true, Racing = true }
@@ -76,6 +78,9 @@ function UIController.ScreenFor(ctx)
 	end
 	if ctx.timeTrial then
 		return "TimeTrial" -- B1: a solo run is its own screen, even while others see results
+	end
+	if ctx.challenge then
+		return "Challenge" -- challenges brief: same idea - an attempt is its own screen
 	end
 	if ctx.roundState == "Results" and not ctx.resultsDismissed then
 		return "Results"

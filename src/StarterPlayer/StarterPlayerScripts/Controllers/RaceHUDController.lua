@@ -302,6 +302,70 @@ function RaceHUD:SetRaceLayout(layout, TrackDefinitions)
 	self.TD = TrackDefinitions
 end
 
+-- challenges brief: the signed gap at a gate (pure). Positive = you are behind.
+--   crossing a gate behind someone: "+0.84  to MIA (P2)"   (coral)
+--   someone crossed it behind you:  "-1.20  SAM behind"     (mint)
+--   first through the gate:         "P1 AT THIS GATE"
+function RaceHUD.GapText(data)
+	if type(data) ~= "table" then
+		return nil
+	end
+	local function who(name, isBot)
+		return (isBot and "[BOT] " or "") .. string.upper(tostring(name or "?"))
+	end
+	if data.kind == "GapBehind" and type(data.gap) == "number" then
+		return string.format("-%.2f  %s behind", math.abs(data.gap), who(data.behindName, data.behindIsBot)), "ahead"
+	end
+	if type(data.gatePlace) ~= "number" then
+		return nil
+	end
+	if not data.aheadName or type(data.aheadGap) ~= "number" then
+		return string.format("P%d AT THIS GATE", data.gatePlace), "lead"
+	end
+	return string.format("+%.2f  to %s (P%d)", math.abs(data.aheadGap), who(data.aheadName, data.aheadIsBot), data.gatePlace - 1), "behind"
+end
+
+function RaceHUD:ShowGap(text, tone)
+	if not self.gapChip then
+		self.gapChip = UIKit.label(self.root, { Name = "GateGap", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 92), Size = UDim2.fromOffset(320, 26), TextScaled = false, TextSize = 18, Font = Enum.Font.GothamBlack, TextStrokeTransparency = 0.45, Visible = false })
+	end
+	self.gapChip.Text = text
+	self.gapChip.TextColor3 = tone == "behind" and palette.Coral or (tone == "ahead" and palette.Mint or palette.Yellow)
+	self.gapChip.Visible = true -- the whole HUD hides with gui.Enabled
+	self.gapUntil = os.clock() + 2.6
+end
+
+-- the rival marker: a small RIVAL tag over the marble just ahead of you at the last gate
+function RaceHUD:SetRival(ball, text)
+	if self.rivalTag then
+		self.rivalTag:Destroy()
+		self.rivalTag = nil
+	end
+	if not ball then
+		return
+	end
+	local tag = Instance.new("BillboardGui")
+	tag.Name = "TC_RivalTag"
+	tag.Size = UDim2.fromOffset(120, 26)
+	tag.StudsOffsetWorldSpace = Vector3.new(0, 4.2, 0)
+	tag.AlwaysOnTop = true
+	tag.MaxDistance = 260
+	tag.LightInfluence = 0
+	tag.Adornee = ball
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBlack
+	label.TextColor3 = palette.Coral
+	label.TextStrokeTransparency = 0.3
+	label.Text = text or "RIVAL"
+	label.Parent = tag
+	tag.Parent = self.gui.Parent or self.gui
+	self.rivalTag = tag
+	self.rivalUntil = os.clock() + 6
+end
+
 -- Lap feedback from the server: "LAP 2 / 3  1:04.2" and a distinct FINAL LAP cue (yellow)
 function RaceHUD:FlashLap(lap, laps, lapSeconds)
 	local final = lap == laps
@@ -342,6 +406,13 @@ function RaceHUD:SetCourseName(name)
 end
 
 function RaceHUD:Update(ctx)
+	if self.gapChip and self.gapUntil and os.clock() > self.gapUntil then
+		self.gapChip.Visible = false
+		self.gapUntil = nil
+	end
+	if self.rivalTag and (not self.rivalTag.Adornee or not self.rivalTag.Adornee.Parent or (self.rivalUntil and os.clock() > self.rivalUntil)) then
+		self:SetRival(nil)
+	end
 	local snap = self.snapshot
 	if not snap then
 		UIKit.setText(self.status, "CONNECTING...")

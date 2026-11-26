@@ -186,6 +186,7 @@ function TrainingTrackService:Build()
 			world.root:Destroy()
 		end
 	end
+	self:_buildChallenges(courseFolder, radius)
 	courseFolder.Parent = workspace
 	local firstId = self.worlds[MapRegistry.DefaultMapId] and MapRegistry.DefaultMapId or self.worldOrder[1]
 	self:SetActiveWorld(firstId)
@@ -305,6 +306,11 @@ function TrainingTrackService:GetLayout(zone, hubId)
 		local hub = self:GetHub(hubId)
 		return hub and hub.layout or self.layouts[ZONES.Hub]
 	end
+	-- challenges brief: a race-zone marble tagged with a challenge id rides that challenge course
+	local challenge = hubId and self.challenges and self.challenges[hubId]
+	if challenge and (zone or ZONES.Race) == ZONES.Race then
+		return challenge.layout
+	end
 	return self.layouts[zone or ZONES.Race]
 end
 
@@ -313,7 +319,56 @@ function TrainingTrackService:GetKillY(zone, hubId)
 		local hub = self:GetHub(hubId)
 		return hub and hub.killY or self.killY[ZONES.Hub]
 	end
+	local challenge = hubId and self.challenges and self.challenges[hubId]
+	if challenge then
+		return challenge.killY
+	end
 	return self.killY[zone or ZONES.Race]
+end
+
+-- challenges brief: the authored challenge courses (built once, like the maps)
+function TrainingTrackService:GetChallenge(id)
+	return self.challenges and self.challenges[id]
+end
+
+function TrainingTrackService:_buildChallenges(courseFolder, radius)
+	self.challenges = {}
+	local ok, ChallengeConfig = pcall(function()
+		return require(Shared:WaitForChild("ChallengeConfig"))
+	end)
+	if not ok then
+		return
+	end
+	for _, c in ipairs(ChallengeConfig.Challenges) do
+		local def = TrackDefinitions[c.Course]
+		if def and c.Status == "Live" then
+			local built, err = pcall(function()
+				local layout = TrackDefinitions.Generate(def, radius)
+				local errors = TrackDefinitions.Validate(def, layout)
+				if #errors > 0 then
+					error(table.concat(errors, "; "))
+				end
+				local root = Builder.Build(layout, courseFolder, "Challenge_" .. c.Id)
+				local gate = root:FindFirstChild("Gates") and root.Gates:FindFirstChild("StartGate")
+				self.challenges[c.Id] = { config = c, def = def, layout = layout, root = root, killY = layout.MinY - PhysicsConfig.Server.KillDepthBelowCourse, startGate = gate }
+				print(string.format("[Track] challenge %s built (%.0f studs, %d gates)", c.Id, layout.FinishLineS - (layout.StartLineS or 0), #layout.Checkpoints))
+			end)
+			if not built then
+				note(self, c.Id, "challenge course failed: " .. tostring(err))
+			end
+		end
+	end
+end
+
+-- open / close one challenge start gate (each attempt opens it at GO, closes it on reset)
+function TrainingTrackService:SetChallengeGateOpen(id, open)
+	local c = self.challenges and self.challenges[id]
+	local gate = c and c.startGate
+	if gate then
+		gate.CanCollide = not open
+		gate.CanQuery = not open
+		gate.Transparency = open and 1 or 0.35
+	end
 end
 
 function TrainingTrackService:GetRaceRoot()

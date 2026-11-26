@@ -83,6 +83,8 @@ function Results.new()
 	self.levelLine = UIKit.label(card, { Position = UDim2.fromOffset(16, 306), Size = UDim2.new(1, -32, 0, 22), Font = Enum.Font.Gotham, TextColor3 = palette.Violet, Text = "" })
 	self.saveLine = UIKit.label(card, { Position = UDim2.fromOffset(16, 328), Size = UDim2.new(1, -32, 0, 18), Font = Enum.Font.Gotham, TextTransparency = 0.2, Text = "" })
 	self.card = card
+	-- challenges brief: the one-line race story (left, under the podium)
+	self.story = UIKit.label(panel, { Name = "Story", Position = UDim2.fromOffset(20, 436), Size = UDim2.fromOffset(440, 30), Font = Enum.Font.GothamBold, TextScaled = false, TextSize = 16, TextWrapped = true, TextColor3 = palette.Yellow, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
 	self.note = UIKit.label(panel, { Position = UDim2.fromOffset(470, 420), Size = UDim2.fromOffset(490, 34), Font = Enum.Font.Gotham, TextWrapped = true, TextColor3 = palette.Mint, Text = "" })
 	self.timer = UIKit.label(panel, { Position = UDim2.fromOffset(20, 410), Size = UDim2.fromOffset(420, 26), Font = Enum.Font.Gotham, TextTransparency = 0.2, Text = "" })
 
@@ -147,6 +149,7 @@ function Results:ApplySnapshot(snap, localUserId)
 		end
 	end
 	self.mine = mine
+	UIKit.setText(self.story, mine and mine.story or "")
 	if not mine then
 		UIKit.setText(self.headline, "YOU WATCHED THIS ONE")
 		UIKit.setText(self.timeLine, "You're queued for the next race")

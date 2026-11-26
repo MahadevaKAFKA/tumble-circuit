@@ -2,7 +2,7 @@
 
 **Active milestone:** owner brief 2026-11-26 "Animation, UI and Economy"
 (docs/ANIMATION_UI_ECONOMY_BRIEF.md, plan + baseline in docs/ANIMATION_UI_ECONOMY_PLAN.md):
-M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34), M5 economy (v35). All five milestones done. v36: visible redesign after the owner's "the UI looks the same" (design system v2). v37: THREE-LAP CIRCUITS (Neon Foundry + Sky Carnival) and the new in-race HUD (docs/THREE_LAP_PLAN.md). Queued next: Graphics/Gameplay/Ranked brief, Challenges/Cups/Creator brief, Shop brief. Before that: CS:GO-style capsules, UI
+M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34), M5 economy (v35). All five milestones done. v36: visible redesign after the owner's "the UI looks the same" (design system v2). v37: THREE-LAP CIRCUITS (Neon Foundry + Sky Carnival) and the new in-race HUD (docs/THREE_LAP_PLAN.md). v38–v39: Graphics/Gameplay/Ranked brief (Volcano circuit, roadside cues, readability, opt-in Ranked). v40: Challenges/Cups/Creator brief (Drop Shaft loop, mastery, rival gap, race story). Queued next: Shop brief. Before that: CS:GO-style capsules, UI
 motion and a race-entry drop-in (v31). Before that: hub
 obstruction fix (v30); UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
 settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
@@ -17,6 +17,40 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Challenges/Cups/Creator brief: the Drop Shaft loop, mastery, rival gap, race story (v40, private)
+
+Brief: Tumble-Circuit-Challenges-Cups-and-Creator-Tools-Master-Prompt. Details: docs/CHALLENGES.md.
+
+- **The Drop Shaft** (first authored challenge, 785 studs, 3 gates): MORE › CHALLENGE card →
+  TRY → frozen fair start → 3-2-1-GO → server-judged gates → finish. **One-tap RETRY** after a
+  fall / reset / missed gate / time limit (2 s countdown on the start, no hub trip).
+- Records per challenge key (id | revision | ruleset | scoring): best, best medal, gate splits;
+  split deltas vs your best at each gate. Medals Gold 21 / Silver 24 / Bronze 28 s
+  (**provisional**).
+- **PB ghost** (server samples) and an explicit **SHARE MY GHOST** → friends in the same server
+  on the same challenge version race it; otherwise a plain fallback note.
+- **Codes** (`DROP1`) and invite launch data, resolved on the server against the allowlist.
+- **Weekly Challenge** window (UTC weeks) with a per-week OrderedDataStore board (top 10 on the
+  card; live servers only).
+- **Map mastery, Neon Foundry:** Clean Circuit (3 laps, no reset/fall – counted in races),
+  Fast Sector (Drop Shaft gold), Signature Line (land past the qualifying line) → the
+  **Foundry Exhaust** trail, granted once.
+- **Races:** signed **gap at every gate** ("+0.84 to MIA (P2)", "−1.20 SAM behind") plus a
+  RIVAL tag on the marble just ahead; a one-line **story** on your results card from server data.
+- **Clean Capture** toggle with a 9:16 guide (the game records and posts nothing).
+- **Foundry Cup pilot**: rules only, staging (docs/FOUNDRY_CUP.md). **Creator capture guide**:
+  docs/CREATOR_CAPTURE_GUIDE.md.
+- **Not done:** Stunt Lab; cross-server friend ghosts; the cup final itself; mastery panels in
+  the Garage / map selector (the challenge card shows the Foundry count).
+
+**Verified here:** 943 offline checks incl. Challenges.spec (config, course validation, a full
+mock attempt: countdown → GO → gates → finish → best/medal/splits/ghost, fail + retry, slower
+times never replace a best, mastery reward once, friend-ghost sharing rules, codes, refusals;
+gate order + signed gap; story lines; cup rules; client text and 9:16 maths), Luau check, place
+assembly + reference check, both boot smokes (server logs the challenge course built).
+**Not verified:** anything in a Roblox runtime – the course's feel and the medal times, ghost
+playback, DataStore boards, launch data, the capture guide's look on the phone.
 
 ## 2026-11-26 — Graphics/gameplay brief E: opt-in Ranked Circuit test (v39, private)
 

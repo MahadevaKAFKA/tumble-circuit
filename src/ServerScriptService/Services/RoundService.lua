@@ -445,6 +445,12 @@ function RoundService:ProgressHint(entity, zone)
 			return hint
 		end
 	end
+	if self.challenges then
+		local hint = self.challenges:ProgressHint(entity) -- challenges brief: solo challenge course
+		if hint then
+			return hint
+		end
+	end
 	local racer = self.racerByPlayer[entity]
 	local layout = self.track:GetLayout(ZONES.Race)
 	if not racer or not layout.Loop then
@@ -487,6 +493,46 @@ function RoundService:_enterRacing()
 	end
 	self:_setTimer(self:_raceSeconds())
 	self.stats = RaceStats.new(layout) -- brief 3: per-sector resets / falls / seam launches
+	self.gateLog = {} -- challenges brief: per-target crossing order (rival gap)
+end
+
+-- challenges brief: a one-line story for each human racer's results card (from the grid slot,
+-- the server's gate log, recoveries and lap times)
+function RoundService:_attachStories(standings)
+	local gates = self.gateLog or {}
+	for _, entry in ipairs(standings) do
+		local racer = nil
+		for _, r in ipairs(self.racers) do
+			if r.userId == entry.userId then
+				racer = r
+				break
+			end
+		end
+		if racer and not racer.isBot then
+			local led, seen, bestGain, lastPlace = 0, 0, 0, nil
+			local indices = {}
+			for index in pairs(gates) do
+				indices[#indices + 1] = index
+			end
+			table.sort(indices)
+			for _, index in ipairs(indices) do
+				for at, crossing in ipairs(gates[index]) do
+					if crossing.player == racer.player then
+						seen = seen + 1
+						if at == 1 then
+							led = led + 1
+						end
+						if lastPlace and lastPlace - at > bestGain then
+							bestGain = lastPlace - at
+						end
+						lastPlace = at
+						break
+					end
+				end
+			end
+			entry.story = RaceRules.StoryLine({ place = entry.place, field = #standings, grid = racer.slot, finished = entry.finished, recoveries = racer.recoveries or 0, laps = racer.lapTimes, ledGates = led, gates = seen, bestGain = bestGain })
+		end
+	end
 end
 
 function RoundService:_enterResults()
@@ -496,8 +542,19 @@ function RoundService:_enterResults()
 		end
 	end
 	self.results = self.progress:Standings(self.racers)
+	self:_attachStories(self.results)
 	if self.rankedRound and self.ranked then
 		self.ranked:Finalize(self.results) -- deltas from the seal snapshot, idempotent per match id
+	end
+	-- challenges brief: map mastery "Clean Circuit" - all laps of a circuit race, no reset, no fall
+	local raceLayout = self.track:GetLayout(ZONES.Race)
+	if self.challenges and raceLayout.Loop and self.track.GetActiveWorldId then
+		local mapId = self.track:GetActiveWorldId()
+		for _, racer in ipairs(self.racers) do
+			if not racer.isBot and racer.finished and (racer.recoveries or 0) == 0 and racer.player and racer.player.Parent then
+				self.challenges:OnCleanCircuit(racer.player, mapId)
+			end
+		end
 	end
 	if self.stats then
 		for _, racer in ipairs(self.racers) do
@@ -655,6 +712,9 @@ function RoundService:TryJoin(player, wants)
 	if wants and self.timeTrial and self.timeTrial:IsRunning(player) then
 		self.timeTrial:Stop(player, "You joined the next race") -- B1: JOIN RACE ends a Time Trial
 	end
+	if wants and self.challenges and self.challenges:IsRunning(player) then
+		self.challenges:Stop(player, "You joined the next race")
+	end
 	self.queued[player] = wants == true
 	if not wants then
 		self.ready[player] = nil
@@ -698,6 +758,12 @@ function RoundService:ResolveSpawn(player, reason)
 			return spot
 		end
 	end
+	if self.challenges and not isBot(player) then
+		local spot = self.challenges:ResolveSpawn(player, reason) -- challenges brief
+		if spot then
+			return spot
+		end
+	end
 	local racer = self.racerByPlayer[player]
 	local state = self.state
 	if isBot(player) and (not racer or reason == REASONS.ToHub) then
@@ -713,6 +779,9 @@ function RoundService:ResolveSpawn(player, reason)
 			if state == S.Racing then
 				if self.stats then
 					self.stats:OnRespawn(player, reason)
+				end
+				if reason == REASONS.Fell or reason == REASONS.Lost or reason == REASONS.Reset or reason == REASONS.Movement then
+					racer.recoveries = (racer.recoveries or 0) + 1 -- challenges brief: Clean Circuit mastery
 				end
 				local target = self.checkpoints:GetConfirmedTarget(player)
 				local cf = target and target.RespawnFrame and self.track:FrameCFrame(target.RespawnFrame) or self.track:GetGridCFrame(racer.slot)
@@ -769,8 +838,20 @@ function RoundService:_onProgress(player, info)
 				racer.lapTimes = racer.lapTimes or {}
 				racer.lapTimes[#racer.lapTimes + 1] = event.lapSeconds
 			end
+			-- challenges brief: signed gap to the racer just ahead at this gate (and tell them)
+			self.gateLog = self.gateLog or {}
+			self.gateLog[event.index] = self.gateLog[event.index] or {}
+			local place, ahead = RaceRules.GateCrossing(self.gateLog[event.index], { time = event.time, player = player, userId = racer.userId, name = racer.name, isBot = racer.isBot == true })
+			if remote and ahead and not ahead.isBot and ahead.player and ahead.player.Parent then
+				remote:FireClient(ahead.player, { roundId = self.roundId, kind = "GapBehind", index = 0, total = #layout.Checkpoints, behindName = racer.name, behindIsBot = racer.isBot == true, gap = event.time - ahead.time })
+			end
 			if remote and not racer.isBot then
 				remote:FireClient(player, {
+					gatePlace = place,
+					aheadName = ahead and ahead.name or nil,
+					aheadUserId = ahead and ahead.userId or nil,
+					aheadIsBot = ahead and ahead.isBot or nil,
+					aheadGap = ahead and (event.time - ahead.time) or nil,
 					roundId = self.roundId,
 					kind = event.kind,
 					index = event.checkpoint or 0, -- checkpoint within the lap (0 on a lap line)
@@ -941,6 +1022,7 @@ function RoundService:GetSnapshot()
 			seconds = entry.seconds,
 			dnf = entry.dnf,
 			isBot = entry.isBot,
+			story = entry.story, -- challenges brief: results only (nil during the race)
 		}
 	end
 	local queued = {}
