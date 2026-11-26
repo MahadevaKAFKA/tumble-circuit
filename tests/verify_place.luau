@@ -7,6 +7,7 @@ local fs = require("@lune/fs")
 local process = require("@lune/process")
 local roblox = require("@lune/roblox")
 local serde = require("@lune/serde")
+local luau = require("@lune/luau")
 
 local placePath = process.args[1] or "build/TumbleCircuit.rbxl"
 local expect = serde.decode("json", fs.readFile("tests/place_expectations.json"))
@@ -81,6 +82,12 @@ for _, instance in descendants do
 		if type(source) ~= "string" or #source == 0 then
 			fail(fullName(instance) .. " has no source")
 		else
+			-- Real Luau compile (register / upvalue / local limits differ from Lua 5.3, which
+			-- the offline syntax check uses). A compile error here = a script Roblox won't run.
+			local compiled, compileError = pcall(luau.compile, source)
+			if not compiled then
+				fail(fullName(instance) .. " does not compile as Luau: " .. tostring(compileError))
+			end
 			for _, pattern in patterns do
 				for ref in string.gmatch(source, pattern) do
 					if not known[ref] then
