@@ -2,7 +2,7 @@
 
 **Active milestone:** owner brief 2026-11-26 "Animation, UI and Economy"
 (docs/ANIMATION_UI_ECONOMY_BRIEF.md, plan + baseline in docs/ANIMATION_UI_ECONOMY_PLAN.md):
-M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33). Before that: CS:GO-style capsules, UI
+M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34). Before that: CS:GO-style capsules, UI
 motion and a race-entry drop-in (v31). Before that: hub
 obstruction fix (v30); UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
 settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
@@ -17,6 +17,35 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Brief M4: motorsport UI pass — phase strip, Garage, Shop sections, Driving settings (v34, private)
+
+- **Visual language (UIKit, every screen at once):** quiet dark panels with a 1 px edge
+  instead of neon outlines, medium-weight body text, ghost buttons with thin edges, and one
+  filled primary action per screen in the UI accent (`UIKit.Primary`: JOIN RACE, OPEN,
+  EQUIP, PLAY AGAIN). Rarity colours and warnings keep their colours; High contrast brings
+  back thick opaque edges. Small drawn icons (no image assets) for categories and cases.
+- **Phase strip (Dress To Impress pattern):** one compact MAP · PHASE · TIMER strip at the
+  top (queue open / ready check / on the grid / starting / race live / results). It's now
+  the only next-race countdown on screen: the hub card shows your queue status, the
+  in-world board shows the next map and the field. Hidden for racers during the race (the
+  race strip has place / time / checkpoints); the practice strip sits under it.
+- **Garage (Adopt Me pattern):** category rail with icon + label (SKINS, TRAILS, LAUNCH,
+  BURSTS, EMOTES), a search box, filter chips saved to your profile (`garageFilter`),
+  equipped first then owned then rarest, an accent EQUIPPED bar on the tile, preview in
+  context (Launch loops the real animation).
+- **Shop:** two labelled sections. ITEMS · ROBUX = guaranteed direct items (all "not on sale
+  yet"); CASES · COINS = the earned-Coin cases with their price in Coins and VIEW ODDS,
+  which opens the Capsule Lab on that case (every item and chance before spending).
+- **Settings (Driving Empire pattern):** DRIVING now holds camera, steering, control layout
+  (left-handed), race HUD position (top centre / top left, RIVALS pattern), reduced motion,
+  speed effects, speed trails and intro skip; RESET THIS TAB works on DRIVING and DISPLAY
+  with the KEEP / UNDO preview. Speed readout now says KM/H (1 stud ~ 0.28 m).
+- **Tests:** 791 offline checks pass (+8: phase strip states, one timer, Garage order and
+  search, Driving tab contents, no duplicate rows).
+- **Not done here / needs the phone:** screenshots of the new screens and a before/after of
+  the Orbital Garage view (no Roblox runtime in this environment, and the brief's lobby
+  screenshot wasn't attached); controller and small-window passes.
 
 ## 2026-11-26 — Brief M3: "racing spool" case reveal, saved-result recovery (v33, private)
 

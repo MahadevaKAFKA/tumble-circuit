@@ -87,6 +87,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/LabController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MapSelectController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ModesController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PhaseStripController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/PrototypeHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/RaceIntroController.lua
@@ -142,7 +143,7 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 176.6 ms
+PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 171.7 ms
 PRINT	[TumbleCircuit] server ready (A6.0, protocol v14)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
@@ -799,6 +800,8 @@ PASS  garbage values fall back to defaults (NaN, unknown enum, wrong type)
 PASS  unknown keys are rejected
 PASS  an old save keeps its settings and gains display defaults (unknown keys dropped)
 PASS  the DISPLAY tab lists only real settings
+PASS  DRIVING tab: camera, steering, control layout, HUD position, reduced motion, speed effects, trails, intro skip
+PASS  no setting appears on two tabs; every saved setting except the Garage filter has a row
 PASS  RESET DISPLAY changes only display keys that differ from the defaults
 PASS  enum rows cycle (accent: Follow map -> Cyan)
 PASS  number rows step and clamp (HUD size 125% + step stays 125%)
@@ -814,6 +817,12 @@ PASS  legacy HUD stays one flag away
 PASS  debug telemetry is off in the player view; developers only
 PASS  closing Settings during a reset preview undoes it
 PASS  hub card controls are wired screen buttons (MAPS, MENU, profile, EXIT PRACTICE)
+PASS  phase strip: map, phase and the ONE next-race timer in the lobby
+PASS  phase strip during the countdown: map + STARTING, no second number (the big 3-2-1 is the cue)
+PASS  phase strip hides for racers during the race (the race strip carries it), shows RACE LIVE to others
+PASS  Garage order: equipped first, then owned, then rarest first
+PASS  Garage search filters by name (case-insensitive)
+PASS  Garage categories with labels: Skins, Trails, Launch, Bursts, Emotes
 
 -- Environment specs --
 PASS  NeonFoundry_A4: has an environment profile and a lighting profile
@@ -1013,4 +1022,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-783 passed, 0 failed (+ 0 syntax failures)
+791 passed, 0 failed (+ 0 syntax failures)

@@ -166,6 +166,16 @@ function Lab:SetReducedMotion(on)
 	self.reveal:SetReducedMotion(self.reducedMotion)
 end
 
+-- Open the capsule page on one case (Shop > CASES > VIEW ODDS)
+function Lab:SelectBox(boxId)
+	if CapsuleOdds.BoxById[boxId or ""] then
+		self.boxId = boxId
+		self.tab = "Capsule"
+		self:ShowTab("Capsule")
+		self:_renderCapsule()
+	end
+end
+
 function Lab:SetQuality(low)
 	self.reveal:SetQuality(low)
 end
@@ -221,7 +231,7 @@ function Lab:_buildCapsule(panel)
 		local odds = UIKit.label(tile, { Position = UDim2.fromOffset(4, 40), Size = UDim2.new(1, -8, 0, 16), Font = Enum.Font.Gotham, Text = "" })
 		self.contentTiles[i] = { frame = tile, bar = bar, name = name, odds = odds }
 	end
-	self.openButton = UIKit.button(right, { Name = "OpenCapsule", Position = UDim2.fromOffset(16, 362), Size = UDim2.fromOffset(300, 52), Text = "OPEN" }, palette.Mint)
+	self.openButton = UIKit.Primary(UIKit.button(right, { Name = "OpenCapsule", Position = UDim2.fromOffset(16, 362), Size = UDim2.fromOffset(300, 52), Text = "OPEN" }, palette.Mint))
 	self.maid:Give(self.openButton.Activated:Connect(function()
 		self:Open()
 	end))

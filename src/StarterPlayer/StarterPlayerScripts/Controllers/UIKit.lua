@@ -1,6 +1,12 @@
 --[[
 	UIKit — tiny shared UI helpers for the A2+ controllers: instance builder, labels, buttons and
 	a safe-area ScreenGui with a UIScale'd root (1280x720 reference, clamped like the A1 HUD).
+
+	Motorsport display style (owner brief 2026-11-26, section 4): quiet dark surfaces with a
+	1 px edge instead of neon outlines, medium-weight body text, and ONE primary accent: the
+	main action of a screen is a filled accent button (UIKit.Primary), everything else is a
+	quiet ghost button. Rarity colours and warnings (coral) keep their meaning. High contrast
+	brings back thick, opaque edges.
 ]]
 
 local Players = game:GetService("Players")
@@ -66,6 +72,8 @@ end
 
 -- High contrast: darker, opaque-er panel + a thicker edge (the panel's own stroke if it has one,
 -- otherwise a white one we add). One UIStroke per panel, never two.
+UIKit.QuietEdge = { thickness = 1, transparency = 0.55 }
+
 local function stylePanel(frame, info)
 	local contrast = UIKit.Style.contrast
 	local t = UIKit.PanelTransparency(info.base, UIKit.Style.opacity)
@@ -76,7 +84,9 @@ local function stylePanel(frame, info)
 		if info.strokeBase == nil then
 			info.strokeBase = tonumber(stroke.Thickness) or 2
 		end
-		stroke.Thickness = contrast and math.max(info.strokeBase, 3) or info.strokeBase
+		-- quiet 1 px edge (motorsport style); high contrast: thick and opaque
+		stroke.Thickness = contrast and math.max(info.strokeBase, 3) or UIKit.QuietEdge.thickness
+		stroke.Transparency = contrast and 0 or UIKit.QuietEdge.transparency
 	elseif contrast and not stroke then
 		UIKit.new("UIStroke", { Name = "HighContrast", Color = palette.White, Thickness = 1.5, Transparency = 0.1 }, frame)
 	elseif not contrast and stroke then
@@ -140,7 +150,7 @@ function UIKit.corner(parent, scale)
 end
 
 function UIKit.label(parent, props)
-	local base = { BackgroundTransparency = 1, TextColor3 = palette.White, Font = Enum.Font.GothamBold, TextScaled = true, Text = "" }
+	local base = { BackgroundTransparency = 1, TextColor3 = palette.White, Font = Enum.Font.GothamMedium, TextScaled = true, Text = "" }
 	for key, value in pairs(props) do
 		base[key] = value
 	end
@@ -168,7 +178,8 @@ function UIKit.button(parent, props, accent)
 	end
 	local b = UIKit.new("TextButton", base, parent)
 	UIKit.corner(b, 0.25)
-	local stroke = UIKit.new("UIStroke", { Color = accent, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
+	-- ghost button: a thin, half-transparent edge in its accent (UIKit.Primary fills it)
+	local stroke = UIKit.new("UIStroke", { Color = accent, Thickness = 1.5, Transparency = 0.35, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
 	if accent == palette.Cyan then -- only the primary accent follows the setting; warnings keep their colour
 		UIKit.TrackAccent(stroke, "Color")
 		UIKit.TrackAccent(b, "TextColor3")
@@ -186,6 +197,79 @@ function UIKit.button(parent, props, accent)
 	b.MouseLeave:Connect(release)
 	b.SelectionLost:Connect(release)
 	return b
+end
+
+-- The one primary action of a screen: filled with the UI accent, dark text (follows the
+-- accent setting). Returns the button.
+function UIKit.Primary(b)
+	b.TextColor3 = palette.Ink
+	b.BackgroundTransparency = 0
+	UIKit.TrackAccent(b, "BackgroundColor3")
+	registry.accents[b] = "BackgroundColor3"
+	local stroke = b:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		stroke.Transparency = 1
+	end
+	return b
+end
+
+-- Switch a button between the filled primary look and the quiet ghost look.
+function UIKit.SetPrimary(b, on, ghostText)
+	if on then
+		if registry.accents[b] ~= "BackgroundColor3" then
+			UIKit.Primary(b)
+		end
+		return
+	end
+	if registry.accents[b] == "BackgroundColor3" then
+		registry.accents[b] = nil
+	end
+	b.BackgroundColor3 = palette.Navy
+	b.BackgroundTransparency = 0.1
+	b.TextColor3 = ghostText or palette.White
+	local stroke = b:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		stroke.Transparency = 0.35
+	end
+end
+
+-- A small drawn icon (no image assets): "Marble", "Trail", "Burst", "Emote", "Launch",
+-- "Case", "Item". Returns the frame (size it with props).
+function UIKit.Icon(parent, kind, props)
+	local holder = UIKit.new("Frame", { BackgroundTransparency = 1, Size = UDim2.fromOffset(28, 28) }, parent)
+	for key, value in pairs(props or {}) do
+		holder[key] = value
+	end
+	local color = palette.White
+	local function piece(p)
+		local f = UIKit.new("Frame", { BackgroundColor3 = color, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0.5) }, holder)
+		for key, value in pairs(p) do
+			f[key] = value
+		end
+		return f
+	end
+	if kind == "Marble" then
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.8, 0.8) }), 0.5)
+	elseif kind == "Trail" then
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.7, 0.5), Size = UDim2.fromScale(0.5, 0.5) }), 0.5)
+		piece({ Position = UDim2.fromScale(0.3, 0.5), Size = UDim2.fromScale(0.5, 0.16), BackgroundTransparency = 0.35 })
+	elseif kind == "Burst" then
+		for k = 0, 3 do
+			piece({ Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.12, 0.9), Rotation = k * 45 })
+		end
+	elseif kind == "Emote" then
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.42), Size = UDim2.fromScale(0.9, 0.6) }), 0.35)
+		piece({ Position = UDim2.fromScale(0.3, 0.78), Size = UDim2.fromScale(0.18, 0.18), Rotation = 45 })
+	elseif kind == "Launch" then
+		piece({ Position = UDim2.fromScale(0.4, 0.62), Size = UDim2.fromScale(0.8, 0.12), Rotation = -28 })
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.78, 0.26), Size = UDim2.fromScale(0.34, 0.34) }), 0.5)
+	elseif kind == "Case" then
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.55), Size = UDim2.fromScale(0.85, 0.65) }), 0.15)
+		piece({ Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.85, 0.1), BackgroundColor3 = palette.Ink })
+	else
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.7, 0.7), Rotation = 45 }), 0.15)
+	end
+	return holder
 end
 
 function UIKit.panel(parent, props)

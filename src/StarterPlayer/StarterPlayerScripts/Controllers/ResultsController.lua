@@ -94,6 +94,7 @@ function Results.new()
 		self.JoinRequested:Fire(true)
 		self.Dismissed:Fire()
 	end)
+	UIKit.Primary(self.playAgain) -- requeue is the results screen's one primary action
 	button("SitOut", 336, 180, "SIT OUT", palette.White, function()
 		self.JoinRequested:Fire(false)
 		self.Dismissed:Fire()

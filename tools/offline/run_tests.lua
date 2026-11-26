@@ -115,6 +115,7 @@ modules.TouchControlsPure = H.module("StarterPlayer/StarterPlayerScripts/Control
 modules.RaceIntroPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/RaceIntroController")
 modules.SpeedFeelPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/SpeedFeelController")
 modules.RevealPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CapsuleRevealController")
+modules.PhaseStripPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/PhaseStripController")
 modules.CameraPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CameraController")
 H.stubServices = {}
 

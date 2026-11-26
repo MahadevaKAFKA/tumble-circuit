@@ -7,6 +7,10 @@
 	- A failed price lookup says "Price unavailable" (no button) — never a guessed price.
 	- Already owned → OWNED. Season premium says "Season 1 only".
 	- No timers, no countdowns, no "last chance", no strike-through prices.
+	2026-11-26 (brief section 4): two clearly labelled sections. ITEMS · ROBUX = guaranteed
+	direct purchases (exactly the item shown; all off until product ids exist). CASES · COINS =
+	the earned-Coin capsules: price in Coins and VIEW ODDS, which opens the Capsule Lab on that
+	case with every item and its chance shown before anything is spent.
 ]]
 
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -14,6 +18,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local CapsuleOdds = require(Shared:WaitForChild("CapsuleOdds"))
 local Catalog = require(Shared:WaitForChild("Catalog"))
 local ShopConfig = require(Shared:WaitForChild("ShopConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
@@ -62,6 +67,7 @@ function Shop.new(deps)
 	self.remotes = deps.remotes
 	self.toast = deps.toast
 	self.CloseRequested = Utility.Signal.new()
+	self.CaseRequested = Utility.Signal.new() -- (boxId): open the Capsule Lab on this case
 	self.state = nil
 	self.prices = {} -- [sku] = number | false (failed)
 	self.selected = ShopConfig.Offers[1].sku
@@ -72,6 +78,30 @@ function Shop.new(deps)
 	self.panel = panel
 	UIKit.label(panel, { Position = UDim2.fromOffset(24, 12), Size = UDim2.fromOffset(500, 40), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = "SHOP (OPTIONAL)", TextXAlignment = Enum.TextXAlignment.Left })
 	UIKit.label(panel, { Position = UDim2.fromOffset(24, 52), Size = UDim2.fromOffset(640, 22), Font = Enum.Font.Gotham, Text = "Looks only - nothing here changes speed, abilities, rewards or who you race.", TextXAlignment = Enum.TextXAlignment.Left })
+	-- sections: guaranteed items (Robux) / cases (earned Coins)
+	self.section = "Items"
+	self.sectionButtons = {}
+	for i, sec in ipairs({ { "Items", "ITEMS  ·  ROBUX" }, { "Cases", "CASES  ·  COINS" } }) do
+		local b = UIKit.button(panel, { Name = "ShopTab", Position = UDim2.fromOffset(380 + (i - 1) * 158, 14), Size = UDim2.fromOffset(150, 36), Text = sec[2] }, palette.White)
+		maid:Give(b.Activated:Connect(function()
+			self.section = sec[1]
+			self:_renderSection()
+		end))
+		self.sectionButtons[sec[1]] = b
+	end
+	self.cases = UIKit.new("Frame", { Name = "Cases", Position = UDim2.fromOffset(16, 84), Size = UDim2.fromOffset(828, 460), BackgroundTransparency = 1, Visible = false }, panel)
+	for i, box in ipairs(CapsuleOdds.Boxes) do
+		local row = UIKit.panel(self.cases, { Position = UDim2.fromOffset(4, (i - 1) * 96), Size = UDim2.fromOffset(820, 88), BackgroundColor3 = palette.NavyFloor })
+		UIKit.Icon(row, "Case", { Position = UDim2.fromOffset(16, 26), Size = UDim2.fromOffset(36, 36) })
+		UIKit.label(row, { Position = UDim2.fromOffset(66, 10), Size = UDim2.fromOffset(420, 30), Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Name })
+		UIKit.label(row, { Position = UDim2.fromOffset(66, 44), Size = UDim2.fromOffset(460, 34), Font = Enum.Font.Gotham, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, Text = "A random " .. string.lower(box.Kind) .. " from its list. Every item and its exact chance are shown before you open. Duplicates become Shards." })
+		UIKit.label(row, { Position = UDim2.fromOffset(530, 10), Size = UDim2.fromOffset(110, 30), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = string.format("%d", box.Cost) })
+		UIKit.label(row, { Position = UDim2.fromOffset(530, 44), Size = UDim2.fromOffset(110, 20), Font = Enum.Font.GothamBold, Text = "COINS (earned)" })
+		local view = UIKit.button(row, { Name = "ShopCase", Position = UDim2.fromOffset(656, 18), Size = UDim2.fromOffset(150, 52), Text = "VIEW ODDS" }, palette.White)
+		maid:Give(view.Activated:Connect(function()
+			self.CaseRequested:Fire(box.Id)
+		end))
+	end
 	local close = UIKit.button(panel, { Name = "Close", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 12), Size = UDim2.fromOffset(130, 46), Text = "DONE" }, palette.Mint)
 	maid:Give(close.Activated:Connect(function()
 		self.CloseRequested:Fire()
@@ -90,6 +120,7 @@ function Shop.new(deps)
 		self.rows[offer.sku] = { button = b, name = name, sub = sub, status = status }
 	end
 	local side = UIKit.panel(panel, { Position = UDim2.fromOffset(530, 84), Size = UDim2.fromOffset(314, 460), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.1 })
+	self.itemsSide = side
 	self.detailName = UIKit.label(side, { Position = UDim2.fromOffset(14, 10), Size = UDim2.fromOffset(286, 34), Font = Enum.Font.GothamBlack, Text = "" })
 	self.detailBody = UIKit.label(side, { Position = UDim2.fromOffset(14, 50), Size = UDim2.fromOffset(286, 200), Font = Enum.Font.Gotham, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, Text = "" })
 	self.getButton = UIKit.button(side, { Name = "ShopGet", Position = UDim2.fromOffset(14, 300), Size = UDim2.fromOffset(286, 54), Text = "" }, palette.Yellow)
@@ -124,6 +155,16 @@ function Shop.new(deps)
 		end
 	end))
 	return self
+end
+
+function Shop:_renderSection()
+	local items = self.section == "Items"
+	self.list.Visible = items
+	self.itemsSide.Visible = items
+	self.cases.Visible = not items
+	for name, b in pairs(self.sectionButtons) do
+		b.BackgroundTransparency = name == self.section and 0 or 0.6
+	end
 end
 
 function Shop:_fetchPrices()

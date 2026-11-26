@@ -1,8 +1,10 @@
 --[[
 	HubMenusController (B3) — three hub modals: GARAGE, QUESTS and BOARDS (leaderboards).
 	Display + requests only; the server owns inventory, quests and boards.
-	- GARAGE: tabs Marbles / Trails / Bursts / Emotes, filters (All / Owned / Favorites / a
-	  rarity), a tile grid, a 3D preview (a local copy of the look in a ViewportFrame), EQUIP
+	- GARAGE (reworked 2026-11-26): a category rail with icons + labels (Skins, Trails, Launch,
+	  Bursts, Emotes), a search box, filter chips (All / Owned / Favorites / a rarity) that are
+	  saved to your profile, equipped-first order (then owned, rarest first), an explicit
+	  EQUIPPED badge, a 3D preview in context (Launch previews loop the real animation), EQUIP
 	  (emotes: SLOT 1-3), FAVORITE. Locked items say how they're earned. There is no buy button.
 	- QUESTS: 3 daily + 4 weekly with progress and CLAIM; reset timers; the bot-practice note.
 	- BOARDS: world + variation, best times or weekly wins, your best, friends in this server.
@@ -25,23 +27,55 @@ local palette = UIKit.Palette
 local HubMenus = {}
 HubMenus.__index = HubMenus
 
-HubMenus.Tabs = { "Marble", "Trail", "Burst", "Emote", "Launch" }
-HubMenus.TabLabels = { Marble = "MARBLES", Trail = "TRAILS", Burst = "BURSTS", Emote = "EMOTES", Launch = "LAUNCH" }
+HubMenus.Tabs = { "Marble", "Trail", "Launch", "Burst", "Emote" }
+HubMenus.TabLabels = { Marble = "SKINS", Trail = "TRAILS", Burst = "BURSTS", Emote = "EMOTES", Launch = "LAUNCH" }
 HubMenus.Filters = { "All", "Owned", "Favorites", "Common", "Rare", "Epic", "Legendary", "Mythic" }
 
--- Pure: items for a tab + filter, catalog order. state = { owned = set, favorites = set }
-function HubMenus.FilterItems(kind, filter, state)
+-- Pure: items for a tab + filter (+ optional search text), catalog order.
+-- state = { owned = set, favorites = set }
+function HubMenus.FilterItems(kind, filter, state, query)
 	local out = {}
+	local q = query and string.lower(query) or ""
 	for _, item in ipairs(Catalog.ByKind[kind] or {}) do
 		local keep = filter == "All"
 			or (filter == "Owned" and state.owned[item.Id])
 			or (filter == "Favorites" and state.favorites[item.Id])
 			or item.Rarity == filter
+		if keep and q ~= "" then
+			keep = string.find(string.lower(item.Name), q, 1, true) ~= nil or string.find(string.lower(item.Rarity), q, 1, true) ~= nil
+		end
 		if keep then
 			out[#out + 1] = item
 		end
 	end
 	return out
+end
+
+local RARITY_RANK = { Common = 1, Rare = 2, Epic = 3, Legendary = 4, Mythic = 5 }
+
+-- Pure: equipped first, then owned, then rarest first, then catalog order (stable).
+function HubMenus.SortItems(items, isEquipped, state)
+	local index = {}
+	for i, item in ipairs(items) do
+		index[item.Id] = i
+	end
+	local sorted = table.clone and table.clone(items) or { table.unpack(items) }
+	table.sort(sorted, function(a, b)
+		local ea, eb = isEquipped(a) and 1 or 0, isEquipped(b) and 1 or 0
+		if ea ~= eb then
+			return ea > eb
+		end
+		local oa, ob = state.owned[a.Id] and 1 or 0, state.owned[b.Id] and 1 or 0
+		if oa ~= ob then
+			return oa > ob
+		end
+		local ra, rb = RARITY_RANK[a.Rarity] or 0, RARITY_RANK[b.Rarity] or 0
+		if ra ~= rb then
+			return ra > rb
+		end
+		return index[a.Id] < index[b.Id]
+	end)
+	return sorted
 end
 
 local function toSet(list)
@@ -76,6 +110,7 @@ function HubMenus.new(deps)
 	self.toast = deps.toast
 	self.CloseRequested = Utility.Signal.new()
 	self.cosmetics = { owned = {}, favorites = {}, equipped = { emotes = {} } }
+	self.FilterChanged = Utility.Signal.new() -- (filter) saved to the profile by the bootstrap
 	self.quests = nil
 	self.tab, self.filter, self.selected = "Marble", "All", Catalog.Defaults.marble
 	self.boardWorld, self.boardSeed, self.boardKind = TrackDefinitions.Worlds[1].Id, 0, "Best"
@@ -133,28 +168,40 @@ function HubMenus:_buildGarage(root)
 	self.maid:Give(close.Activated:Connect(function()
 		self.CloseRequested:Fire()
 	end))
+	-- category rail (icon + label)
 	self.tabButtons = {}
 	for i, kind in ipairs(HubMenus.Tabs) do
-		local b = UIKit.button(panel, { Name = "GarageTab", Position = UDim2.fromOffset(24 + (i - 1) * 132, 60), Size = UDim2.fromOffset(124, 38), Text = HubMenus.TabLabels[kind] }, palette.Cyan)
+		local b = UIKit.button(panel, { Name = "GarageTab", Position = UDim2.fromOffset(16, 60 + (i - 1) * 100), Size = UDim2.fromOffset(120, 92), Text = "" }, palette.White)
+		UIKit.Icon(b, kind, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 4), Size = UDim2.fromOffset(30, 30) })
+		UIKit.label(b, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 0), Size = UDim2.new(1, -8, 0, 22), Font = Enum.Font.GothamBold, Text = HubMenus.TabLabels[kind] })
 		self.maid:Give(b.Activated:Connect(function()
-			self.tab, self.filter = kind, "All"
+			self.tab = kind
 			local first = Catalog.ByKind[kind][1]
-			self.selected = (kind == "Marble" and self.cosmetics.equipped.marble) or (kind == "Trail" and self.cosmetics.equipped.trail) or (kind == "Burst" and self.cosmetics.equipped.burst) or (kind == "Launch" and self.cosmetics.equipped.launch) or (first and first.Id)
+			local eq = self.cosmetics.equipped
+			self.selected = (kind == "Marble" and eq.marble) or (kind == "Trail" and eq.trail) or (kind == "Burst" and eq.burst) or (kind == "Launch" and eq.launch) or (first and first.Id)
 			self:_renderGarage()
 		end))
 		self.tabButtons[kind] = b
 	end
+	-- search + filter chips (the filter is saved to your profile)
+	self.search = UIKit.new("TextBox", { Name = "GarageSearch", Position = UDim2.fromOffset(148, 60), Size = UDim2.fromOffset(416, 34), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.1, TextColor3 = palette.White, PlaceholderText = "Search by name or rarity", PlaceholderColor3 = Color3.fromRGB(150, 160, 180), Font = Enum.Font.GothamMedium, TextScaled = true, ClearTextOnFocus = false, Text = "" }, panel)
+	UIKit.corner(self.search, 0.25)
+	UIKit.new("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6) }, self.search)
+	self.maid:Give(self.search:GetPropertyChangedSignal("Text"):Connect(function()
+		self:_renderGarage()
+	end))
 	self.filterButtons = {}
 	for i, filter in ipairs(HubMenus.Filters) do
-		local label = filter == "Favorites" and "FAV" or string.upper(filter)
-		local b = UIKit.button(panel, { Name = "GarageFilter", Position = UDim2.fromOffset(24 + (i - 1) * 66, 104), Size = UDim2.fromOffset(62, 30), Text = label, TextScaled = true }, Catalog.RarityColors[filter] or palette.White)
+		local label = filter == "Favorites" and "FAV" or filter == "Legendary" and "LEG" or string.upper(filter)
+		local b = UIKit.button(panel, { Name = "GarageFilter", Position = UDim2.fromOffset(148 + (i - 1) * 52, 100), Size = UDim2.fromOffset(48, 30), Text = label, TextScaled = true }, Catalog.RarityColors[filter] or palette.White)
 		self.maid:Give(b.Activated:Connect(function()
 			self.filter = filter
+			self.FilterChanged:Fire(filter)
 			self:_renderGarage()
 		end))
 		self.filterButtons[filter] = b
 	end
-	self.grid = UIKit.new("ScrollingFrame", { Name = "Grid", Position = UDim2.fromOffset(16, 142), Size = UDim2.fromOffset(548, 420), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 8, ScrollingDirection = Enum.ScrollingDirection.Y }, panel)
+	self.grid = UIKit.new("ScrollingFrame", { Name = "Grid", Position = UDim2.fromOffset(144, 138), Size = UDim2.fromOffset(424, 424), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 8, ScrollingDirection = Enum.ScrollingDirection.Y }, panel)
 	self.tiles = {}
 	-- detail side
 	local side = UIKit.panel(panel, { Position = UDim2.fromOffset(576, 64), Size = UDim2.fromOffset(288, 498), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.1 })
@@ -168,7 +215,7 @@ function HubMenus:_buildGarage(root)
 	self.detailName = UIKit.label(side, { Position = UDim2.fromOffset(14, 216), Size = UDim2.fromOffset(260, 32), Font = Enum.Font.GothamBlack, Text = "" })
 	self.detailRarity = UIKit.label(side, { Position = UDim2.fromOffset(14, 248), Size = UDim2.fromOffset(260, 22), Font = Enum.Font.GothamBold, Text = "" })
 	self.detailStatus = UIKit.label(side, { Position = UDim2.fromOffset(14, 274), Size = UDim2.fromOffset(260, 44), Font = Enum.Font.Gotham, TextWrapped = true, Text = "" })
-	self.equipButton = UIKit.button(side, { Name = "Equip", Position = UDim2.fromOffset(14, 326), Size = UDim2.fromOffset(260, 46), Text = "EQUIP" }, palette.Mint)
+	self.equipButton = UIKit.Primary(UIKit.button(side, { Name = "Equip", Position = UDim2.fromOffset(14, 326), Size = UDim2.fromOffset(260, 46), Text = "EQUIP" }, palette.Mint))
 	self.maid:Give(self.equipButton.Activated:Connect(function()
 		self:_equip(0)
 	end))
@@ -187,6 +234,16 @@ function HubMenus:_buildGarage(root)
 		end
 	end))
 	UIKit.label(side, { Position = UDim2.fromOffset(14, 430), Size = UDim2.fromOffset(260, 60), Font = Enum.Font.Gotham, TextWrapped = true, TextTransparency = 0.25, Text = "Looks only - every marble rolls exactly the same." })
+end
+
+-- the saved Garage filter (Settings key garageFilter)
+function HubMenus:SetFilter(filter)
+	for _, f in ipairs(HubMenus.Filters) do
+		if f == filter and self.filter ~= filter then
+			self.filter = filter
+			self:_renderGarage()
+		end
+	end
 end
 
 function HubMenus:_equip(slot)
@@ -336,24 +393,36 @@ function HubMenus:_renderGarage()
 		return
 	end
 	for kind, b in pairs(self.tabButtons) do
-		b.TextColor3 = kind == self.tab and palette.Mint or palette.White
+		b.BackgroundTransparency = kind == self.tab and 0 or 0.6
+		local stroke = b:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			stroke.Transparency = kind == self.tab and 0 or 0.6
+		end
 	end
 	for filter, b in pairs(self.filterButtons) do
 		b.TextColor3 = filter == self.filter and palette.Mint or palette.White
 	end
-	local items = HubMenus.FilterItems(self.tab, self.filter, self.cosmetics)
+	local items = HubMenus.FilterItems(self.tab, self.filter, self.cosmetics, self.search and self.search.Text or "")
+	items = HubMenus.SortItems(items, function(it)
+		return self:_isEquipped(it)
+	end, self.cosmetics)
 	for _, tile in ipairs(self.tiles) do
 		tile:Destroy()
 	end
 	self.tiles = {}
-	local cols = 4
+	local cols = 3
 	for i, item in ipairs(items) do
 		local owned = self.cosmetics.owned[item.Id]
 		local x, y = (i - 1) % cols, math.floor((i - 1) / cols)
 		local tile = UIKit.button(self.grid, { Name = "GarageItem", Position = UDim2.fromOffset(4 + x * 132, 4 + y * 100), Size = UDim2.fromOffset(124, 92), Text = "" }, Catalog.RarityColors[item.Rarity])
 		tile.BackgroundTransparency = owned and 0 or 0.55
 		UIKit.label(tile, { Position = UDim2.fromScale(0.05, 0.06), Size = UDim2.fromScale(0.9, 0.48), Font = Enum.Font.GothamBlack, TextScaled = true, TextWrapped = true, Text = item.Name })
-		local tag = self:_isEquipped(item) and "EQUIPPED" or owned and (self.cosmetics.favorites[item.Id] and "OWNED  *" or "OWNED") or "LOCKED"
+		local equipped = self:_isEquipped(item)
+		local tag = equipped and "EQUIPPED" or owned and (self.cosmetics.favorites[item.Id] and "OWNED  *" or "OWNED") or "LOCKED"
+		if equipped then
+			local badge = UIKit.new("Frame", { Name = "EquippedBadge", Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 5), BorderSizePixel = 0 }, tile)
+			UIKit.TrackAccent(badge, "BackgroundColor3")
+		end
 		UIKit.label(tile, { Position = UDim2.fromScale(0.05, 0.6), Size = UDim2.fromScale(0.9, 0.32), Font = Enum.Font.GothamBold, TextScaled = true, TextColor3 = Catalog.RarityColors[item.Rarity], Text = string.upper(item.Rarity) .. " - " .. tag })
 		if item.Id == self.selected then
 			UIKit.new("UIStroke", { Color = palette.Mint, Thickness = 3 }, tile)
@@ -365,6 +434,9 @@ function HubMenus:_renderGarage()
 		self.tiles[#self.tiles + 1] = tile
 	end
 	self.grid.CanvasSize = UDim2.fromOffset(0, math.ceil(#items / cols) * 100 + 8)
+	if #items == 0 then
+		self.detailName.Text = ""
+	end
 	local item = self.selected and Catalog.Get(self.selected)
 	if item and item.Kind ~= self.tab then
 		item = items[1]

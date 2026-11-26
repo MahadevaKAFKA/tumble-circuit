@@ -281,7 +281,7 @@ function MatchUI:UseCardLayout(adopt)
 	end))
 	self:_renderProfileDrawer()
 	-- practice strip (top centre): objective + EXIT PRACTICE
-	local practice = UIKit.panel(lobby, { Name = "PracticeStrip", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(560, 56), Visible = false })
+	local practice = UIKit.panel(lobby, { Name = "PracticeStrip", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 52), Size = UDim2.fromOffset(560, 56), Visible = false }) -- under the phase strip
 	self.practiceStrip = practice
 	self.practiceText = UIKit.label(practice, { Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -200, 1, -12), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
 	local exit = UIKit.button(practice, { Name = "ExitPractice", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(176, 42), Text = "EXIT PRACTICE" }, palette.Coral)
@@ -433,7 +433,6 @@ end
 -- Status card text for the lobby (what the race HUD used to say at the top of the hub screen).
 function MatchUI:_statusText(ctx)
 	local snap = self.snapshot
-	local left = snap.stateEndsAt and math.max(0, snap.stateEndsAt - (ctx.now or 0)) or 0
 	if snap.state == S.Intermission then
 		local sub
 		if snap.readyOpen then
@@ -444,11 +443,8 @@ function MatchUI:_statusText(ctx)
 		if not self.queued then
 			sub = "Sitting out - tap JOIN RACE"
 		end
-		local world = nextWorldName(snap)
-		if world then
-			sub = world .. " - " .. sub
-		end
-		return "NEXT RACE  " .. clock(left), sub
+		-- the countdown itself is on the phase strip (one timer on screen, brief 2026-11-26)
+		return self.queued and "YOU'RE IN THE NEXT RACE" or "JOIN THE NEXT RACE", sub
 	elseif snap.state == S.Preparing or snap.state == S.Countdown then
 		return "STARTING", self.queued and "Next one is yours" or "Racers on the grid"
 	elseif snap.state == S.Racing then
@@ -476,7 +472,7 @@ function MatchUI:Update(ctx)
 	else
 		UIKit.setText(self.queueButton, self.queued and "SIT OUT" or "JOIN RACE")
 	end
-	self.queueButton.TextColor3 = self.queued and palette.White or palette.Mint
+	UIKit.SetPrimary(self.queueButton, not self.queued) -- JOIN is the hub's one primary action
 	self.spectateStart.Visible = ctx.raceRunning and not ctx.racing and not ctx.spectating
 end
 
@@ -493,7 +489,7 @@ function MatchUI:UpdateBoard(board, ctx)
 	local left = snap.stateEndsAt and math.max(0, math.ceil(snap.stateEndsAt - ctx.now)) or nil
 	if snap.state == S.Intermission and left then
 		local world = nextWorldName(snap)
-		UIKit.setText(main, world and string.format("NEXT: %s IN %d", string.upper(world), left) or ("NEXT RACE IN " .. left))
+		UIKit.setText(main, world and ("NEXT MAP: " .. string.upper(world)) or "NEXT RACE") -- the timer is on the HUD strip
 		if snap.readyOpen then
 			UIKit.setText(sub, string.format("Race full - %d/%d READY", snap.readyCount or 0, snap.queuedCount or 0))
 		else

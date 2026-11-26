@@ -42,8 +42,9 @@ local LABELS = {
 	introSkip = "SKIP RACE INTRO",
 	trailVisibility = "SPEED TRAILS",
 	speedEffects = "SPEED FOV + STREAKS",
+	hudAlign = "RACE HUD POSITION",
 }
-local VALUE_TEXT = { FollowMap = "FOLLOW MAP", LeftHanded = "LEFT-HANDED", All = "EVERYONE", Mine = "MINE ONLY" }
+local VALUE_TEXT = { FollowMap = "FOLLOW MAP", LeftHanded = "LEFT-HANDED", All = "EVERYONE", Mine = "MINE ONLY", Center = "TOP CENTRE", Left = "TOP LEFT" }
 
 local function describe(key, value)
 	local spec = PlayerDataSchema.Settings[key]
@@ -119,7 +120,7 @@ function SettingsController.new(deps)
 	buildTab("Display", PlayerDataSchema.DisplaySettingOrder)
 	buildTab("Game", PlayerDataSchema.SettingOrder)
 	-- RESET DISPLAY -> live preview of the defaults, then KEEP / UNDO
-	self.resetButton = UIKit.button(panel, { Name = "SettingsReset", Position = UDim2.new(0, 24, 1, -52), Size = UDim2.fromOffset(240, 42), Text = "RESET DISPLAY" }, palette.Yellow)
+	self.resetButton = UIKit.button(panel, { Name = "SettingsReset", Position = UDim2.new(0, 24, 1, -52), Size = UDim2.fromOffset(240, 42), Text = "RESET THIS TAB" }, palette.Yellow)
 	self.keepButton = UIKit.button(panel, { Name = "SettingsReset", Position = UDim2.new(0, 24, 1, -52), Size = UDim2.fromOffset(200, 42), Text = "KEEP DEFAULTS", Visible = false }, palette.Mint)
 	self.undoButton = UIKit.button(panel, { Name = "SettingsReset", Position = UDim2.new(0, 234, 1, -52), Size = UDim2.fromOffset(130, 42), Text = "UNDO", Visible = false }, palette.Coral)
 	maid:Give(self.resetButton.Activated:Connect(function()
@@ -177,16 +178,17 @@ function SettingsController:ShowTab(name)
 	for tabName, button in pairs(self.tabButtons) do
 		button.BackgroundTransparency = tabName == name and 0 or 0.6
 	end
-	self.resetButton.Visible = name == "Display" and self.preview == nil
+	self.resetButton.Visible = (name == "Display" or name == "Driving") and self.preview == nil
 	self.note.Text = name == "Game" and "No music or sound files yet - your levels are saved for when they arrive."
 		or name == "Driving" and "Camera, steering and motion feedback. Reduced motion also removes the FOV kick and the intro."
 		or "Display settings change only your screen. They are saved to your profile."
 end
 
--- Pure: which display keys a reset changes (current values that differ from the defaults)
-function SettingsController.ResetPlan(settings)
+-- Pure: which keys a reset changes (current values that differ from the defaults); `order`
+-- = the tab's keys (default: the DISPLAY tab)
+function SettingsController.ResetPlan(settings, order)
 	local plan = {}
-	for _, key in ipairs(PlayerDataSchema.DisplaySettingOrder) do
+	for _, key in ipairs(order or PlayerDataSchema.DisplaySettingOrder) do
 		local default = PlayerDataSchema.Settings[key].default
 		if settings[key] ~= default then
 			plan[key] = default
@@ -199,9 +201,10 @@ function SettingsController:PreviewReset()
 	if self.preview then
 		return
 	end
-	local plan = SettingsController.ResetPlan(self.settings)
+	local order = self.tab == "Driving" and PlayerDataSchema.DrivingSettingOrder or PlayerDataSchema.DisplaySettingOrder
+	local plan = SettingsController.ResetPlan(self.settings, order)
 	if next(plan) == nil then
-		self.note.Text = "Display settings are already at their defaults."
+		self.note.Text = "This tab is already at its defaults."
 		return
 	end
 	local before = {}
@@ -215,7 +218,7 @@ function SettingsController:PreviewReset()
 	self.resetButton.Visible = false
 	self.keepButton.Visible = true
 	self.undoButton.Visible = true
-	self.note.Text = "Previewing the default layout. KEEP saves it, UNDO restores yours."
+	self.note.Text = "Previewing the defaults. KEEP saves them, UNDO restores yours."
 end
 
 function SettingsController:KeepReset()
@@ -244,6 +247,14 @@ function SettingsController:UndoReset()
 	self.Changed:Fire(self.settings)
 	self.keepButton.Visible, self.undoButton.Visible = false, false
 	self:ShowTab(self.tab or "Display")
+end
+
+-- Save one setting from elsewhere (e.g. the Garage filter); sanitized, sent like a row change.
+function SettingsController:SetValue(key, value)
+	local clean = PlayerDataSchema.SanitizeSetting(key, value)
+	if clean ~= nil and self.settings[key] ~= clean then
+		self:_set(key, clean, true)
+	end
 end
 
 function SettingsController:GetFirstButton()

@@ -77,6 +77,7 @@ local StarterLoadoutController = require(Controllers:WaitForChild("StarterLoadou
 local ResultsController = require(Controllers:WaitForChild("ResultsController"))
 local RaceIntroController = require(Controllers:WaitForChild("RaceIntroController"))
 local SpeedFeelController = require(Controllers:WaitForChild("SpeedFeelController"))
+local PhaseStripController = require(Controllers:WaitForChild("PhaseStripController"))
 local MotionFeel = require(Shared:WaitForChild("MotionFeel"))
 local DevPanelController = require(Controllers:WaitForChild("DevPanelController"))
 local SocialController = require(Controllers:WaitForChild("SocialController"))
@@ -577,6 +578,11 @@ maid:Give(hubMenus.EquippedChanged:Connect(function(equipped)
 	social:SetEmotes(equipped.emotes) -- B3: the three equipped emotes on the emote row
 	lab:SetOwned(hubMenus.cosmetics.ownedList) -- C: Shard Shop marks owned items
 end))
+-- brief 2026-11-26: the one MAP · PHASE · TIMER strip
+local phaseStrip = maid:Give(PhaseStripController.new())
+ui:Register("Phase", function(visible)
+	phaseStrip:SetVisible(visible)
+end)
 ui:Register("Hud", function(visible)
 	hud:SetHudVisible(visible)
 end)
@@ -982,6 +988,7 @@ local function applyDisplay(s)
 	touch:SetLayout(s.controlLayout, style.scale)
 	abilities:SetLayout(s.controlLayout, s.hudDensity)
 	raceHud:SetDensity(s.hudDensity)
+	raceHud:SetAlign(s.hudAlign)
 	matchUi:SetDensity(s.hudDensity)
 	hud:SetDensity(s.hudDensity)
 	hud:SetPerfVisible(s.perfOverlay == true and isDeveloper())
@@ -1000,6 +1007,7 @@ local function applySettings(s)
 	speedFeel:SetVisibility(s.trailVisibility)
 	speedFeel:SetSpeedEffects(s.speedEffects ~= false)
 	speedEffectsOn = s.speedEffects ~= false
+	hubMenus:SetFilter(s.garageFilter)
 	if cameraController:GetMode() ~= s.cameraMode then
 		hud:SetCameraMode(cameraController:SetMode(s.cameraMode))
 	end
@@ -1010,6 +1018,10 @@ end
 loadStage = "applying settings"
 maid:Give(settings.Changed:Connect(applySettings))
 applySettings(settings:Get())
+-- brief 2026-11-26: the Garage filter persists in your profile
+maid:Give(hubMenus.FilterChanged:Connect(function(filter)
+	settings:SetValue("garageFilter", filter)
+end))
 
 -- Modals
 local function openModal(name)
@@ -1018,6 +1030,12 @@ local function openModal(name)
 	end
 	refreshGates()
 end
+-- brief 2026-11-26: Shop > CASES > VIEW ODDS opens the Capsule Lab on that case
+maid:Give(shop.CaseRequested:Connect(function(boxId)
+	lab:SelectBox(boxId)
+	ui:CloseModal()
+	openModal("Lab")
+end))
 maid:Give(matchUi.LoadoutRequested:Connect(function()
 	openModal("Loadout")
 end))
@@ -1581,6 +1599,7 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	results:Update(now)
 	social:Update(now)
 	matchUi:Update({ now = now, racing = amRacing(), raceRunning = raceRunning(), spectating = spectate.active })
+	phaseStrip:Update(snapshot, { now = now, racing = amRacing() })
 	mapSelect:SetRacing(amRacing()) -- prompt 03: Visit / Practice wait until after your race
 	boardTimer = boardTimer + dt
 	if boardTimer >= 0.25 then

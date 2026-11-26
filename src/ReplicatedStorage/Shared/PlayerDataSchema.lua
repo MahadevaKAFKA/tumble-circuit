@@ -60,12 +60,15 @@ PlayerDataSchema.Settings = {
 	introSkip = { kind = "boolean", default = false },
 	trailVisibility = { kind = "enum", default = "All", values = { "All", "Mine", "Off" } },
 	speedEffects = { kind = "boolean", default = true },
+	-- the Garage's last filter chip (brief 2026-11-26: persistent filters); not a Settings row
+	hudAlign = { kind = "enum", default = "Center", values = { "Center", "Left" } }, -- race strip position
+	garageFilter = { kind = "enum", default = "All", values = { "All", "Owned", "Favorites", "Common", "Rare", "Epic", "Legendary", "Mythic" } },
 }
 PlayerDataSchema.SettingOrder = { "music", "sfx", "graphicsMode", "muteEmotes" }
 -- the DRIVING tab (2026-11-26): camera, steering and motion feedback in one place
-PlayerDataSchema.DrivingSettingOrder = { "cameraMode", "sensitivity", "reducedMotion", "speedEffects", "trailVisibility", "introSkip" }
+PlayerDataSchema.DrivingSettingOrder = { "cameraMode", "sensitivity", "controlLayout", "hudAlign", "reducedMotion", "speedEffects", "trailVisibility", "introSkip" }
 -- the Settings view's second tab (UI overhaul); perfOverlay is listed only for developers
-PlayerDataSchema.DisplaySettingOrder = { "hudScale", "panelOpacity", "hudDensity", "uiAccent", "highContrast", "controlLayout", "sceneryDetail", "perfOverlay" }
+PlayerDataSchema.DisplaySettingOrder = { "hudScale", "panelOpacity", "hudDensity", "uiAccent", "highContrast", "sceneryDetail", "perfOverlay" }
 
 PlayerDataSchema.StarterAbilities = { "Boost", "Shield", "Pulse" }
 -- B2: every ability id a profile may reference (mirrors AbilityConfig.Order; a spec checks)

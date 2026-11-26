@@ -218,6 +218,24 @@ function RaceHUD:UseStrip()
 	self.progressBar.Size = UDim2.fromOffset(440, 8)
 end
 
+-- Race strip position (Settings > Driving > Race HUD position): top centre or top left, so
+-- the centre of the track can stay completely clear (brief 2026-11-26, RIVALS pattern)
+function RaceHUD:SetAlign(align)
+	if not self.stripMode then
+		return
+	end
+	local left = align == "Left"
+	self.badge.AnchorPoint = left and Vector2.new(0, 0) or Vector2.new(0.5, 0)
+	self.badge.Position = left and UDim2.fromOffset(14, 8) or UDim2.new(0.5, 0, 0, 8)
+	self.progressBar.AnchorPoint = left and Vector2.new(0, 0) or self.progressBar.AnchorPoint
+	if left then
+		self.progressBar.Position = UDim2.fromOffset(14, 60)
+	else
+		self.progressBar.AnchorPoint = Vector2.new(0.5, 0)
+		self.progressBar.Position = UDim2.new(0.5, 0, 0, 60)
+	end
+end
+
 function RaceHUD:SetDensity(density)
 	self.density = density
 end

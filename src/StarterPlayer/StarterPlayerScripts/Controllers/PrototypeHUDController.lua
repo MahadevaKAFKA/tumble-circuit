@@ -147,7 +147,7 @@ function HUD.new(input)
 		Size = UDim2.new(1, 0, 0.3, 0),
 		TextColor3 = palette.Cyan,
 		Font = Enum.Font.Gotham,
-		Text = "studs/s",
+		Text = "KM/H", -- 1 stud ~ 0.28 m, so studs/s ~ km/h (display only)
 	})
 
 	self.hint = label(root, {

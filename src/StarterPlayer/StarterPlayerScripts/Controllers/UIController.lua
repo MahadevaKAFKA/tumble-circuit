@@ -20,17 +20,17 @@ UIController.Screens = {
 		-- No RaceHud here (owner playtest 2026-11-25): its top-centre status sat on top of the hub's
 		-- 3D board; the lobby column now carries the countdown / waiting line itself.
 		-- AbilitiesRace here = B2 try-it buttons (only shown after TRY in the ability menu)
-		layers = { "Hud", "Lobby", "Modes", "Touch", "Social", "AbilitiesRace" }, -- loadout summary lives on the LOADOUT button
+		layers = { "Hud", "Lobby", "Modes", "Touch", "Social", "AbilitiesRace", "Phase" }, -- loadout summary lives on the LOADOUT button; Phase = the one MAP · PHASE · TIMER strip
 		buttons = { "Queue", "Loadout", "Settings", "Spectate", "Camera", "Reset", "Emote", "Vote", "TimeTrial", "Party", "Invite", "MapVote", "Ability1", "Ability2", "Garage", "Quests", "More", "Boards", "Lab", "Shop", "Maps", "HubDrawer", "ProfileDrawer", "ExitPractice" },
 	},
 	-- B1 solo Time Trial: timer card + QUIT; no abilities, no lobby column
 	TimeTrial = { layers = { "Hud", "TimeTrial", "Touch" }, buttons = { "QuitTrial", "Brake", "Reset", "Camera" } },
 	Race = {
-		layers = { "Hud", "RaceHud", "AbilitiesRace", "Touch", "Social" }, -- Social: chaos banner only
+		layers = { "Hud", "RaceHud", "AbilitiesRace", "Touch", "Social", "Phase" }, -- Social: chaos banner only
 		buttons = { "Ability1", "Ability2", "Trick", "Brake", "Reset", "Camera" },
 	},
-	Spectate = { layers = { "RaceHud", "Spectate", "Social" }, buttons = { "SpectatePrev", "SpectateNext", "SpectateExit", "Settings", "Emote", "Vote" } },
-	Results = { layers = { "RaceHud", "Results", "Social" }, buttons = { "PlayAgain", "SitOut", "Loadout", "Settings" } },
+	Spectate = { layers = { "RaceHud", "Spectate", "Social", "Phase" }, buttons = { "SpectatePrev", "SpectateNext", "SpectateExit", "Settings", "Emote", "Vote" } },
+	Results = { layers = { "RaceHud", "Results", "Social", "Phase" }, buttons = { "PlayAgain", "SitOut", "Loadout", "Settings" } },
 }
 
 UIController.Modals = {
@@ -45,7 +45,7 @@ UIController.Modals = {
 	-- prompt 03: Map Selection (Visit Hub / Practice / Vote for Next Race)
 	MapSelect = { layer = "MapSelect", allowedOn = { Lobby = true, Results = true }, buttons = { "Close", "MapVisit", "MapPractice", "MapBallot", "MapPage" } },
 	-- D: the optional shop, lobby only (never during a race or on results)
-	Shop = { layer = "Shop", allowedOn = { Lobby = true }, buttons = { "Close", "ShopItem", "ShopGet", "LaneClaim" } },
+	Shop = { layer = "Shop", allowedOn = { Lobby = true }, buttons = { "Close", "ShopTab", "ShopItem", "ShopGet", "LaneClaim", "ShopCase" } },
 }
 
 UIController.Actions = {
@@ -58,7 +58,7 @@ UIController.Actions = {
 	"UnlockAbility", -- B2
 	"Garage", "Quests", "More", "Boards", "GarageTab", "GarageFilter", "GarageItem", "Equip", "Favorite", "QuestClaim", "BoardWorld", "BoardKind", -- B3
 	"Lab", "LabTab", "CapsuleBox", "OpenCapsule", "SkipReveal", "ShardItem", "SeasonClaim", -- C (CapsuleBox: 2026-11-26)
-	"Shop", "ShopItem", "ShopGet", "LaneClaim", -- D (optional shop)
+	"Shop", "ShopItem", "ShopGet", "LaneClaim", "ShopTab", "ShopCase", -- D (optional shop); 2026-11-26 sections
 	"Maps", "MapVisit", "MapPractice", "MapBallot", "MapPage", -- promo pack 03 (Map Selection)
 	"SettingsTab", "SettingsReset", "HubDrawer", "ProfileDrawer", "ExitPractice", -- UI overhaul
 }

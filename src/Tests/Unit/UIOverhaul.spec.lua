@@ -46,7 +46,28 @@ function Spec.run(m)
 	for _, key in ipairs(Schema.DisplaySettingOrder) do
 		display[key] = Schema.Settings[key] ~= nil
 	end
-	check("the DISPLAY tab lists only real settings", display.hudScale and display.panelOpacity and display.hudDensity and display.uiAccent and display.highContrast and display.controlLayout and display.sceneryDetail)
+	check("the DISPLAY tab lists only real settings", display.hudScale and display.panelOpacity and display.hudDensity and display.uiAccent and display.highContrast and display.sceneryDetail)
+	-- brief 2026-11-26: one dedicated DRIVING view (camera, steering, touch layout, HUD
+	-- position, motion feedback, trails, intro skip) and every row is a real, saved setting
+	local driving, seen, dup = {}, {}, false
+	for _, order in ipairs({ Schema.SettingOrder, Schema.DrivingSettingOrder, Schema.DisplaySettingOrder }) do
+		for _, key in ipairs(order) do
+			dup = dup or seen[key] == true
+			seen[key] = true
+		end
+	end
+	for _, key in ipairs(Schema.DrivingSettingOrder) do
+		driving[key] = Schema.Settings[key] ~= nil
+	end
+	check("DRIVING tab: camera, steering, control layout, HUD position, reduced motion, speed effects, trails, intro skip", driving.cameraMode and driving.sensitivity and driving.controlLayout and driving.hudAlign and driving.reducedMotion and driving.speedEffects and driving.trailVisibility and driving.introSkip and #Schema.DrivingSettingOrder <= 8)
+	check("no setting appears on two tabs; every saved setting except the Garage filter has a row", not dup and (function()
+		for key in pairs(Schema.Settings) do
+			if not seen[key] and key ~= "garageFilter" then
+				return false
+			end
+		end
+		return true
+	end)())
 
 	------------------------------------------------------------------ settings view
 	local SC = m.SettingsPure
@@ -97,6 +118,31 @@ function Spec.run(m)
 			end
 			check("hub card controls are wired screen buttons (MAPS, MENU, profile, EXIT PRACTICE)", lobby.Maps and lobby.HubDrawer and lobby.ProfileDrawer and lobby.ExitPractice)
 		end
+	end
+	------------------------------------------------------------------ brief 2026-11-26 (M4)
+	local PS = m.PhaseStripPure
+	if PS then
+		local base = { v = 14, state = "Intermission", stateEndsAt = 114, nextWorldId = "SkyCarnival_B1", worldId = "NeonFoundry_A4", readyOpen = false }
+		local t = PS.Text(base, { now = 100 })
+		check("phase strip: map, phase and the ONE next-race timer in the lobby", t.map == "SKY CARNIVAL" and t.phase == "QUEUE OPEN" and t.timer == "NEXT RACE 14")
+		base.state = "Countdown"
+		local c = PS.Text(base, { now = 100 })
+		check("phase strip during the countdown: map + STARTING, no second number (the big 3-2-1 is the cue)", c.map == "NEON FOUNDRY" and c.phase == "STARTING" and c.timer == "")
+		base.state = "Racing"
+		base.raceStartedAt = 40
+		check("phase strip hides for racers during the race (the race strip carries it), shows RACE LIVE to others", PS.Text(base, { now = 100, racing = true }) == nil and PS.Text(base, { now = 100, racing = false }).phase == "RACE LIVE")
+	end
+	local HM2 = m.HubMenusPure
+	if HM2 and HM2.SortItems then
+		local items = HM2.FilterItems("Marble", "All", { owned = {}, favorites = {} }, "")
+		local state = { owned = { cobalt = true, tangerine = true }, favorites = {} }
+		local sorted = HM2.SortItems(items, function(it)
+			return it.Id == "tangerine"
+		end, state)
+		check("Garage order: equipped first, then owned, then rarest first", sorted[1].Id == "tangerine" and sorted[2].Id == "cobalt" and sorted[3].Rarity == "Mythic")
+		local found = HM2.FilterItems("Trail", "All", state, "emb")
+		check("Garage search filters by name (case-insensitive)", #found == 1 and found[1].Id == "trail_ember")
+		check("Garage categories with labels: Skins, Trails, Launch, Bursts, Emotes", HM2.Tabs[1] == "Marble" and HM2.Tabs[3] == "Launch" and HM2.TabLabels.Marble == "SKINS")
 	end
 	return results
 end
