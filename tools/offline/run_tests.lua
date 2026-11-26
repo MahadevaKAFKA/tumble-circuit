@@ -238,6 +238,28 @@ do
 	}
 end
 
+modules.ListFiles = function(rel) -- every .lua file at / under rel (offline only)
+	local out = {}
+	local full = root .. "/" .. rel
+	if lfs.attributes(full, "mode") == "file" then
+		return { rel }
+	end
+	local function walkDir(dir, prefix)
+		for entry in lfs.dir(dir) do
+			if entry ~= "." and entry ~= ".." then
+				local path = dir .. "/" .. entry
+				if lfs.attributes(path, "mode") == "directory" then
+					walkDir(path, prefix .. "/" .. entry)
+				elseif entry:match("%.lua$") then
+					out[#out + 1] = prefix .. "/" .. entry
+				end
+			end
+		end
+	end
+	walkDir(full, rel)
+	table.sort(out)
+	return out
+end
 modules.ReadFile = function(rel) -- B3 specs read a source file (offline only)
 	local f = assert(io.open(root .. "/" .. rel))
 	local text = f:read("*a")
@@ -268,12 +290,31 @@ local suites = {
 	{ "Prompt 03 map selection specs", root .. "/src/Tests/Unit/MapSelection.spec.lua" },
 	{ "Prompts 04/07 hub lifecycle specs", root .. "/src/Tests/Unit/HubLifecycle.spec.lua" },
 	{ "Prompts 05/06 dressing specs", root .. "/src/Tests/Unit/Dressing.spec.lua" },
+	{ "Protocol key specs", root .. "/src/Tests/Unit/ProtocolKeys.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },
 	{ "A6 social specs", root .. "/src/Tests/Unit/Social.spec.lua" },
 }
 local passed, failed = 0, 0
+-- Boot smoke (2026-11-26): both bootstrap main chunks run end to end against proxy Roblox APIs
+do
+	print("\n-- Boot smoke (main chunks, proxy Roblox APIs) --")
+	BOOT_SMOKE_AS_MODULE = true
+	local boot = dofile(root .. "/tools/offline/boot_smoke.lua")
+	BOOT_SMOKE_AS_MODULE = nil
+	local realPrint = print
+	for _, target in ipairs({ "ServerScriptService/ServerBootstrap.server", "StarterPlayer/StarterPlayerScripts/ClientBootstrap.client" }) do
+		local okRun, err = boot(root, target)
+		if okRun then
+			passed = passed + 1
+			realPrint("PASS  " .. target .. " main chunk completes")
+		else
+			failed = failed + 1
+			realPrint("FAIL  " .. target .. " main chunk  -- " .. tostring(err):match("[^\n]*"))
+		end
+	end
+end
 for _, suite in ipairs(suites) do
 	local results = dofile(suite[2]).run(modules)
 	print("\n-- " .. suite[1] .. " --")

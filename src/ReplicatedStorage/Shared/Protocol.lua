@@ -23,6 +23,8 @@ Protocol.Zones = {
 Protocol.PlayerAttributes = {
 	SpawnCount = "TC_SpawnCount",
 	LastSpawnReason = "TC_LastSpawnReason",
+	Hub = "TC_Hub", -- prompt 03/04: the hub this player chose (they return here after races)
+	Features = "TC_Features", -- prompt 07: feature gates on for this player ("NewHubs" or "")
 }
 
 -- Attributes on the marble Part.
@@ -32,12 +34,6 @@ Protocol.BallAttributes = {
 	Protected = "Protected", -- true while spawn-protected (no marble collisions)
 	Frozen = "Frozen", -- true while anchored on the grid before GO
 	HubId = "HubId", -- prompt 03/04: which hub a Hub-zone marble is in (registry hub id)
-}
-
--- Attributes on Player (server-written; clients only read them).
-Protocol.PlayerAttributes = {
-	Hub = "TC_Hub", -- prompt 03/04: the hub this player chose (they return here after races)
-	Features = "TC_Features", -- prompt 07: feature gates on for this player ("NewHubs" or "")
 }
 
 -- Attributes on Workspace.

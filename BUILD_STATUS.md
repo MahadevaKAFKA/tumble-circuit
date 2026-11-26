@@ -13,6 +13,34 @@ The promo pack adds no monetization. Every deploy stays private.
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
 
+## 2026-11-26 — Fix: loading hang in v22–v26 (v27, private)
+
+- **Owner report:** stuck on "Building the hub and race tracks...". The v26 loading screen
+  showed the cause: *"Argument 1 missing or nil", ClientBootstrap line 768, while building
+  the menus.*
+- **Cause (my regression from prompt 03, v22).**
+  - `Protocol.lua` got a second `Protocol.PlayerAttributes = {Hub, Features}` table, which
+    replaced the original `{SpawnCount, LastSpawnReason}`.
+  - On the phone, `player:GetAttributeChangedSignal(nil)` errored and loading stopped.
+  - On the server, every marble spawn would also have failed (`SetAttribute(nil, ...)`).
+  - So v22, v23, v24, v25 and v26 could not be played. v21 was fine.
+- **Fix:** one `PlayerAttributes` table with all four keys.
+- **Why the checks missed it:**
+  - The offline specs never ran the two bootstrap scripts.
+  - The first emulator I wrote accepted nil arguments.
+- **New guards, all in the offline suite and CI (663 passing):**
+  - **Boot smoke** (`tools/offline/boot_smoke.lua`): runs the server and client bootstrap
+    main chunks end to end against proxy Roblox APIs that reject nil arguments the way Roblox
+    does. It reproduces the exact v26 error on the old code.
+  - **ProtocolKeys.spec**: every `ATTR` / `BALL` / `REASONS` / `ZONES` / workspace-attribute
+    key used in code exists, and no Protocol table is defined twice. Both checks fail on the
+    old code.
+  - **CI place check:** now compiles every script with the real Luau compiler.
+- **Loading diagnostics kept:**
+  - the loading screen shows elapsed seconds and the current stage;
+  - a server start-up error (`TC_ServerError`) appears on screen;
+  - a client script error while loading appears on screen.
+
 ## 2026-11-26 — Prompts 05 + 06: Neon Foundry visual language, Orbital Garage deck (v24, private)
 
 - **All client-local and gated (NewHubs).** `Shared/Dressing` (pure specs) and

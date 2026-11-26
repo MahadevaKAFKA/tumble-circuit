@@ -148,6 +148,7 @@ report("Prompt 02 map registry specs", require(Unit:WaitForChild("MapRegistry.sp
 report("Prompt 03 map selection specs", require(Unit:WaitForChild("MapSelection.spec")).run(modules))
 report("Prompts 04/07 hub lifecycle specs", require(Unit:WaitForChild("HubLifecycle.spec")).run(modules))
 report("Prompts 05/06 dressing specs", require(Unit:WaitForChild("Dressing.spec")).run(modules))
+report("Protocol key specs", require(Unit:WaitForChild("ProtocolKeys.spec")).run(modules))
 
 ------------------------------------------------------------------ integration (real engine)
 local integration = { passed = 0, failed = 0, lines = {}, info = {} }
