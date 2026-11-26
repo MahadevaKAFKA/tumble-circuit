@@ -20,11 +20,13 @@ local RoundProtocol = require(Shared:WaitForChild("RoundProtocol"))
 -- Start-up diagnostics (owner report 2026-11-26): the first script error before the server is
 -- ready is published as a workspace attribute; the loading screen shows it on the phone.
 local serverReady = false
-game:GetService("ScriptContext").Error:Connect(function(message, trace)
-	if not serverReady and workspace:GetAttribute(Protocol.WorkspaceAttributes.ServerError) == nil then
-		local firstLine = string.match(tostring(trace or ""), "[^\n]+") or ""
-		workspace:SetAttribute(Protocol.WorkspaceAttributes.ServerError, string.sub(tostring(message) .. " | " .. firstLine, 1, 400))
-	end
+pcall(function()
+	game:GetService("ScriptContext").Error:Connect(function(message, trace)
+		if not serverReady and workspace:GetAttribute(Protocol.WorkspaceAttributes.ServerError) == nil then
+			local firstLine = string.match(tostring(trace or ""), "[^\n]+") or ""
+			workspace:SetAttribute(Protocol.WorkspaceAttributes.ServerError, string.sub(tostring(message) .. " | " .. firstLine, 1, 400))
+		end
+	end)
 end)
 
 local Services = script.Parent:WaitForChild("Services")

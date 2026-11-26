@@ -141,13 +141,15 @@ local function showLoading()
 	hud:ShowMessage(string.format("Building the hub and race tracks... %d s\n(%s)", math.floor(os.clock() - loadStarted), loadStage))
 end
 showLoading()
-maid:Give(game:GetService("ScriptContext").Error:Connect(function(message, trace)
-	if hud:GetOverlay() == "Message" and loadStage ~= "ready" then
-		local firstLine = string.match(tostring(trace or ""), "[^\n]+") or ""
-		hud:ShowMessage("Client error while " .. loadStage .. ":\n" .. tostring(message) .. "\n" .. firstLine, true)
-		loadStage = "failed"
-	end
-end))
+pcall(function() -- diagnostics must never be the thing that breaks loading
+	maid:Give(game:GetService("ScriptContext").Error:Connect(function(message, trace)
+		if hud:GetOverlay() == "Message" and loadStage ~= "ready" then
+			local firstLine = string.match(tostring(trace or ""), "[^\n]+") or ""
+			hud:ShowMessage("Client error while " .. loadStage .. ":\n" .. tostring(message) .. "\n" .. firstLine, true)
+			loadStage = "failed"
+		end
+	end))
+end)
 local function serverError()
 	return workspace:GetAttribute(Protocol.WorkspaceAttributes.ServerError)
 end
