@@ -559,6 +559,7 @@ hubMenus:RegisterLayers(ui)
 -- C: Capsule Lab (free capsule / Shard Shop / free season)
 local lab = maid:Give(LabController.new({
 	remotes = remote,
+	sound = sound, -- the reveal's one "Reveal" cue (silent until an audio id is set)
 	toast = function(text, seconds)
 		hud:Toast(text, seconds)
 	end,
@@ -965,6 +966,7 @@ local function applyGraphics(mode)
 	end
 	vfx:SetQuality(low and "Low" or "High")
 	speedFeel:SetQuality(low and "Low" or (mode == "High" and "High" or "Standard"))
+	lab:SetQuality(low) -- Low: the case reveal uses its single-camera ribbon
 end
 -- the map whose accent "Follow map" uses: your hub's map in a hub, the race map on the course
 local function accentMapId()
@@ -1599,4 +1601,6 @@ end)
 loadStage = "ready"
 hud:ShowTitle()
 refreshGates()
+-- offline boot smoke / Studio checks can reach the presentation controllers (local to this client)
+_G.TumbleCircuitClient = { lab = lab, raceIntro = raceIntro, speedFeel = speedFeel }
 print("[TumbleCircuit] client ready (" .. GameConfig.Version .. ")")

@@ -280,32 +280,75 @@ function Spec.run(m)
 	check("history entries keep which capsule they came from", resan.capsule.history[1].box == C.Get("tangerine").Kind)
 
 	local Lab = m.LabPure
-	if Lab and Lab.ReelItems then
-		local reelOk, rd = true, nil
-		for _, box in ipairs(O.Boxes) do
-			local bp = boxPools(box)
-			for _, tier in ipairs(O.Tiers) do
-				if #bp[tier] > 0 then
-					for seed = 1, 30 do
-						local items = Lab.ReelItems(box.Id, bp[tier][1], tier, 0, 0, lcg(seed * 7 + 1))
-						if #items ~= Lab.ReelTiles or items[Lab.ReelLanding].id ~= bp[tier][1] then
-							reelOk, rd = false, "landing"
-						end
-						for i, it in ipairs(items) do
-							if C.Get(it.id).Kind ~= box.Kind then
-								reelOk, rd = false, "kind " .. box.Id
-							end
-							if i ~= Lab.ReelLanding and math.abs(i - Lab.ReelLanding) <= 3 and O.Rank[it.tier] > O.Rank[tier] then
-								reelOk, rd = false, "near-miss " .. box.Id .. " " .. tier
-							end
-						end
-					end
+	local RV = m.RevealPure
+	if Lab and RV then
+		-- the racing-spool reveal (2026-11-26): pure choreography + masks
+		local T = RV.Times
+		check("reveal timeline: queue 0.35, chase cut 0.75, rail 1.15, cross 2.0, unmask 2.05, done 2.5", T.Queue == 0.35 and T.Rail == 1.15 and T.Unmask == 2.05 and T.Done == 2.5)
+		local lineupOk, crossOk, smoothOk = true, true, true
+		for seed = 1, 40 do
+			local lineup = RV.Lineup("cobalt", function()
+				return "tangerine"
+			end, lcg(seed), 6)
+			local ranks, winners = {}, 0
+			for i, id in ipairs(lineup.ids) do
+				ranks[lineup.rank[i]] = true
+				if i == lineup.winnerIndex then
+					winners = winners + (id == "cobalt" and 1 or 0)
+				end
+			end
+			lineupOk = lineupOk and winners == 1 and #lineup.ids == 6 and ranks[0] and ranks[5]
+			for i = 1, 6 do
+				local s = RV.Progress(T.Cross, lineup.queuePos[i], lineup.rank[i])
+				if i == lineup.winnerIndex then
+					crossOk = crossOk and math.abs(s - 1) < 1e-9
+				else
+					crossOk = crossOk and s < 0.9
+				end
+				local prev = RV.Progress(0, lineup.queuePos[i], lineup.rank[i])
+				for f = 1, 150 do
+					local cur = RV.Progress(f / 60, lineup.queuePos[i], lineup.rank[i])
+					smoothOk = smoothOk and math.abs(cur - prev) < 0.06
+					prev = cur
 				end
 			end
 		end
-		check("opening reel: result on the landing tile, own kind only, no rarer tile next to it (no near-miss)", reelOk, rd)
-		local tiersE = Lab.OddsLines(0, 0, "Emote")
-		check("Lab odds for the Emote capsule show the rescaled table", #tiersE == 5 and string.find(tiersE[4], "LEGENDARY  0%%  %(each of 0") ~= nil)
+		check("reveal lineup: the confirmed winner appears exactly once, finishing order is a full ranking", lineupOk)
+		check("the confirmed winner is exactly on the reveal line at 2.0 s and clearly first", crossOk)
+		check("every entrant moves continuously (no jumps across camera cuts)", smoothOk)
+		-- masks: same outline family = same silhouette at any rarity; names/colours never used
+		local byPattern, sharedOk = {}, true
+		for _, item in ipairs(C.ByKind.Marble) do
+			local mask = RV.Mask(item)
+			local pattern = item.Look and item.Look.pattern or "None"
+			byPattern[pattern] = byPattern[pattern] or mask
+			sharedOk = sharedOk and byPattern[pattern] == mask and not string.find(mask, item.Name, 1, true)
+		end
+		check("marble masks come from the outline family only (same shape -> same mask across rarities)", sharedOk)
+		local t1, t2 = RV.Mask(C.Get("trail_ember")), RV.Mask(C.Get("trail_starlight"))
+		check("trails with the same profile share one neutral trace (Ember = Starlight: Twin)", t1 == t2 and t1 == "Trail:Twin" and RV.Mask(C.Get("trail_dust")) ~= t1)
+		check("each category has a distinct mask (marble / trail / burst / emote)", RV.Mask(C.Get("cobalt")) ~= RV.Mask(C.Get("trail_dust")) and RV.Mask(C.Get("burst_confetti")) == "Burst" and RV.Mask(C.Get("emote_gg")) == "Emote")
+		-- fillers are independent draws from the shown odds, of the capsule's own kind
+		local rng, counts, n = lcg(99), {}, 20000
+		local kindOk = true
+		for _ = 1, n do
+			local id = Lab.Filler("Emote", 0, 0, rng)
+			local item = C.Get(id)
+			kindOk = kindOk and item and item.Kind == "Emote"
+			counts[item.Rarity] = (counts[item.Rarity] or 0) + 1
+		end
+		check("reveal fillers: only the capsule's kind, distributed like the shown odds", kindOk and math.abs(counts.Common / n - 0.55 / 0.96) < 0.02 and (counts.Legendary or 0) == 0)
+		-- saved result recovery
+		local seenData = profile(1200)
+		CS.OpenOn(seenData, "seen-001", snap(seenData), pools, function()
+			return 0.4
+		end, 1)
+		check("an open is saved as not yet seen until the reveal is shown", seenData.capsule.history[1].seen == false and Lab.Unseen(seenData.capsule.history).req == "seen-001")
+		local first = CS.MarkSeen(seenData, "seen-001")
+		local again = CS.MarkSeen(seenData, "seen-001")
+		check("marking a reveal seen is idempotent and grants / charges nothing", first and not again and seenData.coins == 600 and Lab.Unseen(seenData.capsule.history) == nil)
+		local migratedSeen = Schema.Migrate({ schemaVersion = 5, capsule = { history = { { id = "tangerine", tier = "Common", req = "abc12345", seen = false } } } })
+		check("an unseen result survives a save + reload (returns after a disconnect)", migratedSeen.capsule.history[1].seen == false)
 	end
 	if Lab then
 		local tiers, items, branch = Lab.OddsLines(0, 0)

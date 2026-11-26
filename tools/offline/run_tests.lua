@@ -114,6 +114,7 @@ modules.UIKitPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/UIK
 modules.TouchControlsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/TouchControls")
 modules.RaceIntroPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/RaceIntroController")
 modules.SpeedFeelPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/SpeedFeelController")
+modules.RevealPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CapsuleRevealController")
 modules.CameraPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/CameraController")
 H.stubServices = {}
 

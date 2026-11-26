@@ -2,7 +2,7 @@
 
 **Active milestone:** owner brief 2026-11-26 "Animation, UI and Economy"
 (docs/ANIMATION_UI_ECONOMY_BRIEF.md, plan + baseline in docs/ANIMATION_UI_ECONOMY_PLAN.md):
-M1 baseline done, M2 speed feel + launch ramp (v32). Before that: CS:GO-style capsules, UI
+M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33). Before that: CS:GO-style capsules, UI
 motion and a race-entry drop-in (v31). Before that: hub
 obstruction fix (v30); UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
 settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
@@ -17,6 +17,31 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Brief M3: "racing spool" case reveal, saved-result recovery (v33, private)
+
+- **New reveal** (`CapsuleRevealController`, full screen so the hub chrome is covered): six
+  masked marbles queue on a curved launch track (0-0.35 s), race with a wide then a low chase
+  angle (0.35-1.15 s), then a stable rail-side shot as the pack eases down and the
+  already-chosen winner crosses the reveal line first (2.0 s, one "Reveal" sound cue), and
+  only the winner is unmasked (2.05-2.5 s): real look, rarity, category, EQUIP / DONE, or the
+  real Shard conversion for a duplicate. Replaces the v31 box + named reel.
+- **Masks:** each entrant is a neutral silhouette of its real outline family (marble =
+  its shell pattern, trail = a neutral carrier + its profile trace, burst = spikes, emote =
+  a bubble); same shape = same mask at every rarity; no names, colours or filler words.
+  Fillers are independent draws from the capsule's shown odds.
+- **UX:** SKIP, MUTE, Reduced motion (result at once), Low graphics = one-camera ribbon of
+  the same masks. Repeated taps are ignored while a request is pending. A slow server shows a
+  syncing screen (never a fake animation); after 8 s it says the result is saved and asks the
+  server again. EQUIP equips the new item; focus returns to the Lab.
+- **Saved-result recovery:** each open is stored as "unseen" until its reveal was shown
+  (`RequestCapsuleSeen`, protocol v14: bookkeeping only, grants nothing). Leave mid-reveal
+  or lose connection and the next Lab visit plays it (a toast says it's waiting).
+- **Tests:** 783 offline checks pass (+11: winner exactly on the line and first, continuous
+  motion, shared masks, filler odds, unseen survives a reload, seen is idempotent). The boot
+  smoke rejoins with an unseen result and steps the reveal through every shot to DONE.
+- **Not verified in a Roblox runtime:** how the viewport spool reads on the phone screen,
+  lighting of the neutral masks, frame time during the reveal.
 
 ## 2026-11-26 — Brief M2: speed trail for everyone, speed FOV/streaks, launch-ramp intro, Launch Animations (v32, private)
 

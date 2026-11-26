@@ -150,6 +150,12 @@ local function req(inst)
   env.task = { wait = function() return 0 end, spawn = function() end, defer = function() end, delay = function() end, cancel = function() end }
   env.tick = os.time; env.time = os.clock; env.wait = function() return 0 end; env.spawn = function() end; env.delay = function() end
   env.print = function(...) print("PRINT", ...) end
+  env.Random = { new = function(seed)
+    local state = (seed or 12345) % 2147483647
+    local function nextU() state = (state * 1103515245 + 12345) % 2147483648; return state / 2147483648 end
+    return { NextNumber = function(_, a, b) local u = nextU(); if a then return a + (b - a) * u end return u end,
+             NextInteger = function(_, a, b) return a + math.floor(nextU() * (b - a + 1)) end }
+  end }
   env.utf8 = utf8
   local chunk, err = loadfile(file, "t", env)
   assert(chunk, err)
@@ -228,11 +234,26 @@ local path = root .. "/src/" .. target
     fire("RoundSnapshot", snapshot("Racing", { roundId = 1, racers = { me }, raceStartedAt = os.time() }))
     fire("RoundSnapshot", snapshot("Results", { roundId = 1, racers = { { userId = 1, name = "Tester", place = 1, checkpoint = 8, finished = true, seconds = 61.2 } } }))
     fire("RoundSnapshot", snapshot("Lobby", { roundId = 1 }))
+    -- 2026-11-26: a saved, unseen capsule result after a rejoin -> the racing-spool reveal plays
+    local client = G.TumbleCircuitClient or _G.TumbleCircuitClient
+    assert(client and client.lab, "client controllers table missing")
+    rawget(client.lab.panel, "__store").Visible = true -- the Lab is open
+    fire("CapsuleState", { version = 2, cost = 600, coins = 1000, shards = 0, epicMisses = 3, legendaryMisses = 3, canSave = true,
+      history = { { id = "cobalt", tier = "Common", dup = false, shards = 0, req = "smoke-req-1", box = "Marble", seen = false } } })
     fire("DestinationResult", { ok = true, reason = "ok", hubIndex = 1, mode = 1 })
     fire("DestinationResult", { ok = false, reason = "gated", hubIndex = 2, mode = 1 })
     for _, fn in ipairs(renderSteps) do
       for _ = 1, 3 do fn(1 / 60) end
     end
+    -- the reveal plays and finishes: step it through every shot, then DONE
+    local reveal = client.lab.reveal
+    assert(reveal.playing, "the unseen capsule result did not start the reveal")
+    for _, dt in ipairs({ 0.1, 0.5, 0.9, 1.5, 2.01, 2.2 }) do
+      reveal.t0 = os.clock() - dt
+      if reveal.playing then reveal:_step() end
+    end
+    assert(not reveal.playing, "the reveal did not reach the unmask")
+    reveal:_close("Done")
   end, debug.traceback)
 end
 

@@ -5,11 +5,12 @@
 	- CAPSULE (owner request 2026-11-26): four capsules, one per kind (Marble / Trail / Burst /
 	  Emote), each with its full contents and exact odds for THIS open (tiers and every item,
 	  from CapsuleOdds with the server's own pity counters). OPEN sends a fresh request id, the
-	  counters you were shown and the capsule id. Opening animation: the capsule shakes and
-	  opens, then a reel scrolls and settles on the server's result. The reel is display
-	  only and never engineered: filler items are independent draws from the shown odds, and
-	  the three tiles either side of the result are never rarer than the result (no near-miss
-	  staging). SKIP at any time; reduced motion shows the result at once.
+	  counters you were shown and the capsule id. The server decides and saves the result
+	  first; only then does the "racing spool" reveal play (CapsuleRevealController: masked
+	  silhouettes, the winner crosses the line, only it is unmasked). A slow answer shows a
+	  syncing screen, never a fake animation. A result you haven't seen (closed the game
+	  mid-reveal, lost connection) waits in your history and plays the next time you open the
+	  Lab; the reveal tells the server you've seen it (RequestCapsuleSeen, display only).
 	- SHARD SHOP: choose exactly the item you want; owned ones are marked and can't be bought.
 	- SEASON: the configured season's name and end date (UTC), 30 free levels, CLAIM.
 ]]
@@ -23,13 +24,12 @@ local Catalog = require(Shared:WaitForChild("Catalog"))
 local SeasonConfig = require(Shared:WaitForChild("SeasonConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local UIKit = require(script.Parent:WaitForChild("UIKit"))
+local CapsuleReveal = require(script.Parent:WaitForChild("CapsuleRevealController"))
 
 local palette = UIKit.Palette
 
 local Lab = {}
 Lab.__index = Lab
-
-Lab.RevealSeconds = 1.5
 
 local function pools(boxId)
 	local box = CapsuleOdds.Box(boxId)
@@ -41,9 +41,6 @@ local function pools(boxId)
 end
 Lab.Pools = pools
 
-Lab.ReelTiles = 44
-Lab.ReelLanding = 37 -- the result's tile index
-Lab.ReelSeconds = 5.2
 Lab.BoxColors = {
 	Marble = Color3.fromRGB(39, 215, 245),
 	Trail = Color3.fromRGB(160, 120, 255),
@@ -51,42 +48,29 @@ Lab.BoxColors = {
 	Emote = Color3.fromRGB(110, 231, 186),
 }
 
--- Pure: the reel's tiles for a result. Fillers are independent draws from the box's odds
--- (rng() in [0,1)); the 3 tiles either side of the landing tile never outrank the result.
-function Lab.ReelItems(boxId, resultId, resultTier, epicMisses, legendaryMisses, rng)
+-- Pure: one filler entrant for the reveal, an independent draw from the capsule's shown odds
+-- (rng() in [0,1)). Display only: the reward was decided by the server before this runs.
+function Lab.Filler(boxId, epicMisses, legendaryMisses, rng)
 	local p = pools(boxId)
-	local tiers = CapsuleOdds.EffectiveTiers(p, epicMisses, legendaryMisses)
-	local rank = CapsuleOdds.Rank
-	local function draw(maxRank)
-		for _ = 1, 20 do
-			local u, acc, chosen = rng(), 0, nil
-			for _, tier in ipairs(CapsuleOdds.Tiers) do
-				if (tiers[tier] or 0) > 0 then
-					acc = acc + tiers[tier]
-					chosen = tier
-					if u < acc then
-						break
-					end
-				end
-			end
-			if chosen and rank[chosen] <= maxRank then
-				local ids = p[chosen]
-				return ids[math.min(#ids, math.floor(rng() * #ids) + 1)], chosen
-			end
-		end
-		return resultId, resultTier
-	end
-	local items = {}
-	for i = 1, Lab.ReelTiles do
-		if i == Lab.ReelLanding then
-			items[i] = { id = resultId, tier = resultTier }
-		else
-			local near = math.abs(i - Lab.ReelLanding) <= 3
-			local id, tier = draw(near and rank[resultTier] or 99)
-			items[i] = { id = id, tier = tier }
+	local u, acc = rng(), 0
+	local entries = CapsuleOdds.ItemOdds(p, epicMisses, legendaryMisses)
+	for _, entry in ipairs(entries) do
+		acc = acc + entry.p
+		if u < acc then
+			return entry.id
 		end
 	end
-	return items
+	return entries[#entries] and entries[#entries].id
+end
+
+-- Pure: the newest saved result the player hasn't seen yet (history is newest first)
+function Lab.Unseen(history)
+	for _, h in ipairs(history or {}) do
+		if h.seen == false then
+			return h
+		end
+	end
+	return nil
 end
 
 -- Pure: the odds lines the panel shows for these counters (tier lines + item lines)
@@ -130,8 +114,11 @@ function Lab.new(deps)
 	UIKit.label(panel, { Position = UDim2.fromOffset(24, 12), Size = UDim2.fromOffset(330, 40), Font = Enum.Font.GothamBlack, TextColor3 = palette.Mint, Text = "CAPSULE LAB", TextXAlignment = Enum.TextXAlignment.Left })
 	local close = UIKit.button(panel, { Name = "Close", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 12), Size = UDim2.fromOffset(130, 46), Text = "DONE" }, palette.Mint)
 	maid:Give(close.Activated:Connect(function()
-		self:_abortReveal()
 		self.CloseRequested:Fire()
+	end))
+	self.reveal = maid:Give(CapsuleReveal.new({ sound = deps.sound, remotes = self.remotes }))
+	maid:Give(self.reveal.Finished:Connect(function(action, result)
+		self:_revealFinished(action, result)
 	end))
 	self.tabButtons = {}
 	for i, tab in ipairs({ "Capsule", "Shards", "Season" }) do
@@ -151,6 +138,7 @@ function Lab.new(deps)
 			self.state = data
 			self:_renderCapsule()
 			self:_renderShards()
+			self:_checkUnseen()
 		end
 	end))
 	maid:Give(self.remotes.CapsuleResult.OnClientEvent:Connect(function(data)
@@ -175,6 +163,11 @@ end
 
 function Lab:SetReducedMotion(on)
 	self.reducedMotion = on == true
+	self.reveal:SetReducedMotion(self.reducedMotion)
+end
+
+function Lab:SetQuality(low)
+	self.reveal:SetQuality(low)
 end
 
 function Lab:ShowTab(tab)
@@ -203,7 +196,7 @@ function Lab:_buildCapsule(panel)
 		UIKit.label(tile, { Position = UDim2.fromOffset(78, 62), Size = UDim2.fromOffset(116, 22), Font = Enum.Font.GothamBold, TextColor3 = palette.Yellow, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Cost .. " COINS" })
 		self.boxTiles[box.Id] = tile
 		self.maid:Give(tile.Activated:Connect(function()
-			if not self.opening then
+			if not self.pending then
 				self.boxId = box.Id
 				self:_renderCapsule()
 			end
@@ -241,38 +234,6 @@ function Lab:_buildCapsule(panel)
 	end
 	UIKit.label(right, { Position = UDim2.fromOffset(16, 484), Size = UDim2.fromOffset(604, 14), Font = Enum.Font.Gotham, TextTransparency = 0.3, TextXAlignment = Enum.TextXAlignment.Left, Text = "Earned Coins only - never Robux. Duplicates become Shards for the Shard Shop." })
 
-	-- opening overlay (covers the whole Lab panel)
-	local overlay = UIKit.new("Frame", { Name = "Opening", Size = UDim2.fromScale(1, 1), BackgroundColor3 = palette.Ink, BackgroundTransparency = 0.05, Visible = false, ZIndex = 20, Active = true }, panel)
-	UIKit.corner(overlay, 0.04)
-	self.overlay = overlay
-	local crate = UIKit.new("Frame", { Name = "Crate", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromOffset(150, 120), BackgroundColor3 = palette.Cyan, BorderSizePixel = 0, ZIndex = 21 }, overlay)
-	UIKit.corner(crate, 0.1)
-	UIKit.new("Frame", { Position = UDim2.fromScale(0, 0.44), Size = UDim2.fromScale(1, 0.12), BackgroundColor3 = palette.Ink, BorderSizePixel = 0, ZIndex = 22 }, crate)
-	local lid = UIKit.new("Frame", { Name = "Lid", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, 4), Size = UDim2.new(1, 16, 0, 26), BackgroundColor3 = palette.White, BorderSizePixel = 0, ZIndex = 23 }, crate)
-	UIKit.corner(lid, 0.3)
-	self.crate, self.lid = crate, lid
-	local reel = UIKit.new("Frame", { Name = "Reel", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45), Size = UDim2.fromOffset(860, 150), BackgroundColor3 = palette.Navy, BorderSizePixel = 0, ClipsDescendants = true, Visible = false, ZIndex = 21 }, overlay)
-	UIKit.corner(reel, 0.06)
-	self.reel = reel
-	self.strip = UIKit.new("Frame", { Name = "Strip", Size = UDim2.new(0, Lab.ReelTiles * 124, 1, 0), BackgroundTransparency = 1, ZIndex = 22 }, reel)
-	self.reelTiles = {}
-	for i = 1, Lab.ReelTiles do
-		local tile = UIKit.new("Frame", { Position = UDim2.fromOffset((i - 1) * 124 + 2, 10), Size = UDim2.fromOffset(120, 130), BackgroundColor3 = palette.NavyFloor, BorderSizePixel = 0, ZIndex = 23 }, self.strip)
-		UIKit.corner(tile, 0.08)
-		local bar = UIKit.new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 10), BorderSizePixel = 0, ZIndex = 24 }, tile)
-		local name = UIKit.label(tile, { Position = UDim2.fromOffset(6, 30), Size = UDim2.new(1, -12, 0, 56), TextWrapped = true, Font = Enum.Font.GothamBlack, ZIndex = 24, Text = "" })
-		self.reelTiles[i] = { frame = tile, bar = bar, name = name }
-	end
-	UIKit.new("Frame", { Name = "Marker", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0), Size = UDim2.new(0, 4, 1, 0), BackgroundColor3 = palette.Yellow, BorderSizePixel = 0, ZIndex = 30 }, reel)
-	self.resultLabel = UIKit.label(overlay, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.45, 90), Size = UDim2.fromOffset(700, 70), Font = Enum.Font.GothamBlack, TextWrapped = true, Text = "", ZIndex = 25 })
-	self.skipButton = UIKit.button(overlay, { Name = "SkipReveal", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -18), Size = UDim2.fromOffset(200, 48), Text = "SKIP", ZIndex = 26 }, palette.White)
-	self.maid:Give(self.skipButton.Activated:Connect(function()
-		if self.revealResult then
-			self:_finishReveal()
-		else
-			self:_closeOverlay()
-		end
-	end))
 end
 
 function Lab:_renderCapsule()
@@ -322,7 +283,7 @@ function Lab:_renderCapsule()
 		end
 	end
 	self.contents.CanvasSize = UDim2.fromOffset(0, math.ceil(#items / 5) * 72)
-	local can = st.coins >= box.Cost and st.canSave and not self.pending and not self.opening
+	local can = st.coins >= box.Cost and st.canSave and not self.pending and not self.reveal:IsOpen()
 	self.openButton.AutoButtonColor = can
 	self.openButton.BackgroundTransparency = can and 0 or 0.6
 	self.openButton.Text = st.canSave and string.format("OPEN  (%d COINS)", box.Cost) or "SAVING UNAVAILABLE - PAUSED"
@@ -335,67 +296,6 @@ function Lab:_renderCapsule()
 	end
 end
 
-local function tween(inst, seconds, props, style, direction)
-	local t = game:GetService("TweenService"):Create(inst, TweenInfo.new(seconds, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out), props)
-	t:Play()
-	return t
-end
-
-function Lab:_closeOverlay()
-	self.opening = false
-	self.overlay.Visible = false
-	self:_renderCapsule()
-end
-
--- Leaving the Lab mid-animation: stop it, and say what was won so nothing is missed.
-function Lab:_abortReveal()
-	if self.reelTween then
-		self.reelTween:Cancel()
-		self.reelTween = nil
-	end
-	self.animToken, self.boxToken = nil, nil
-	if self.revealResult then
-		self.toast(self.revealResult, 3)
-		self.revealResult = nil
-	end
-	if self.overlay and self.overlay.Visible then
-		self:_closeOverlay()
-	end
-end
-
--- 0.9 s: the capsule shakes, then the lid pops off (plays while the server answers)
-function Lab:_playBoxOpen()
-	local box = CapsuleOdds.Box(self.boxId)
-	self.crate.BackgroundColor3 = Lab.BoxColors[box.Id]
-	self.crate.Visible, self.crate.Rotation = true, 0
-	self.lid.Position, self.lid.Rotation, self.lid.BackgroundTransparency = UDim2.new(0.5, 0, 0, 4), 0, 0
-	self.reel.Visible = false
-	self.resultLabel.Text = box.Name
-	self.resultLabel.TextColor3 = Lab.BoxColors[box.Id]
-	self.skipButton.Text = "CANCEL VIEW"
-	self.overlay.Visible = true
-	UIKit.Enter(self.crate, "Pop", 0.3)
-	if self.reducedMotion then
-		return
-	end
-	local token = {}
-	self.boxToken = token
-	task.spawn(function()
-		for i = 1, 6 do
-			if self.boxToken ~= token then
-				return
-			end
-			tween(self.crate, 0.07, { Rotation = (i % 2 == 0) and 7 or -7 })
-			task.wait(0.07)
-		end
-		if self.boxToken ~= token then
-			return
-		end
-		tween(self.crate, 0.08, { Rotation = 0 })
-		tween(self.lid, 0.35, { Position = UDim2.new(0.5, 0, 0, -80), Rotation = 28, BackgroundTransparency = 1 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	end)
-end
-
 function Lab:Open()
 	local st = self.state
 	local box = CapsuleOdds.Box(self.boxId)
@@ -404,28 +304,50 @@ function Lab:Open()
 		self.remotes.RequestCapsuleState:FireServer()
 		return
 	end
-	if self.pending or self.opening then
-		return
+	if self.pending or self.reveal:IsOpen() then
+		return -- one open at a time; repeated taps are ignored
 	end
 	if st.coins < box.Cost then
-		self.toast(string.format("You need %d Coins (earned by racing)", box.Cost), 2)
+		self.toast(string.format("You need %d Coins", box.Cost), 2)
 		return
 	end
 	local requestId = HttpService:GenerateGUID(false)
 	self.pending = { id = requestId, at = os.clock(), box = box.Id, epic = st.epicMisses, legendary = st.legendaryMisses }
-	self.opening = true
 	self.statusLabel.Text = "Opening..."
 	self:_renderCapsule()
-	self:_playBoxOpen()
 	self.remotes.RequestOpenCapsule:FireServer(requestId, st.version, st.epicMisses, st.legendaryMisses, box.Id)
-	task.delay(8, function()
+	task.delay(0.6, function()
 		if self.pending and self.pending.id == requestId then
-			self.pending = nil
-			self:_closeOverlay()
-			self.statusLabel.Text = "No answer from the server. If it went through, it's in your history."
-			self.remotes.RequestCapsuleState:FireServer()
+			self.reveal:ShowSyncing() -- a slow answer: say so, never a fake animation
 		end
 	end)
+	task.delay(8, function()
+		if self.pending and self.pending.id == requestId then
+			self.pending.lost = true
+			self.reveal:ShowSyncing("Still syncing. If the open went through, its result is saved on the server and will play here as soon as it arrives (nothing is charged twice).")
+			self.remotes.RequestCapsuleState:FireServer()
+			task.delay(4, function()
+				if self.pending and self.pending.id == requestId then
+					self.pending = nil
+					self.reveal:Close()
+					self.statusLabel.Text = "No answer from the server. Check LAST 20 OPENED."
+				end
+			end)
+		end
+	end)
+end
+
+function Lab:_play(result, epic, legendary)
+	local box = CapsuleOdds.Box(result.box)
+	result.boxName = box.Name
+	local rng = Random.new()
+	local mixed = false -- one kind per capsule today (masks still show the category)
+	self.revealing = result.req or result.requestId
+	self.reveal:Play(result, function()
+		return Lab.Filler(box.Id, epic or 0, legendary or 0, function()
+			return rng:NextNumber()
+		end)
+	end, mixed)
 end
 
 function Lab:_onResult(data)
@@ -435,91 +357,46 @@ function Lab:_onResult(data)
 	local pending = self.pending
 	self.pending = nil
 	if not data.ok then
-		self:_closeOverlay()
+		self.reveal:Close()
 		self.statusLabel.Text = tostring(data.reason or "Not opened")
 		self.remotes.RequestCapsuleState:FireServer()
 		return
 	end
-	local item = Catalog.Get(data.id)
-	if not item then
-		self:_closeOverlay()
-		self.statusLabel.Text = "Opened - see your history"
-		return
-	end
-	self.revealResult = string.format("%s  -  %s%s", string.upper(item.Name), string.upper(data.tier), data.dup and string.format("   (duplicate: +%d SHARDS)", data.shards) or "   NEW!")
-	self.revealColor = Catalog.RarityColors[data.tier]
 	self.statusLabel.Text = ""
-	if not self.panel.Visible then
-		self:_abortReveal() -- the Lab was closed while the server answered: a toast instead
-		return
-	end
-	if self.reducedMotion or not self.overlay.Visible then
-		self:_finishReveal() -- reduced motion, or the player chose CANCEL VIEW: result at once
-		return
-	end
-	-- reel: fill, place the result on the landing tile, scroll and settle
-	local rng = Random.new()
-	local items = Lab.ReelItems(pending.box, data.id, data.tier, pending.epic, pending.legendary, function()
-		return rng:NextNumber()
-	end)
-	for i, tile in ipairs(self.reelTiles) do
-		local entry = items[i]
-		local it = Catalog.Get(entry.id)
-		tile.name.Text = it and it.Name or ""
-		tile.bar.BackgroundColor3 = Catalog.RarityColors[entry.tier] or palette.White
-		tile.frame.Size = UDim2.fromOffset(120, 130)
-	end
-	local token = {}
-	self.animToken = token
-	task.delay(self.reducedMotion and 0 or 0.55, function()
-		if self.animToken ~= token then
-			return
-		end
-		self.boxToken = nil
-		self.crate.Visible = false
-		self.reel.Visible = true
-		UIKit.Enter(self.reel, "Pop", 0.25)
-		self.resultLabel.Text = ""
-		self.skipButton.Text = "SKIP"
-		self.strip.Position = UDim2.fromOffset(0, 0)
-		local center = 430 -- half the reel width
-		local landing = (Lab.ReelLanding - 1) * 124 + 2 + 60
-		local jitter = rng:NextNumber(-40, 40) -- where inside the tile the marker stops (display only)
-		self.reelStopX = center - landing - jitter
-		self.reelTween = tween(self.strip, Lab.ReelSeconds, { Position = UDim2.fromOffset(self.reelStopX, 0) }, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-		task.delay(Lab.ReelSeconds, function()
-			if self.animToken == token then
-				self:_finishReveal()
-			end
-		end)
-	end)
+	self:_play({ id = data.id, tier = data.tier, dup = data.dup, shards = data.shards, box = data.box or pending.box, req = data.requestId }, pending.epic, pending.legendary)
 end
 
-function Lab:_finishReveal()
-	if self.revealResult then
-		if self.reelTween then
-			self.reelTween:Cancel()
-			self.reelTween = nil
-		end
-		local landing = (Lab.ReelLanding - 1) * 124 + 2 + 60
-		self.strip.Position = UDim2.fromOffset(self.reelStopX or (430 - landing), 0)
-		self.reelStopX = nil
-		self.crate.Visible = false
-		self.reel.Visible = true
-		self.overlay.Visible = true
-		local tile = self.reelTiles[Lab.ReelLanding]
-		if not self.reducedMotion then
-			tween(tile.frame, 0.25, { Size = UDim2.fromOffset(120, 136) }, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-		end
-		self.resultLabel.Text = self.revealResult
-		self.resultLabel.TextColor3 = self.revealColor or palette.White
-		UIKit.Punch(self.resultLabel, 1.25, 0.35)
-		self.skipButton.Text = "DONE"
-		self.revealResult = nil
-	else
-		self:_closeOverlay()
+-- A saved result the player never saw (left mid-reveal, lost connection): play it, free.
+function Lab:_checkUnseen()
+	local h = self.state and Lab.Unseen(self.state.history)
+	if not h or self.pending or self.reveal:IsOpen() or self.revealing == h.req then
+		return
 	end
-	self.animToken = nil
+	if not self.panel.Visible then
+		if not self.unseenToastShown then
+			self.unseenToastShown = true
+			self.toast("A capsule result is waiting for you in the CAPSULE LAB", 3)
+		end
+		return
+	end
+	self:_play({ id = h.id, tier = h.tier, dup = h.dup, shards = h.shards, box = h.box, req = h.req }, self.state.epicMisses, self.state.legendaryMisses)
+end
+
+function Lab:_revealFinished(action, result)
+	self.revealing = nil
+	if result and result.req and self.remotes.RequestCapsuleSeen then
+		self.remotes.RequestCapsuleSeen:FireServer(result.req)
+	end
+	local item = result and Catalog.Get(result.id)
+	if action == "Equip" and item and not result.dup then
+		self.remotes.RequestEquipCosmetic:FireServer(item.Kind, item.Id, 0)
+	end
+	self:_renderCapsule()
+	if self.openButton then
+		pcall(function()
+			game:GetService("GuiService").SelectedObject = self.openButton -- focus back on the Lab
+		end)
+	end
 end
 
 ---------------------------------------------------------------------------------------------
@@ -629,7 +506,7 @@ function Lab:RegisterLayers(ui)
 		UIKit.Show(self.panel, visible, "Pop")
 		if visible then
 			self:ShowTab(self.tab)
-			self.remotes.RequestCapsuleState:FireServer()
+			self.remotes.RequestCapsuleState:FireServer() -- an unseen result plays when it arrives
 			self:_renderCapsule()
 			self:_renderSeason()
 		end

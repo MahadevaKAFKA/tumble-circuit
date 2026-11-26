@@ -76,6 +76,7 @@ ok    src/ServerStorage/ProceduralBuilders/TrainingTrackBuilder.lua
 ok    src/StarterPlayer/StarterPlayerScripts/ClientBootstrap.client.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/AbilityController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CameraController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/CapsuleRevealController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/DevPanelController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/EnvironmentController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController.lua
@@ -141,8 +142,8 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 128.3 ms
-PRINT	[TumbleCircuit] server ready (A6.0, protocol v13)
+PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 176.6 ms
+PRINT	[TumbleCircuit] server ready (A6.0, protocol v14)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
 PASS  StarterPlayer/StarterPlayerScripts/ClientBootstrap.client main chunk completes
@@ -596,8 +597,17 @@ PASS  Legendary pity on a capsule with no Legendary: its best tier is guaranteed
 PASS  Trail capsule: charges 450, grants a Trail, history records the capsule
 PASS  Emote capsule: 300 Coins needed, refused at 299
 PASS  history entries keep which capsule they came from
-PASS  opening reel: result on the landing tile, own kind only, no rarer tile next to it (no near-miss)
-PASS  Lab odds for the Emote capsule show the rescaled table
+PASS  reveal timeline: queue 0.35, chase cut 0.75, rail 1.15, cross 2.0, unmask 2.05, done 2.5
+PASS  reveal lineup: the confirmed winner appears exactly once, finishing order is a full ranking
+PASS  the confirmed winner is exactly on the reveal line at 2.0 s and clearly first
+PASS  every entrant moves continuously (no jumps across camera cuts)
+PASS  marble masks come from the outline family only (same shape -> same mask across rarities)
+PASS  trails with the same profile share one neutral trace (Ember = Starlight: Twin)
+PASS  each category has a distinct mask (marble / trail / burst / emote)
+PASS  reveal fillers: only the capsule's kind, distributed like the shown odds
+PASS  an open is saved as not yet seen until the reveal is shown
+PASS  marking a reveal seen is idempotent and grants / charges nothing
+PASS  an unseen result survives a save + reload (returns after a disconnect)
 PASS  Capsule Lab shows 5 tier lines and all 35 item lines from the same odds
 PASS  Capsule Lab follows the server's counters (pity branch shown)
 info  100k base draws observed: Common 55.186%, Rare 29.924%, Epic 10.904%, Legendary 3.474%, Mythic 0.512%
@@ -1003,4 +1013,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-774 passed, 0 failed (+ 0 syntax failures)
+783 passed, 0 failed (+ 0 syntax failures)

@@ -80,7 +80,7 @@ function CapsuleService.OpenOn(data, requestId, snapshot, pools, rng, now, box)
 	else
 		table.insert(data.cosmetics.owned, id)
 	end
-	table.insert(cap.history, 1, { id = id, tier = tier, dup = owned, shards = shards, at = now, req = requestId, box = box.Id })
+	table.insert(cap.history, 1, { id = id, tier = tier, dup = owned, shards = shards, at = now, req = requestId, box = box.Id, seen = false })
 	while #cap.history > CapsuleOdds.HistorySize do
 		table.remove(cap.history)
 	end
@@ -92,6 +92,17 @@ function CapsuleService.OpenOn(data, requestId, snapshot, pools, rng, now, box)
 end
 
 -- Pure: buy `id` with Shards. Returns price or nil, reason.
+-- Pure: mark a history entry's reveal as shown. Returns true if something changed.
+function CapsuleService.MarkSeen(data, requestId)
+	for _, h in ipairs(data.capsule.history) do
+		if h.req == requestId and h.seen == false then
+			h.seen = true
+			return true
+		end
+	end
+	return false
+end
+
 function CapsuleService.ShardBuyOn(data, id)
 	local item = Catalog.Get(id)
 	if not item then
@@ -223,6 +234,16 @@ function CapsuleService:Start()
 	end)
 	connect("RequestCapsuleState", function(player)
 		self:SendState(player)
+	end)
+	-- 2026-11-26: the client showed the reveal of a saved result (no grant, no charge)
+	connect("RequestCapsuleSeen", function(player, requestId)
+		local changed = false
+		self.data:Update(player, function(data)
+			changed = CapsuleService.MarkSeen(data, requestId)
+		end)
+		if changed then
+			self.data:SaveSoon(player)
+		end
 	end)
 	self.maid:Give(self.data.ProfileLoaded:Connect(function(player)
 		self:SendState(player)

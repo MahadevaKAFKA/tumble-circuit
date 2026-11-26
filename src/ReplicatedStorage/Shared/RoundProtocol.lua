@@ -71,7 +71,7 @@
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 13 -- v13 (2026-11-26): RequestOpenCapsule adds the capsule (box) id
+RoundProtocol.Version = 14 -- v14 (2026-11-26): RequestCapsuleSeen (v13: RequestOpenCapsule adds the capsule id)
 RoundProtocol.FolderName = "TumbleRemotes"
 
 RoundProtocol.Remotes = {
@@ -130,6 +130,8 @@ RoundProtocol.Remotes = {
 	RequestCapsuleState = { Direction = "ClientToServer", Args = {}, MinInterval = 0.5 },
 	RequestOpenCapsule = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 }, { type = "number", min = 0, max = 99, integer = true }, { type = "number", min = 0, max = 99, integer = true }, { type = "number", min = 0, max = 99, integer = true }, { type = "string", maxLength = 12 } }, MinInterval = 1.6 },
 	CapsuleResult = { Direction = "ServerToClient" },
+	-- v14: the reveal of a saved result was shown (display bookkeeping only: grants nothing)
+	RequestCapsuleSeen = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 } }, MinInterval = 0.25 },
 	RequestShardBuy = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 } }, MinInterval = 0.5 },
 	SeasonState = { Direction = "ServerToClient" },
 	RequestSeasonClaim = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 30, integer = true } }, MinInterval = 0.3 },
