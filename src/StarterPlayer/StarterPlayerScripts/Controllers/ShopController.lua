@@ -23,6 +23,7 @@ local Catalog = require(Shared:WaitForChild("Catalog"))
 local ShopConfig = require(Shared:WaitForChild("ShopConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local UIKit = require(script.Parent:WaitForChild("UIKit"))
+local ItemSwatch = require(script.Parent:WaitForChild("ItemSwatch"))
 
 local palette = UIKit.Palette
 
@@ -76,12 +77,12 @@ function Shop.new(deps)
 	local panel = UIKit.panel(root, { Name = "Shop", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(860, 560), BackgroundTransparency = 0.04, Visible = false })
 	UIKit.new("UIStroke", { Color = palette.Yellow, Thickness = 2 }, panel)
 	self.panel = panel
-	UIKit.label(panel, { Position = UDim2.fromOffset(24, 12), Size = UDim2.fromOffset(500, 40), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = "SHOP (OPTIONAL)", TextXAlignment = Enum.TextXAlignment.Left })
-	UIKit.label(panel, { Position = UDim2.fromOffset(24, 52), Size = UDim2.fromOffset(640, 22), Font = Enum.Font.Gotham, Text = "Looks only - nothing here changes speed, abilities, rewards or who you race.", TextXAlignment = Enum.TextXAlignment.Left })
+	UIKit.Title(panel, { Position = UDim2.fromOffset(24, 16), Size = UDim2.fromOffset(300, 30), Text = "SHOP" })
+	UIKit.label(panel, { Position = UDim2.fromOffset(24, 54), Size = UDim2.fromOffset(640, 18), Font = Enum.Font.Gotham, TextColor3 = UIKit.Colors.Muted, Text = "Looks only - nothing here changes speed, abilities, rewards or who you race.", TextXAlignment = Enum.TextXAlignment.Left })
 	-- sections: guaranteed items (Robux) / cases (earned Coins)
-	self.section = "Items"
+	self.section = "Cases"
 	self.sectionButtons = {}
-	for i, sec in ipairs({ { "Items", "ITEMS  ·  ROBUX" }, { "Cases", "CASES  ·  COINS" } }) do
+	for i, sec in ipairs({ { "Cases", "CASES  ·  COINS" }, { "Items", "ITEMS  ·  ROBUX" } }) do
 		local b = UIKit.button(panel, { Name = "ShopTab", Position = UDim2.fromOffset(380 + (i - 1) * 158, 14), Size = UDim2.fromOffset(150, 36), Text = sec[2] }, palette.White)
 		maid:Give(b.Activated:Connect(function()
 			self.section = sec[1]
@@ -90,29 +91,40 @@ function Shop.new(deps)
 		self.sectionButtons[sec[1]] = b
 	end
 	self.cases = UIKit.new("Frame", { Name = "Cases", Position = UDim2.fromOffset(16, 84), Size = UDim2.fromOffset(828, 460), BackgroundTransparency = 1, Visible = false }, panel)
+	-- v2: four tall case cards side by side (art, tier, name, what it holds, price, VIEW ODDS)
+	local caseColors = { Starter = Color3.fromRGB(110, 231, 186), Marble = Color3.fromRGB(39, 215, 245), Trail = Color3.fromRGB(160, 120, 255), Apex = Color3.fromRGB(255, 196, 96) }
 	for i, box in ipairs(CapsuleOdds.Boxes) do
-		local row = UIKit.panel(self.cases, { Position = UDim2.fromOffset(4, (i - 1) * 96), Size = UDim2.fromOffset(820, 88), BackgroundColor3 = palette.NavyFloor })
-		UIKit.Icon(row, "Case", { Position = UDim2.fromOffset(16, 26), Size = UDim2.fromOffset(36, 36) })
-		UIKit.label(row, { Position = UDim2.fromOffset(66, 10), Size = UDim2.fromOffset(420, 30), Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Name .. "   ·   " .. (box.Tier or "") })
-		UIKit.label(row, { Position = UDim2.fromOffset(66, 44), Size = UDim2.fromOffset(460, 34), Font = Enum.Font.Gotham, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, Text = (box.Mixed and ("A random skin, trail, burst or emote (" .. (box.Rarities and box.Rarities.Epic and "Epic or better" or "Common or Rare") .. ")") or ("A random " .. (box.Kind == "Marble" and "skin" or string.lower(box.Kind)) .. ", any rarity")) .. ". Every item and its exact chance are shown before you open. Duplicates become Shards." })
-		UIKit.label(row, { Position = UDim2.fromOffset(530, 10), Size = UDim2.fromOffset(110, 30), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = string.format("%d", box.Cost) })
-		UIKit.label(row, { Position = UDim2.fromOffset(530, 44), Size = UDim2.fromOffset(110, 20), Font = Enum.Font.GothamBold, Text = "COINS (quests)" })
-		local view = UIKit.button(row, { Name = "ShopCase", Position = UDim2.fromOffset(656, 18), Size = UDim2.fromOffset(150, 52), Text = "VIEW ODDS" }, palette.White)
+		local card = UIKit.panel(self.cases, { Position = UDim2.fromOffset(4 + (i - 1) * 206, 0), Size = UDim2.fromOffset(198, 452), BackgroundColor3 = palette.NavyFloor })
+		local color = caseColors[box.Id] or palette.White
+		UIKit.new("Frame", { Name = "CaseEdge", Size = UDim2.new(1, 0, 0, 4), BackgroundColor3 = color, BorderSizePixel = 0 }, card)
+		local art = UIKit.Icon(card, "Case", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 30), Size = UDim2.fromOffset(110, 110) })
+		for _, piece in ipairs(art:GetChildren()) do
+			if piece:IsA("Frame") and piece.BackgroundColor3 ~= palette.Ink then
+				piece.BackgroundColor3 = color
+			end
+		end
+		UIKit.label(card, { Position = UDim2.fromOffset(14, 156), Size = UDim2.fromOffset(170, 14), Font = Enum.Font.GothamBold, TextColor3 = UIKit.Colors.Muted, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Tier or "" })
+		UIKit.label(card, { Position = UDim2.fromOffset(14, 174), Size = UDim2.fromOffset(170, 24), Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = box.Name })
+		UIKit.label(card, { Position = UDim2.fromOffset(14, 206), Size = UDim2.fromOffset(170, 96), Font = Enum.Font.Gotham, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, TextScaled = false, TextSize = 15, TextColor3 = UIKit.Colors.Muted, TextXAlignment = Enum.TextXAlignment.Left, Text = (box.Mixed and ("Skins, trails, bursts and emotes - " .. (box.Rarities and box.Rarities.Epic and "Epic or better only." or "Common and Rare.")) or ("Every " .. (box.Kind == "Marble" and "marble skin" or string.lower(box.Kind)) .. ", any rarity.")) .. " Every chance is shown before you open. Duplicates become Shards." })
+		UIKit.Title(card, { Position = UDim2.fromOffset(14, 318), Size = UDim2.fromOffset(170, 30), TextColor3 = palette.Yellow, Text = tostring(box.Cost) })
+		UIKit.label(card, { Position = UDim2.fromOffset(14, 352), Size = UDim2.fromOffset(170, 14), Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, Text = "COINS (from quests)" })
+		local view = UIKit.button(card, { Name = "ShopCase", Position = UDim2.fromOffset(14, 384), Size = UDim2.fromOffset(170, 50), Text = "VIEW ODDS" }, palette.White)
 		maid:Give(view.Activated:Connect(function()
 			self.CaseRequested:Fire(box.Id)
 		end))
 	end
-	local close = UIKit.button(panel, { Name = "Close", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 12), Size = UDim2.fromOffset(130, 46), Text = "DONE" }, palette.Mint)
-	maid:Give(close.Activated:Connect(function()
-		self.CloseRequested:Fire()
-	end))
-	self.list = UIKit.new("ScrollingFrame", { Position = UDim2.fromOffset(16, 84), Size = UDim2.fromOffset(500, 460), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 8, CanvasSize = UDim2.fromOffset(0, #ShopConfig.Offers * 64 + 8) }, panel)
+	-- v2: guaranteed items as a grid of cards, each with the item in its real colours
+	local cols = 3
+	self.list = UIKit.new("ScrollingFrame", { Position = UDim2.fromOffset(16, 84), Size = UDim2.fromOffset(504, 460), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 6, CanvasSize = UDim2.fromOffset(0, math.ceil(#ShopConfig.Offers / cols) * 166 + 8) }, panel)
 	self.rows = {}
 	for i, offer in ipairs(ShopConfig.Offers) do
-		local b = UIKit.button(self.list, { Name = "ShopItem", Position = UDim2.fromOffset(4, 4 + (i - 1) * 64), Size = UDim2.fromOffset(470, 58), Text = "" }, palette.White)
-		local name = UIKit.label(b, { Position = UDim2.fromOffset(12, 4), Size = UDim2.fromOffset(300, 28), Font = Enum.Font.GothamBlack, Text = offer.label, TextXAlignment = Enum.TextXAlignment.Left })
-		local sub = UIKit.label(b, { Position = UDim2.fromOffset(12, 32), Size = UDim2.fromOffset(440, 20), Font = Enum.Font.Gotham, Text = string.upper(offer.category) .. " - " .. offer.term, TextXAlignment = Enum.TextXAlignment.Left })
-		local status = UIKit.label(b, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 6), Size = UDim2.fromOffset(150, 24), Font = Enum.Font.GothamBold, TextColor3 = palette.Yellow, Text = "" })
+		local x, y = (i - 1) % cols, math.floor((i - 1) / cols)
+		local b = UIKit.button(self.list, { Name = "ShopItem", Position = UDim2.fromOffset(4 + x * 164, 4 + y * 166), Size = UDim2.fromOffset(156, 158), Text = "" }, palette.White)
+		local art = UIKit.new("Frame", { Position = UDim2.fromOffset(38, 8), Size = UDim2.fromOffset(80, 66), BackgroundTransparency = 1 }, b)
+		ItemSwatch.Draw(art, offer.grants[1])
+		local name = UIKit.label(b, { Position = UDim2.fromOffset(8, 80), Size = UDim2.fromOffset(140, 20), Font = Enum.Font.GothamBlack, Text = offer.label })
+		local sub = UIKit.label(b, { Position = UDim2.fromOffset(8, 102), Size = UDim2.fromOffset(140, 14), Font = Enum.Font.Gotham, TextColor3 = UIKit.Colors.Muted, Text = string.upper(offer.category) .. "  ·  " .. offer.term })
+		local status = UIKit.label(b, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.fromOffset(140, 22), Font = Enum.Font.GothamBold, TextColor3 = palette.Yellow, Text = "" })
 		maid:Give(b.Activated:Connect(function()
 			self.selected = offer.sku
 			self:_render()
@@ -121,8 +133,9 @@ function Shop.new(deps)
 	end
 	local side = UIKit.panel(panel, { Position = UDim2.fromOffset(530, 84), Size = UDim2.fromOffset(314, 460), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.1 })
 	self.itemsSide = side
-	self.detailName = UIKit.label(side, { Position = UDim2.fromOffset(14, 10), Size = UDim2.fromOffset(286, 34), Font = Enum.Font.GothamBlack, Text = "" })
-	self.detailBody = UIKit.label(side, { Position = UDim2.fromOffset(14, 50), Size = UDim2.fromOffset(286, 200), Font = Enum.Font.Gotham, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, Text = "" })
+	self.detailArt = UIKit.new("Frame", { Name = "DetailArt", Position = UDim2.fromOffset(14, 12), Size = UDim2.fromOffset(286, 116), BackgroundTransparency = 1 }, side)
+	self.detailName = UIKit.label(side, { Position = UDim2.fromOffset(14, 136), Size = UDim2.fromOffset(286, 30), Font = Enum.Font.GothamBlack, Text = "" })
+	self.detailBody = UIKit.label(side, { Position = UDim2.fromOffset(14, 172), Size = UDim2.fromOffset(286, 118), Font = Enum.Font.Gotham, TextWrapped = true, TextScaled = false, TextSize = 16, TextYAlignment = Enum.TextYAlignment.Top, Text = "" })
 	self.getButton = UIKit.button(side, { Name = "ShopGet", Position = UDim2.fromOffset(14, 300), Size = UDim2.fromOffset(286, 54), Text = "" }, palette.Yellow)
 	maid:Give(self.getButton.Activated:Connect(function()
 		self:_buy()
@@ -154,6 +167,7 @@ function Shop.new(deps)
 			self.remotes.RequestShopState:FireServer()
 		end
 	end))
+	self:_renderSection()
 	return self
 end
 
@@ -193,12 +207,23 @@ function Shop:_render()
 		local text = Shop.ButtonText(st, type(price) == "number" and price or nil, price == false)
 		row.status.Text = text
 		row.button.BackgroundTransparency = offer.sku == self.selected and 0 or 0.4
+		local stroke = row.button:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			stroke.Color, stroke.Transparency = palette.White, offer.sku == self.selected and 0 or 1
+		end
 	end
 	local offer = ShopConfig.BySku[self.selected]
 	if not offer then
 		return
 	end
 	local st = self:_stateFor(offer)
+	if self.detailFor ~= offer.sku then
+		self.detailFor = offer.sku
+		for _, child in ipairs(self.detailArt:GetChildren()) do
+			child:Destroy()
+		end
+		ItemSwatch.Draw(self.detailArt, offer.grants[1])
+	end
 	self.detailName.Text = offer.label
 	local lines = { offer.term .. " " .. string.lower(offer.category) }
 	for _, id in ipairs(offer.grants) do

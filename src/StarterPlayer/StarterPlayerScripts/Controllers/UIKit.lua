@@ -20,6 +20,46 @@ local palette = GameConfig.Palette
 UIKit.Palette = palette
 
 ---------------------------------------------------------------------------------------------
+-- Design system v2 (owner feedback 2026-11-26: "the UI looks the same"). Visible identity:
+--   type    Michroma (wide motorsport display face) for numbers, positions and titles;
+--           Builder Sans for every other text (heavy / bold / medium / regular)
+--   shape   small square-ish corners (6 px) instead of pills; circles stay circles
+--   surface flat near-black panels, no neon outlines; big panels get a 3 px accent top bar
+--   buttons flat raised fill, white text, no border; the screen's main action is filled with
+--           the accent (UIKit.Primary); coral = danger / brake only
+-- Fonts are looked up safely: if a face doesn't exist on a device the old one stays.
+---------------------------------------------------------------------------------------------
+local function enumFont(name)
+	local ok, f = pcall(function()
+		return Enum.Font[name]
+	end)
+	return ok and f or nil
+end
+UIKit.Fonts = {
+	Display = enumFont("Michroma"),
+	Heavy = enumFont("BuilderSansExtraBold"),
+	Bold = enumFont("BuilderSansBold"),
+	Body = enumFont("BuilderSansMedium"),
+	Regular = enumFont("BuilderSans"),
+}
+UIKit.Colors = {
+	Surface = Color3.fromHex("#0B1020"),
+	Raised = Color3.fromHex("#1A2138"),
+	Muted = Color3.fromHex("#9AA4BF"),
+}
+local FONT_MAP = {}
+pcall(function()
+	FONT_MAP[Enum.Font.GothamBlack] = UIKit.Fonts.Heavy
+	FONT_MAP[Enum.Font.GothamBold] = UIKit.Fonts.Bold
+	FONT_MAP[Enum.Font.GothamMedium] = UIKit.Fonts.Body
+	FONT_MAP[Enum.Font.Gotham] = UIKit.Fonts.Regular
+end)
+-- the v2 face for an old Gotham weight (unchanged when there is no mapping)
+function UIKit.MapFont(font)
+	return (font and FONT_MAP[font]) or font
+end
+
+---------------------------------------------------------------------------------------------
 -- UI overhaul (2026-11-26): one presentation style for every UIKit screen, driven by the
 -- player's Settings (HUD size, panel opacity, accent, high contrast). Pure data + registries;
 -- ApplyStyle updates everything already built, new widgets pick the current style up.
@@ -72,7 +112,7 @@ end
 
 -- High contrast: darker, opaque-er panel + a thicker edge (the panel's own stroke if it has one,
 -- otherwise a white one we add). One UIStroke per panel, never two.
-UIKit.QuietEdge = { thickness = 1, transparency = 0.55 }
+UIKit.QuietEdge = { thickness = 1, transparency = 0.82 }
 
 local function stylePanel(frame, info)
 	local contrast = UIKit.Style.contrast
@@ -146,7 +186,74 @@ function UIKit.new(className, props, parent)
 end
 
 function UIKit.corner(parent, scale)
-	UIKit.new("UICorner", { CornerRadius = UDim.new(scale or 0.2, 0) }, parent)
+	-- v2: circles stay round; everything else gets a small, motorsport-sharp corner
+	local radius = (scale or 0.2) >= 0.45 and UDim.new(scale, 0) or UDim.new(0, 6)
+	UIKit.new("UICorner", { CornerRadius = radius }, parent)
+end
+
+-- Glass touch control (race thumb cluster): a dark translucent circle with a thin white ring
+-- and white text. Returns the button.
+function UIKit.Glass(b)
+	b.BackgroundColor3 = UIKit.Colors.Surface
+	b.BackgroundTransparency = 0.35
+	b.TextColor3 = palette.White
+	local c = b:FindFirstChildOfClass("UICorner")
+	if c then
+		c.CornerRadius = UDim.new(0.5, 0)
+	end
+	local stroke = b:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		stroke.Color = palette.White
+		stroke.Thickness = 1.5
+		stroke.Transparency = 0.65
+	end
+	return b
+end
+
+-- A title in the display face (modal headers, big numbers)
+-- v2 callout lane: one place on screen for race messages (checkpoint flash, toasts), so two
+-- callouts never stack on top of each other. A member that claims the lane hides the others;
+-- a higher-priority member that is showing (the countdown) keeps the lane.
+UIKit.LaneMembers = {}
+function UIKit.LaneJoin(label, priority, restyle)
+	UIKit.LaneMembers[label] = priority or 1
+	if restyle ~= false then
+		label.AnchorPoint = Vector2.new(0.5, 0)
+		label.Position = UDim2.new(0.5, 0, 0, 112)
+		label.Size = UDim2.fromOffset(520, 44)
+		label.BackgroundColor3 = UIKit.Colors.Surface
+		label.BackgroundTransparency = 0.3
+		label.TextStrokeTransparency = 1
+		UIKit.corner(label, 0.1)
+		UIKit.new("UIPadding", { PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 16), PaddingRight = UDim.new(0, 16) }, label)
+	end
+	return label
+end
+
+-- Returns true if `label` may show now (and hides the lane's other callouts), false if a
+-- higher-priority callout is up (then `label` is hidden).
+function UIKit.LaneClaim(label)
+	local mine = UIKit.LaneMembers[label] or 1
+	for other, priority in pairs(UIKit.LaneMembers) do
+		if other ~= label and other.Visible and other.Parent ~= nil then
+			if priority > mine then
+				label.Visible = false
+				return false
+			end
+			other.Visible = false
+		end
+	end
+	return true
+end
+
+function UIKit.Title(parent, props)
+	local base = { Font = UIKit.Fonts.Display or Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left }
+	for key, value in pairs(props) do
+		base[key] = value
+	end
+	local label = UIKit.label(parent, base)
+	label.Font = base.Font -- keep the display face (label() maps Gotham weights)
+	return label
 end
 
 function UIKit.label(parent, props)
@@ -154,6 +261,7 @@ function UIKit.label(parent, props)
 	for key, value in pairs(props) do
 		base[key] = value
 	end
+	base.Font = UIKit.MapFont(base.Font)
 	local accent = base.TextColor3 == palette.Cyan
 	local label = UIKit.new("TextLabel", base, parent)
 	registry.labels[label] = base.TextStrokeTransparency or 1
@@ -165,10 +273,12 @@ function UIKit.label(parent, props)
 end
 
 function UIKit.button(parent, props, accent)
+	-- v2: flat raised fill, white text (coral stays for danger), no border; the stroke exists
+	-- (invisible) so selection states can light it up in the accent
 	local base = {
-		BackgroundColor3 = palette.Navy,
-		BackgroundTransparency = 0.1,
-		TextColor3 = accent,
+		BackgroundColor3 = UIKit.Colors.Raised,
+		BackgroundTransparency = 0.08,
+		TextColor3 = accent == palette.Coral and palette.Coral or palette.White,
 		Font = Enum.Font.GothamBlack,
 		TextScaled = true,
 		AutoButtonColor = true,
@@ -176,13 +286,12 @@ function UIKit.button(parent, props, accent)
 	for key, value in pairs(props) do
 		base[key] = value
 	end
+	base.Font = UIKit.MapFont(base.Font)
 	local b = UIKit.new("TextButton", base, parent)
 	UIKit.corner(b, 0.25)
-	-- ghost button: a thin, half-transparent edge in its accent (UIKit.Primary fills it)
-	local stroke = UIKit.new("UIStroke", { Color = accent, Thickness = 1.5, Transparency = 0.35, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
+	local stroke = UIKit.new("UIStroke", { Color = accent, Thickness = 1.5, Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
 	if accent == palette.Cyan then -- only the primary accent follows the setting; warnings keep their colour
 		UIKit.TrackAccent(stroke, "Color")
-		UIKit.TrackAccent(b, "TextColor3")
 	end
 	UIKit.new("UIPadding", { PaddingTop = UDim.new(0.18, 0), PaddingBottom = UDim.new(0.18, 0) }, b)
 	-- A6 press feedback: 0.97 scale while held (instant, no tween: nothing to clean up)
@@ -224,12 +333,12 @@ function UIKit.SetPrimary(b, on, ghostText)
 	if registry.accents[b] == "BackgroundColor3" then
 		registry.accents[b] = nil
 	end
-	b.BackgroundColor3 = palette.Navy
-	b.BackgroundTransparency = 0.1
+	b.BackgroundColor3 = UIKit.Colors.Raised
+	b.BackgroundTransparency = 0.08
 	b.TextColor3 = ghostText or palette.White
 	local stroke = b:FindFirstChildOfClass("UIStroke")
 	if stroke then
-		stroke.Transparency = 0.35
+		stroke.Transparency = 1
 	end
 end
 
@@ -263,6 +372,29 @@ function UIKit.Icon(parent, kind, props)
 	elseif kind == "Launch" then
 		piece({ Position = UDim2.fromScale(0.4, 0.62), Size = UDim2.fromScale(0.8, 0.12), Rotation = -28 })
 		UIKit.corner(piece({ Position = UDim2.fromScale(0.78, 0.26), Size = UDim2.fromScale(0.34, 0.34) }), 0.5)
+	elseif kind == "Bag" then
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.62), Size = UDim2.fromScale(0.8, 0.62) }), 0.15)
+		local handle = piece({ Position = UDim2.fromScale(0.5, 0.28), Size = UDim2.fromScale(0.44, 0.4), BackgroundTransparency = 1 })
+		UIKit.corner(handle, 0.5)
+		UIKit.new("UIStroke", { Color = color, Thickness = 2.5 }, handle)
+	elseif kind == "Quests" then
+		for k = 0, 2 do
+			piece({ Position = UDim2.fromScale(0.58, 0.22 + k * 0.28), Size = UDim2.fromScale(0.62, 0.13) })
+			UIKit.corner(piece({ Position = UDim2.fromScale(0.14, 0.22 + k * 0.28), Size = UDim2.fromScale(0.16, 0.16) }), 0.5)
+		end
+	elseif kind == "Bolt" then
+		piece({ Position = UDim2.fromScale(0.58, 0.3), Size = UDim2.fromScale(0.16, 0.5), Rotation = 25 })
+		piece({ Position = UDim2.fromScale(0.42, 0.7), Size = UDim2.fromScale(0.16, 0.5), Rotation = 25 })
+		piece({ Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.5, 0.13), Rotation = -20 })
+	elseif kind == "Map" then
+		local pin = piece({ Position = UDim2.fromScale(0.5, 0.4), Size = UDim2.fromScale(0.62, 0.62) })
+		UIKit.corner(pin, 0.5)
+		piece({ Position = UDim2.fromScale(0.5, 0.72), Size = UDim2.fromScale(0.3, 0.3), Rotation = 45 })
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.4), Size = UDim2.fromScale(0.24, 0.24), BackgroundColor3 = palette.Ink }), 0.5)
+	elseif kind == "More" then
+		for k = -1, 1 do
+			UIKit.corner(piece({ Position = UDim2.fromScale(0.5 + k * 0.3, 0.5), Size = UDim2.fromScale(0.2, 0.2) }), 0.5)
+		end
 	elseif kind == "Case" then
 		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.55), Size = UDim2.fromScale(0.85, 0.65) }), 0.15)
 		piece({ Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.85, 0.1), BackgroundColor3 = palette.Ink })
@@ -273,12 +405,23 @@ function UIKit.Icon(parent, kind, props)
 end
 
 function UIKit.panel(parent, props)
-	local base = { BackgroundColor3 = palette.Navy, BackgroundTransparency = 0.05 }
+	local base = { BackgroundColor3 = UIKit.Colors.Surface, BackgroundTransparency = 0.05 }
 	for key, value in pairs(props) do
 		base[key] = value
 	end
+	if base.BackgroundColor3 == palette.Navy then
+		base.BackgroundColor3 = UIKit.Colors.Surface -- v2 surface
+	elseif base.BackgroundColor3 == palette.NavyFloor then
+		base.BackgroundColor3 = UIKit.Colors.Raised
+	end
 	local frame = UIKit.new("Frame", base, parent)
 	UIKit.corner(frame, 0.12)
+	-- v2: big panels (modals) carry a 3 px accent bar along the top edge
+	local size = base.Size
+	if size and size.X and size.X.Offset >= 600 then
+		local bar = UIKit.new("Frame", { Name = "AccentBar", Size = UDim2.new(1, 0, 0, 3), BorderSizePixel = 0, ZIndex = 2 }, frame)
+		UIKit.TrackAccent(bar, "BackgroundColor3")
+	end
 	local info = { base = base.BackgroundTransparency, color = base.BackgroundColor3 }
 	registry.panels[frame] = info
 	stylePanel(frame, info)

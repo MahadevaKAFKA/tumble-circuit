@@ -2,7 +2,7 @@
 
 **Active milestone:** owner brief 2026-11-26 "Animation, UI and Economy"
 (docs/ANIMATION_UI_ECONOMY_BRIEF.md, plan + baseline in docs/ANIMATION_UI_ECONOMY_PLAN.md):
-M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34), M5 economy (v35). All five milestones done. Before that: CS:GO-style capsules, UI
+M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34), M5 economy (v35). All five milestones done. v36: visible redesign after the owner's "the UI looks the same" (design system v2). Before that: CS:GO-style capsules, UI
 motion and a race-entry drop-in (v31). Before that: hub
 obstruction fix (v30); UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
 settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
@@ -17,6 +17,36 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-26 — Visible redesign, design system v2 (v36, private)
+
+The owner's phone screenshot and race video showed M4 only re-tinted panels: the race HUD,
+touch controls, hub layout and Shop still looked the same. v36 changes what is on screen:
+
+- **Type and shape:** Michroma display face for titles, timers, place and the countdown;
+  Builder Sans for body text. Flat, square-cornered (6 px) buttons with no coloured outline;
+  one bright primary action per screen (OPEN, READY, EQUIP).
+- **Race HUD:** glass thumb controls (dark translucent circles, thin white ring) for the stick,
+  BOOST, BRAKE, RESET and abilities; CAM / LIST as small chips; speed readout as a slim chip
+  that hides in the hub. **One callout lane** under the race strip: a checkpoint flash
+  replaces a toast instead of stacking on it, and the countdown keeps the lane. The "stuck?"
+  hint sits above the ability hint instead of on top of it. Smaller bot name tags (BOT + name
+  chip, fade beyond 60 studs).
+- **Hub:** compact play card top right and a bottom icon dock (GARAGE, LAB, SHOP, QUESTS,
+  LOADOUT, MAPS, MORE) replace the long button column; MORE opens season, trial, party,
+  boards, settings and emotes. Phase strip: fixed segments so text can't overlap, "WAITING
+  0/16" when nobody is queued (no more "NEXT RACE 0"), hidden for racers during the start.
+- **Shop:** a storefront. CASES (default tab): four tall case cards with the case art in its
+  colour, tier, what it holds, price in Coins and VIEW ODDS (opens the case in the Lab).
+  ITEMS: a 3-wide grid of cards that draw each item in its real colours (marble disc,
+  trail traces, burst rays, emote bubble), with a large preview in the detail panel.
+- **Garage and Lab:** item tiles and case contents show the same colour swatches instead of
+  name-only tiles; the selected tile gets a white outline.
+
+**Verified here:** 825 offline checks (new: callout lane rules, storefront/swatch/dock/glass
+source checks), Luau compile + lint, place assembly, client boot smoke (full round, intro,
+reveal). **Not verified:** how any of it looks on a phone. That needs the owner's screenshots
+from a real Roblox runtime.
 
 ## 2026-11-26 — Brief M5: Coins only from quests, tiered cases, gated Robux (v35, private)
 

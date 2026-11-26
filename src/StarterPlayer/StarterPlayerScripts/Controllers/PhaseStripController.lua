@@ -44,12 +44,16 @@ function Phase.Text(snap, ctx)
 	local now = ctx.now or 0
 	local left = snap.stateEndsAt and math.max(0, snap.stateEndsAt - now) or nil
 	if snap.state == S.Intermission then
-		local phase = snap.readyOpen and string.format("READY CHECK %d/%d", snap.readyCount or 0, snap.queuedCount or 0) or "QUEUE OPEN"
-		return { map = worldName(snap.nextWorldId) or "NEXT RACE", phase = phase, timer = left and ("NEXT RACE " .. clock(left)) or "", live = false }
-	elseif snap.state == S.Preparing then
-		return { map = worldName(snap.worldId) or "RACE", phase = "ON THE GRID", timer = "", live = true }
-	elseif snap.state == S.Countdown then
-		return { map = worldName(snap.worldId) or "RACE", phase = "STARTING", timer = "", live = true } -- the big 3-2-1 is the cue
+		local phase = snap.readyOpen and string.format("READY %d/%d", snap.readyCount or 0, snap.queuedCount or 0) or "QUEUE OPEN"
+		-- no countdown while nobody is queued (owner screenshot 2026-11-26 showed "NEXT RACE 0")
+		local waiting = (snap.queuedCount or 0) == 0 or not left or left <= 0.5
+		local timer = waiting and string.format("WAITING %d/%d", snap.queuedCount or 0, snap.raceCapacity or 16) or ("STARTS IN " .. clock(left))
+		return { map = worldName(snap.nextWorldId) or "NEXT RACE", phase = phase, timer = timer, live = false }
+	elseif snap.state == S.Preparing or snap.state == S.Countdown then
+		if ctx.racing then
+			return nil -- racers get the course name + the big 3-2-1 from the race HUD (no duplicate)
+		end
+		return { map = worldName(snap.worldId) or "RACE", phase = snap.state == S.Preparing and "ON THE GRID" or "STARTING", timer = "", live = true }
 	elseif snap.state == S.Racing then
 		if ctx.racing then
 			return nil -- the race strip shows your place, time and checkpoints
@@ -66,15 +70,18 @@ function Phase.new()
 	local self = setmetatable({}, Phase)
 	local gui, root, maid = UIKit.screen("TumblePhaseStrip", 12)
 	self.gui, self.maid = gui, maid
-	local strip = UIKit.panel(root, { Name = "PhaseStrip", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(460, 36), BackgroundColor3 = palette.Ink, BackgroundTransparency = 0.15 })
+	-- v2: three fixed segments (map | phase | timer) with hairline separators: nothing overlaps
+	local strip = UIKit.panel(root, { Name = "PhaseStrip", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(540, 34), BackgroundColor3 = palette.Ink, BackgroundTransparency = 0.25 })
 	self.strip = strip
-	UIKit.new("UIStroke", { Color = palette.White, Thickness = 1 }, strip)
 	self.dot = UIKit.new("Frame", { Name = "Live", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.5, 0), Size = UDim2.fromOffset(8, 8), BorderSizePixel = 0 }, strip)
 	UIKit.corner(self.dot, 0.5)
 	UIKit.TrackAccent(self.dot, "BackgroundColor3")
-	self.map = UIKit.label(strip, { Position = UDim2.fromOffset(26, 6), Size = UDim2.fromOffset(150, 24), Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
-	self.phase = UIKit.label(strip, { Position = UDim2.fromOffset(182, 6), Size = UDim2.fromOffset(140, 24), Font = Enum.Font.GothamBold, TextColor3 = palette.Cyan, Text = "" })
-	self.timer = UIKit.label(strip, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 6), Size = UDim2.fromOffset(130, 24), Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
+	self.map = UIKit.Title(strip, { Position = UDim2.fromOffset(28, 9), Size = UDim2.fromOffset(176, 16), Text = "" })
+	for _, x in ipairs({ 214, 376 }) do
+		UIKit.new("Frame", { Name = "Sep", Position = UDim2.fromOffset(x, 7), Size = UDim2.fromOffset(1, 20), BackgroundColor3 = palette.White, BackgroundTransparency = 0.75, BorderSizePixel = 0 }, strip)
+	end
+	self.phase = UIKit.label(strip, { Position = UDim2.fromOffset(222, 8), Size = UDim2.fromOffset(146, 18), Font = Enum.Font.GothamBold, TextColor3 = palette.Cyan, Text = "" })
+	self.timer = UIKit.label(strip, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 8), Size = UDim2.fromOffset(146, 18), Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Right, Text = "" })
 	self.visible = false
 	return self
 end

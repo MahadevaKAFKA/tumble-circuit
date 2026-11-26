@@ -36,13 +36,13 @@ function RaceHUD.new()
 	self.flashUntil = 0
 	self.standingsVisible = false
 
-	self.status = UIKit.label(root, {
+	self.status = UIKit.Title(root, {
 		Name = "Status",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 6),
-		Size = UDim2.fromOffset(460, 56),
-		Font = Enum.Font.GothamBlack,
-		TextStrokeTransparency = 0.4,
+		Position = UDim2.new(0.5, 0, 0, 10),
+		Size = UDim2.fromOffset(460, 40),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextStrokeTransparency = 0.6,
 	})
 	self.sub = UIKit.label(root, {
 		Name = "Sub",
@@ -60,20 +60,20 @@ function RaceHUD.new()
 		Size = UDim2.fromOffset(150, 96),
 		Visible = false,
 	})
-	UIKit.new("UIStroke", { Color = palette.Yellow, Thickness = 2 }, badge)
-	self.place = UIKit.label(badge, { Size = UDim2.new(1, 0, 0.62, 0), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow, Text = "-" })
+	-- v2 timing-tower look: display face for place and time, white on a flat dark strip
+	self.place = UIKit.Title(badge, { Size = UDim2.new(1, 0, 0.62, 0), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = palette.White, Text = "-" })
 	self.placeOf = UIKit.label(badge, { Position = UDim2.fromScale(0, 0.58), Size = UDim2.new(1, 0, 0.2, 0), Font = Enum.Font.Gotham, Text = "" })
 	self.checkpoint = UIKit.label(badge, { Position = UDim2.fromScale(0, 0.78), Size = UDim2.new(1, 0, 0.2, 0), TextColor3 = palette.Violet, Text = "" })
 	self.badge = badge
 
-	self.countdown = UIKit.label(root, {
+	self.countdown = UIKit.Title(root, {
 		Name = "Countdown",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.4),
-		Size = UDim2.fromOffset(360, 200),
-		Font = Enum.Font.GothamBlack,
-		TextColor3 = palette.Yellow,
-		TextStrokeTransparency = 0.2,
+		Position = UDim2.fromScale(0.5, 0.36),
+		Size = UDim2.fromOffset(360, 150),
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextColor3 = palette.White,
+		TextStrokeTransparency = 0.5,
 		Visible = false,
 	})
 	self.flash = UIKit.label(root, {
@@ -86,10 +86,12 @@ function RaceHUD.new()
 		TextStrokeTransparency = 0.3,
 		Visible = false,
 	})
+	UIKit.LaneJoin(self.flash, 2)
+	UIKit.LaneJoin(self.countdown, 3, false)
 	self.stuck = UIKit.label(root, {
 		Name = "Stuck",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -96),
+		Position = UDim2.new(0.5, 0, 1, -166), -- above the ability hint / tutorial card
 		Size = UDim2.fromOffset(460, 30),
 		TextColor3 = palette.Yellow,
 		TextStrokeTransparency = 0.3,
@@ -163,6 +165,9 @@ end
 function RaceHUD:FlashCheckpoint(index, total)
 	self.flash.Text = string.format("CHECKPOINT %d / %d", index, total)
 	self.flash.Visible = true
+	if not UIKit.LaneClaim(self.flash) then
+		return
+	end
 	UIKit.Punch(self.flash, 1.35, 0.35)
 	UIKit.Punch(self.checkpoint, 1.4, 0.3)
 	self.flashUntil = os.clock() + 1.4
@@ -172,6 +177,9 @@ function RaceHUD:Flash(text, color, seconds)
 	self.flash.Text = text
 	self.flash.TextColor3 = color or palette.Violet
 	self.flash.Visible = true
+	if not UIKit.LaneClaim(self.flash) then
+		return
+	end
 	UIKit.Punch(self.flash, 1.3, 0.3)
 	self.flashUntil = os.clock() + (seconds or 1.4)
 end
@@ -212,7 +220,8 @@ function RaceHUD:UseStrip()
 	self.place.Position, self.place.Size = UDim2.fromOffset(12, 4), UDim2.new(0.26, -12, 1, -8)
 	self.placeOf.Position, self.placeOf.Size = UDim2.new(0.26, -6, 0, 8), UDim2.new(0.14, 0, 1, -16)
 	self.placeOf.TextXAlignment = Enum.TextXAlignment.Left
-	self.stripTime = UIKit.label(strip, { Name = "Time", Position = UDim2.new(0.4, 0, 0, 4), Size = UDim2.new(0.32, 0, 1, -8), Font = Enum.Font.GothamBlack, TextColor3 = palette.White, Text = "" })
+	self.stripTime = UIKit.Title(strip, { Name = "Time", Position = UDim2.new(0.4, 0, 0, 8), Size = UDim2.new(0.32, 0, 1, -16), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = palette.White, Text = "" })
+	self.place.TextXAlignment = Enum.TextXAlignment.Left
 	self.checkpoint.Position, self.checkpoint.Size = UDim2.new(0.72, 0, 0, 8), UDim2.new(0.28, -12, 1, -16)
 	self.progressBar.Position = UDim2.new(0.5, 0, 0, 60)
 	self.progressBar.Size = UDim2.fromOffset(440, 8)
@@ -345,12 +354,15 @@ function RaceHUD:Update(ctx)
 		countdownText = "GO!"
 	end
 	self.countdown.Visible = countdownText ~= nil
+	if countdownText ~= nil then
+		UIKit.LaneClaim(self.countdown)
+	end
 	if countdownText then
 		if countdownText ~= self.lastCountdown then
 			UIKit.Punch(self.countdown, countdownText == "GO!" and 1.8 or 1.55, 0.4) -- each number lands with a punch
 		end
 		UIKit.setText(self.countdown, countdownText)
-		self.countdown.TextColor3 = countdownText == "GO!" and palette.Mint or palette.Yellow
+		self.countdown.TextColor3 = countdownText == "GO!" and palette.Mint or palette.White
 	end
 
 	self.lastCountdown = countdownText

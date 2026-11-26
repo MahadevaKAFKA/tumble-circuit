@@ -126,7 +126,9 @@ function ModesController:SetCardMode(on)
 	self.cardMode = on == true
 	self.mapsButton.Visible = not self.cardMode
 	if self.cardMode then
-		self.partyCard.Position = UDim2.new(1, -314, 0, 8)
+		-- v2 hub: the party card opens above the dock, centred
+		self.partyCard.AnchorPoint = Vector2.new(0.5, 1)
+		self.partyCard.Position = UDim2.new(0.5, 0, 1, -94)
 	end
 end
 

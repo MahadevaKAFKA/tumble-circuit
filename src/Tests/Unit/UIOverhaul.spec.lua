@@ -122,12 +122,14 @@ function Spec.run(m)
 	------------------------------------------------------------------ brief 2026-11-26 (M4)
 	local PS = m.PhaseStripPure
 	if PS then
-		local base = { v = 14, state = "Intermission", stateEndsAt = 114, nextWorldId = "SkyCarnival_B1", worldId = "NeonFoundry_A4", readyOpen = false }
+		local base = { v = 14, state = "Intermission", stateEndsAt = 114, nextWorldId = "SkyCarnival_B1", worldId = "NeonFoundry_A4", readyOpen = false, queuedCount = 2, raceCapacity = 16 }
 		local t = PS.Text(base, { now = 100 })
-		check("phase strip: map, phase and the ONE next-race timer in the lobby", t.map == "SKY CARNIVAL" and t.phase == "QUEUE OPEN" and t.timer == "NEXT RACE 14")
+		check("phase strip: map, phase and the ONE next-race timer in the lobby", t.map == "SKY CARNIVAL" and t.phase == "QUEUE OPEN" and t.timer == "STARTS IN 14")
+		base.queuedCount = 0
+		check("phase strip with nobody queued says WAITING 0/16, never 'NEXT RACE 0' (owner screenshot)", PS.Text(base, { now = 100 }).timer == "WAITING 0/16")
 		base.state = "Countdown"
 		local c = PS.Text(base, { now = 100 })
-		check("phase strip during the countdown: map + STARTING, no second number (the big 3-2-1 is the cue)", c.map == "NEON FOUNDRY" and c.phase == "STARTING" and c.timer == "")
+		check("phase strip during the countdown: map + STARTING for the hub; hidden for racers (the race HUD shows the course)", c.map == "NEON FOUNDRY" and c.phase == "STARTING" and c.timer == "" and PS.Text(base, { now = 100, racing = true }) == nil)
 		base.state = "Racing"
 		base.raceStartedAt = 40
 		check("phase strip hides for racers during the race (the race strip carries it), shows RACE LIVE to others", PS.Text(base, { now = 100, racing = true }) == nil and PS.Text(base, { now = 100, racing = false }).phase == "RACE LIVE")
@@ -143,6 +145,41 @@ function Spec.run(m)
 		local found = HM2.FilterItems("Trail", "All", state, "emb")
 		check("Garage search filters by name (case-insensitive)", #found == 1 and found[1].Id == "trail_ember")
 		check("Garage categories with labels: Skins, Trails, Launch, Bursts, Emotes", HM2.Tabs[1] == "Marble" and HM2.Tabs[3] == "Launch" and HM2.TabLabels.Marble == "SKINS")
+	end
+	------------------------------------------------------------------ v36 redesign (owner: "the UI looks the same")
+	if UI and UI.LaneClaim then
+		local flash = { Visible = false, Parent = true }
+		local toast = { Visible = false, Parent = true }
+		local count = { Visible = false, Parent = true }
+		UI.LaneJoin(toast, 1, false)
+		UI.LaneJoin(flash, 2, false)
+		UI.LaneJoin(count, 3, false)
+		toast.Visible = true
+		local tOk = UI.LaneClaim(toast)
+		flash.Visible = true
+		local fOk = UI.LaneClaim(flash)
+		check("callout lane: a checkpoint flash replaces a showing toast (never two stacked)", tOk and fOk and flash.Visible and not toast.Visible)
+		count.Visible = true
+		UI.LaneClaim(count)
+		toast.Visible = true
+		local blocked = UI.LaneClaim(toast)
+		check("callout lane: the countdown keeps the lane; a toast during it stays hidden", count.Visible and not flash.Visible and not blocked and not toast.Visible)
+		for k in pairs(UI.LaneMembers) do
+			if k == flash or k == toast or k == count then
+				UI.LaneMembers[k] = nil
+			end
+		end
+		check("design system v2: font + colour tokens exist (Display face for titles and timers)", UI.Fonts ~= nil and UI.Colors ~= nil and UI.Colors.Surface ~= nil)
+	end
+	if m.ReadFile then
+		local shop = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/Controllers/ShopController.lua")
+		check("Shop is a storefront: case cards (VIEW ODDS) and item cards drawn in the item's own colours", shop:find('Name = "ShopCase"', 1, true) and shop:find("ItemSwatch.Draw(art, offer.grants[1])", 1, true) and shop:find("ItemSwatch.Draw(self.detailArt", 1, true))
+		local lab = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/Controllers/LabController.lua")
+		check("case contents show each item's swatch, not only its name", lab:find("ItemSwatch.Draw(tile.art", 1, true) ~= nil)
+		local match = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua")
+		check("hub: bottom icon dock + compact play card replace the long button column", match:find('"HubDock"', 1, true) and match:find('"HubCard"', 1, true))
+		local touch = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/Controllers/TouchControls.lua")
+		check("race thumb controls are glass (dark translucent with a thin white ring)", touch:find("GLASS", 1, true) ~= nil)
 	end
 	return results
 end

@@ -415,7 +415,8 @@ end))
 -- UI overhaul (2026-11-26): hub card + MENU drawer + profile drawer, compact race strip. The
 -- same buttons and handlers as before, re-placed; GameConfig.UI.LegacyHud restores the old HUD.
 if not GameConfig.UI.LegacyHud then
-	matchUi:UseCardLayout({ buttons = { modes.trialButton, modes.partyButton }, emotes = social.emoteBar })
+	-- v2 hub (owner feedback 2026-11-26): profile chip + PLAY card top right, icon dock bottom
+	matchUi:UseDockLayout({ buttons = { modes.trialButton, modes.partyButton }, emotes = social.emoteBar })
 	modes:SetCardMode(true)
 	raceHud:UseStrip()
 end
@@ -1560,7 +1561,8 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 	end
 	abilities:Update()
 	vfx:Step()
-	if currentZone == ZONES.Race and state == S.Racing and me and not me.finished then
+	local settled = snapshot and snapshot.raceStartedAt and workspace:GetServerTimeNow() - snapshot.raceStartedAt > 5 -- tips wait until the start is over
+	if currentZone == ZONES.Race and state == S.Racing and me and not me.finished and settled then
 		abilities:ShowHint("ability", "ABILITIES: " .. (input.device == "Gamepad" and "LB / RB" or input.device == "Touch" and "the two round buttons" or "Q / E") .. " - your loadout is set in the hub.")
 		for _, zone in ipairs(trickZones) do
 			if progressS > zone.LipS - 70 and progressS < zone.LipS - 15 then
@@ -1569,6 +1571,7 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 		end
 	end
 
+	hud:SetSpeedAllowed(currentZone == ZONES.Race) -- v2: no speed readout in the hub
 	touch:SetRecoverProgress(input.recoverProgress)
 	hud:Update({ speed = speed, recoverProgress = input.recoverProgress })
 	local now = workspace:GetServerTimeNow()

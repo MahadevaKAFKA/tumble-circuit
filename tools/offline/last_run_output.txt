@@ -84,6 +84,7 @@ ok    src/StarterPlayer/StarterPlayerScripts/Controllers/FreeLookController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HazardController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/HubMenusController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/InputController.lua
+ok    src/StarterPlayer/StarterPlayerScripts/Controllers/ItemSwatch.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/LabController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MapSelectController.lua
 ok    src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua
@@ -145,7 +146,7 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 139.7 ms
+PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 141.5 ms
 PRINT	[TumbleCircuit] server ready (A6.0, protocol v15)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
@@ -796,7 +797,7 @@ info  Foundry dressing: 675 local parts (206 detail, hidden on Low)
 -- Protocol key specs --
 PASS  every Protocol attribute / reason / zone key used in code exists
 PASS  no Protocol table is defined twice (a second one silently replaces the first)
-info  101 protocol key uses scanned
+info  102 protocol key uses scanned
 
 -- UI overhaul specs --
 PASS  display preferences exist with the handoff defaults (100%, 95%, Standard, Follow map, ...)
@@ -825,11 +826,19 @@ PASS  debug telemetry is off in the player view; developers only
 PASS  closing Settings during a reset preview undoes it
 PASS  hub card controls are wired screen buttons (MAPS, MENU, profile, EXIT PRACTICE)
 PASS  phase strip: map, phase and the ONE next-race timer in the lobby
-PASS  phase strip during the countdown: map + STARTING, no second number (the big 3-2-1 is the cue)
+PASS  phase strip with nobody queued says WAITING 0/16, never 'NEXT RACE 0' (owner screenshot)
+PASS  phase strip during the countdown: map + STARTING for the hub; hidden for racers (the race HUD shows the course)
 PASS  phase strip hides for racers during the race (the race strip carries it), shows RACE LIVE to others
 PASS  Garage order: equipped first, then owned, then rarest first
 PASS  Garage search filters by name (case-insensitive)
 PASS  Garage categories with labels: Skins, Trails, Launch, Bursts, Emotes
+PASS  callout lane: a checkpoint flash replaces a showing toast (never two stacked)
+PASS  callout lane: the countdown keeps the lane; a toast during it stays hidden
+PASS  design system v2: font + colour tokens exist (Display face for titles and timers)
+PASS  Shop is a storefront: case cards (VIEW ODDS) and item cards drawn in the item's own colours
+PASS  case contents show each item's swatch, not only its name
+PASS  hub: bottom icon dock + compact play card replace the long button column
+PASS  race thumb controls are glass (dark translucent with a thin white ring)
 
 -- Environment specs --
 PASS  NeonFoundry_A4: has an environment profile and a lighting profile
@@ -1058,4 +1067,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-817 passed, 0 failed (+ 0 syntax failures)
+825 passed, 0 failed (+ 0 syntax failures)

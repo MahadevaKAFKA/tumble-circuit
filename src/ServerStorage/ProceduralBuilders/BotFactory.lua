@@ -13,23 +13,46 @@ local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
 
 local BotFactory = {}
 
+-- Name tag (players and bots). v2 (owner feedback 2026-11-26: tags covered "GO!" and each
+-- other): a small dark chip sized in STUDS, so far tags shrink instead of stacking; only within
+-- 60 studs; bots keep an honest grey "BOT" prefix instead of a red "[BOT]".
 function BotFactory.AddNameplate(ball, text, color)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Nameplate"
-	gui.Size = UDim2.fromOffset(180, 28)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, 3.6, 0)
-	gui.MaxDistance = 90
+	gui.Size = UDim2.new(5.2, 0, 0.9, 0)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0)
+	gui.MaxDistance = 60
 	gui.LightInfluence = 0
 	gui.AlwaysOnTop = false
+	local chip = Instance.new("Frame")
+	chip.Name = "Chip"
+	chip.AnchorPoint = Vector2.new(0.5, 0.5)
+	chip.Position = UDim2.fromScale(0.5, 0.5)
+	chip.Size = UDim2.fromScale(1, 1)
+	chip.BackgroundColor3 = Color3.fromHex("#0B1020")
+	chip.BackgroundTransparency = 0.35
+	chip.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.3, 0)
+	corner.Parent = chip
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = text
+	label.RichText = true
+	local isBot = string.sub(text, 1, 6) == "[BOT] "
+	local name = isBot and string.sub(text, 7) or text
+	name = string.gsub(name, "[<>&]", "") -- display names never break the rich text
+	label.Text = isBot and ('<font color="#9AA4BF">BOT</font>  ' .. name) or name
 	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-	label.TextColor3 = color
-	label.TextStrokeTransparency = 0.3
-	label.Parent = gui
+	local ok, font = pcall(function()
+		return Enum.Font.BuilderSansBold
+	end)
+	label.Font = ok and font or Enum.Font.GothamBold
+	label.TextColor3 = isBot and Color3.fromHex("#F4F7FF") or color
+	label.Parent = chip
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop, pad.PaddingBottom = UDim.new(0.12, 0), UDim.new(0.12, 0)
+	pad.Parent = label
 	gui.Parent = ball
 	return gui
 end

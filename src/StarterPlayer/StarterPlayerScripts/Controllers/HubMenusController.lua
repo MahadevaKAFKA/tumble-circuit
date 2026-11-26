@@ -21,6 +21,7 @@ local QuestConfig = require(Shared:WaitForChild("QuestConfig"))
 local TrackDefinitions = require(Shared:WaitForChild("TrackDefinitions"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local UIKit = require(script.Parent:WaitForChild("UIKit"))
+local ItemSwatch = require(script.Parent:WaitForChild("ItemSwatch"))
 
 local palette = UIKit.Palette
 
@@ -415,17 +416,28 @@ function HubMenus:_renderGarage()
 		local owned = self.cosmetics.owned[item.Id]
 		local x, y = (i - 1) % cols, math.floor((i - 1) / cols)
 		local tile = UIKit.button(self.grid, { Name = "GarageItem", Position = UDim2.fromOffset(4 + x * 132, 4 + y * 100), Size = UDim2.fromOffset(124, 92), Text = "" }, Catalog.RarityColors[item.Rarity])
-		tile.BackgroundTransparency = owned and 0 or 0.55
-		UIKit.label(tile, { Position = UDim2.fromScale(0.05, 0.06), Size = UDim2.fromScale(0.9, 0.48), Font = Enum.Font.GothamBlack, TextScaled = true, TextWrapped = true, Text = item.Name })
+		tile.BackgroundTransparency = owned and 0.05 or 0.5
+		-- v2 tile: the item in its real colours, name, then rarity + state; a rarity edge at the
+		-- bottom; locked items are dimmed
+		local art = UIKit.new("Frame", { Position = UDim2.fromOffset(34, 4), Size = UDim2.fromOffset(56, 48), BackgroundTransparency = 1 }, tile)
+		ItemSwatch.Draw(art, item)
+		if not owned then
+			UIKit.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = UIKit.Colors.Surface, BackgroundTransparency = 0.45, BorderSizePixel = 0, ZIndex = 3 }, art)
+		end
+		UIKit.label(tile, { Position = UDim2.fromOffset(6, 54), Size = UDim2.fromOffset(112, 16), Font = Enum.Font.GothamBlack, TextScaled = true, Text = item.Name })
+		UIKit.new("Frame", { Name = "RarityEdge", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 3), BackgroundColor3 = Catalog.RarityColors[item.Rarity], BorderSizePixel = 0 }, tile)
 		local equipped = self:_isEquipped(item)
 		local tag = equipped and "EQUIPPED" or owned and (self.cosmetics.favorites[item.Id] and "OWNED  *" or "OWNED") or "LOCKED"
 		if equipped then
 			local badge = UIKit.new("Frame", { Name = "EquippedBadge", Position = UDim2.fromOffset(0, 0), Size = UDim2.new(1, 0, 0, 5), BorderSizePixel = 0 }, tile)
 			UIKit.TrackAccent(badge, "BackgroundColor3")
 		end
-		UIKit.label(tile, { Position = UDim2.fromScale(0.05, 0.6), Size = UDim2.fromScale(0.9, 0.32), Font = Enum.Font.GothamBold, TextScaled = true, TextColor3 = Catalog.RarityColors[item.Rarity], Text = string.upper(item.Rarity) .. " - " .. tag })
+		UIKit.label(tile, { Position = UDim2.fromOffset(6, 72), Size = UDim2.fromOffset(112, 12), Font = Enum.Font.GothamBold, TextScaled = true, TextColor3 = equipped and palette.White or Catalog.RarityColors[item.Rarity], Text = string.upper(item.Rarity) .. "  ·  " .. tag })
 		if item.Id == self.selected then
-			UIKit.new("UIStroke", { Color = palette.Mint, Thickness = 3 }, tile)
+			local stroke = tile:FindFirstChildOfClass("UIStroke")
+			if stroke then
+				stroke.Color, stroke.Transparency, stroke.Thickness = palette.White, 0, 2
+			end
 		end
 		self.maid:Give(tile.Activated:Connect(function()
 			self.selected = item.Id

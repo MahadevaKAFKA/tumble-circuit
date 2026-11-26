@@ -291,13 +291,147 @@ function MatchUI:UseCardLayout(adopt)
 	self:_renderReady()
 end
 
+---------------------------------------------------------------------------------------------
+-- Hub layout v2 (owner feedback 2026-11-26: "the UI looks the same"). The same widgets and
+-- handlers, a new arrangement:
+--   top right    profile chip (LEVEL · COINS, tap = profile) and the PLAY card: hub name,
+--                your queue status, [READY?] [JOIN RACE | LEAVE QUEUE] (the one primary action)
+--   bottom dock  icon tiles between the thumbs: GARAGE, CASES, SHOP, QUESTS, ABILITIES, MAPS,
+--                MORE (MORE pops up SEASON, TIME TRIAL, PARTY, LEADERBOARDS, SETTINGS + emotes)
+--   top centre   the phase strip (map · phase · timer) - the only countdown on screen
+--   practice     the card, chip and dock step aside for the objective strip + EXIT PRACTICE
+---------------------------------------------------------------------------------------------
+MatchUI.DockItems = {
+	{ key = "garage", icon = "Marble", text = "GARAGE" },
+	{ key = "lab", icon = "Case", text = "CASES" },
+	{ key = "shop", icon = "Bag", text = "SHOP" },
+	{ key = "quests", icon = "Quests", text = "QUESTS" },
+	{ key = "loadout", icon = "Bolt", text = "ABILITIES" },
+	{ key = "maps", icon = "Map", text = "MAPS" },
+	{ key = "more", icon = "More", text = "MORE" },
+}
+
+function MatchUI:UseDockLayout(adopt)
+	adopt = adopt or {}
+	self.cardMode = true
+	local lobby = self.lobby
+	local maid = self.maid
+	-- profile chip (top right)
+	local pill = UIKit.button(lobby, { Name = "ProfileDrawer", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 8), Size = UDim2.fromOffset(300, 34), Text = "LEVEL 1", TextXAlignment = Enum.TextXAlignment.Right }, palette.White)
+	UIKit.new("UIPadding", { PaddingRight = UDim.new(0, 12) }, pill)
+	self.profilePill = pill
+	self.profileChip = self.levelLabel.Parent
+	self.profileChip.Position = UDim2.new(1, -14, 0, 48)
+	self.profileChip.Size = UDim2.fromOffset(300, 84)
+	self.profileChip.ZIndex = 5
+	self.profileOpen = false
+	maid:Give(pill.Activated:Connect(function()
+		self.profileOpen = not self.profileOpen
+		if self.drawer then
+			self.drawer.Visible = false
+		end
+		self:_renderProfileDrawer()
+	end))
+	-- the PLAY card
+	local card = UIKit.panel(lobby, { Name = "HubCard", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 50), Size = UDim2.fromOffset(300, 128) })
+	self.card = card
+	local bar = UIKit.new("Frame", { Name = "AccentBar", Size = UDim2.new(0, 4, 1, 0), BorderSizePixel = 0 }, card)
+	UIKit.TrackAccent(bar, "BackgroundColor3")
+	self.hubLabel = UIKit.label(card, { Position = UDim2.fromOffset(16, 8), Size = UDim2.new(1, -28, 0, 16), Font = Enum.Font.GothamBold, TextColor3 = UIKit.Colors.Muted, TextXAlignment = Enum.TextXAlignment.Left, Text = "ORBITAL GARAGE" })
+	local oldStatus = self.statusMain.Parent
+	self.statusMain.Parent = card
+	self.statusMain.Position, self.statusMain.Size = UDim2.fromOffset(16, 26), UDim2.new(1, -28, 0, 26)
+	self.statusMain.TextXAlignment = Enum.TextXAlignment.Left
+	self.statusMain.Font = UIKit.Fonts.Display or self.statusMain.Font
+	self.statusSub.Parent = card
+	self.statusSub.Position, self.statusSub.Size = UDim2.fromOffset(16, 54), UDim2.new(1, -28, 0, 16)
+	self.statusSub.TextXAlignment = Enum.TextXAlignment.Left
+	self.statusSub.TextColor3 = UIKit.Colors.Muted
+	oldStatus.Visible = false
+	self.queueButton.Parent = card
+	self.readyButton.Parent = card
+	self.queueButton.AnchorPoint, self.readyButton.AnchorPoint = Vector2.new(0, 0), Vector2.new(0, 0)
+	-- bottom dock
+	local dock = UIKit.panel(lobby, { Name = "HubDock", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -10), Size = UDim2.fromOffset(#MatchUI.DockItems * 76 + 12, 74), BackgroundTransparency = 0.2 })
+	self.dock = dock
+	local more = UIKit.panel(lobby, { Name = "HubDrawerPanel", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -94), Size = UDim2.fromOffset(268, 296), Visible = false })
+	self.drawer = more
+	local maps = UIKit.button(lobby, { Name = "Maps", Text = "" }, palette.White)
+	maid:Give(maps.Activated:Connect(function()
+		self.MapsRequested:Fire()
+	end))
+	local menu = UIKit.button(lobby, { Name = "HubDrawer", Text = "" }, palette.White)
+	self.menuButton = menu
+	maid:Give(menu.Activated:Connect(function()
+		UIKit.Show(more, not more.Visible, "FromBelow", 0.2)
+		self.profileOpen = false
+		self:_renderProfileDrawer()
+	end))
+	local byKey = { garage = self.garageButton, lab = self.labButton, shop = self.shopButton, quests = self.questsButton, loadout = self.loadoutButton, maps = maps, more = menu }
+	for i, item in ipairs(MatchUI.DockItems) do
+		local b = byKey[item.key]
+		b.Parent = dock
+		b.AnchorPoint = Vector2.new(0, 0)
+		b.Position = UDim2.fromOffset(6 + (i - 1) * 76, 5)
+		b.Size = UDim2.fromOffset(72, 64)
+		b.Text = ""
+		b.BackgroundTransparency = 0.6
+		b.Visible = true
+		UIKit.Icon(b, item.icon, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, -2), Size = UDim2.fromOffset(26, 26) })
+		UIKit.label(b, { Name = "DockLabel", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.new(1, 0, 0, 14), Font = Enum.Font.GothamBold, Text = item.text })
+		if item.key ~= "more" then
+			maid:Give(b.Activated:Connect(function()
+				more.Visible = false
+			end))
+		end
+	end
+	-- MORE: the rest, two columns + the emote bar
+	local items = { self.seasonButton }
+	for _, b in ipairs(adopt.buttons or {}) do
+		items[#items + 1] = b
+	end
+	items[#items + 1] = self.boardsButton
+	items[#items + 1] = self.settingsButton
+	for i, b in ipairs(items) do
+		local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
+		b.Parent = more
+		b.AnchorPoint = Vector2.new(0, 0)
+		b.Position = UDim2.fromOffset(8 + col * 128, 10 + row * 50)
+		b.Size = UDim2.fromOffset(124, 44)
+		b.Visible = true
+		maid:Give(b.Activated:Connect(function()
+			more.Visible = false
+		end))
+	end
+	local rows = math.ceil(#items / 2)
+	if adopt.emotes then
+		adopt.emotes.Parent = more
+		adopt.emotes.AnchorPoint = Vector2.new(0, 0)
+		adopt.emotes.Position = UDim2.fromOffset(8, 10 + rows * 50)
+		rows = rows + 1
+	end
+	more.Size = UDim2.fromOffset(268, 18 + rows * 50)
+	self.moreButton.Visible = false
+	self.moreMenu.Visible = false
+	self:_renderProfileDrawer()
+	-- practice strip (top centre, under the phase strip): objective + EXIT PRACTICE
+	local practice = UIKit.panel(lobby, { Name = "PracticeStrip", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 52), Size = UDim2.fromOffset(560, 56), Visible = false })
+	self.practiceStrip = practice
+	self.practiceText = UIKit.label(practice, { Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -200, 1, -12), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+	local exit = UIKit.button(practice, { Name = "ExitPractice", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(176, 42), Text = "EXIT PRACTICE" }, palette.Coral)
+	maid:Give(exit.Activated:Connect(function()
+		self.PracticeExitRequested:Fire()
+	end))
+	self:_renderReady()
+end
+
 function MatchUI:_renderProfileDrawer()
 	if self.profileChip then
 		UIKit.Show(self.profileChip, self.profileOpen == true and not self.practicing, "FromAbove", 0.2)
 	end
 	if self.profilePill then
 		local p = self.lastProfile or {}
-		UIKit.setText(self.profilePill, string.format("LEVEL %d  -  %d COINS   %s", p.level or 1, p.coins or 0, self.profileOpen and "(close)" or "(profile)"))
+		UIKit.setText(self.profilePill, string.format("LV %d   |   %d COINS%s", p.level or 1, p.coins or 0, self.profileOpen and "   (close)" or ""))
 	end
 end
 
@@ -321,8 +455,11 @@ function MatchUI:SetPractice(objective)
 	end
 	self.practicing = practicing
 	UIKit.Show(self.practiceStrip, practicing, "FromAbove")
-	UIKit.Show(self.card, not practicing, "FromLeft")
+	UIKit.Show(self.card, not practicing, "FromRight")
 	UIKit.Show(self.profilePill, not practicing, "FromRight")
+	if self.dock then
+		UIKit.Show(self.dock, not practicing, "FromBelow")
+	end
 	if practicing then
 		self.drawer.Visible = false
 	end
@@ -345,8 +482,11 @@ function MatchUI:SetLobbyVisible(visible)
 	local was = self.lobby.Visible == true
 	self.lobby.Visible = visible
 	if visible and not was and self.cardMode and not self.practicing then
-		UIKit.Enter(self.card, "FromLeft") -- back from a race / results: the hub card slides in
+		UIKit.Enter(self.card, "FromRight") -- back from a race / results: the hub slides in
 		UIKit.Enter(self.profilePill, "FromRight")
+		if self.dock then
+			UIKit.Enter(self.dock, "FromBelow")
+		end
 	end
 end
 
@@ -391,11 +531,13 @@ function MatchUI:_renderReady()
 	local show = snap ~= nil and snap.state == S.Intermission and snap.readyOpen == true and self.queued
 	self.readyButton.Visible = show
 	if self.cardMode then -- one row inside the card: [READY?][LEAVE QUEUE] or one wide button
+		local w = self.dock and 272 or 270 -- v2 card is 300 wide (accent bar on the left)
+		local x = self.dock and 16 or 10
 		if show then
-			self.readyButton.Position, self.readyButton.Size = UDim2.fromOffset(10, 82), UDim2.fromOffset(131, 46)
-			self.queueButton.Position, self.queueButton.Size = UDim2.fromOffset(149, 82), UDim2.fromOffset(131, 46)
+			self.readyButton.Position, self.readyButton.Size = UDim2.fromOffset(x, 76), UDim2.fromOffset(w / 2 - 4, 44)
+			self.queueButton.Position, self.queueButton.Size = UDim2.fromOffset(x + w / 2 + 4, 76), UDim2.fromOffset(w / 2 - 4, 44)
 		else
-			self.queueButton.Position, self.queueButton.Size = UDim2.fromOffset(10, 82), UDim2.fromOffset(270, 46)
+			self.queueButton.Position, self.queueButton.Size = UDim2.fromOffset(x, 76), UDim2.fromOffset(w, 44)
 		end
 	end
 	if not show then
@@ -441,10 +583,10 @@ function MatchUI:_statusText(ctx)
 			sub = string.format("Waiting for players (%d/%d)", snap.queuedCount or 0, snap.raceCapacity or 16)
 		end
 		if not self.queued then
-			sub = "Sitting out - tap JOIN RACE"
+			sub = string.format("%d/%d racers queued - join to race", snap.queuedCount or 0, snap.raceCapacity or 16)
 		end
 		-- the countdown itself is on the phase strip (one timer on screen, brief 2026-11-26)
-		return self.queued and "YOU'RE IN THE NEXT RACE" or "JOIN THE NEXT RACE", sub
+		return self.queued and "YOU'RE IN" or "NOT QUEUED", sub
 	elseif snap.state == S.Preparing or snap.state == S.Countdown then
 		return "STARTING", self.queued and "Next one is yours" or "Racers on the grid"
 	elseif snap.state == S.Racing then

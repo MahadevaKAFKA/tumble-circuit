@@ -131,22 +131,24 @@ function HUD.new(input)
 		Name = "Speed",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -14),
-		Size = UDim2.fromOffset(170, 66),
-		BackgroundColor3 = palette.Navy,
-		BackgroundTransparency = 0.25,
+		Size = UDim2.fromOffset(150, 58),
+		BackgroundColor3 = UIKit.Colors.Surface,
+		BackgroundTransparency = 0.4,
 	}, root)
 	self.speedFrame = speedFrame
-	corner(speedFrame, 0.3)
+	new("UICorner", { CornerRadius = UDim.new(0, 6) }, speedFrame)
+	-- v2: the speed in the display face, unit small and muted
 	self.speedValue = label(speedFrame, {
-		Size = UDim2.new(1, 0, 0.66, 0),
-		Font = Enum.Font.GothamBlack,
+		Position = UDim2.fromScale(0, 0.08),
+		Size = UDim2.new(1, 0, 0.56, 0),
+		Font = UIKit.Fonts.Display or Enum.Font.GothamBlack,
 		Text = "0",
 	})
 	label(speedFrame, {
-		Position = UDim2.fromScale(0, 0.64),
-		Size = UDim2.new(1, 0, 0.3, 0),
-		TextColor3 = palette.Cyan,
-		Font = Enum.Font.Gotham,
+		Position = UDim2.fromScale(0, 0.66),
+		Size = UDim2.new(1, 0, 0.24, 0),
+		TextColor3 = UIKit.Colors.Muted,
+		Font = UIKit.Fonts.Bold or Enum.Font.GothamBold,
 		Text = "KM/H", -- 1 stud ~ 0.28 m, so studs/s ~ km/h (display only)
 	})
 
@@ -218,6 +220,7 @@ function HUD.new(input)
 		TextStrokeTransparency = 0.3,
 		Visible = false,
 	})
+	UIKit.LaneJoin(self.toast, 1)
 
 	-- Tutorial card
 	local card = new("Frame", {
@@ -437,6 +440,9 @@ function HUD:Toast(text, seconds)
 	self.toast.Text = text
 	if not self.toast.Visible then
 		self.toast.Visible = true
+		if not UIKit.LaneClaim(self.toast) then
+			return
+		end
 		UIKit.Enter(self.toast, "FromBelow", 0.2)
 	else
 		UIKit.Punch(self.toast, 1.08, 0.18) -- a new message while one is showing
@@ -457,6 +463,16 @@ end
 function HUD:SetPerfVisible(visible)
 	self.perfVisible = visible == true
 	self.perfLabel.Visible = self.perfVisible
+end
+
+-- v2: the speed readout only where speed matters (the race zone)
+function HUD:SetSpeedAllowed(allowed)
+	if self.speedAllowed ~= allowed then
+		self.speedAllowed = allowed
+		if self.speedFrame then
+			self.speedFrame.Visible = self.density ~= "Compact" and allowed ~= false
+		end
+	end
 end
 
 function HUD:SetDensity(density)

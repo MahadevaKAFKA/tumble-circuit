@@ -26,6 +26,7 @@ local SeasonConfig = require(Shared:WaitForChild("SeasonConfig"))
 local Utility = require(Shared:WaitForChild("Utility"))
 local UIKit = require(script.Parent:WaitForChild("UIKit"))
 local CapsuleReveal = require(script.Parent:WaitForChild("CapsuleRevealController"))
+local ItemSwatch = require(script.Parent:WaitForChild("ItemSwatch"))
 
 local palette = UIKit.Palette
 
@@ -235,9 +236,10 @@ function Lab:_buildCapsule(panel)
 		local tile = UIKit.new("Frame", { Position = UDim2.fromOffset(col * 118, row * 72), Size = UDim2.fromOffset(112, 66), BackgroundColor3 = palette.Navy, BorderSizePixel = 0, Visible = false }, self.contents)
 		UIKit.corner(tile, 0.12)
 		local bar = UIKit.new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 6), BorderSizePixel = 0 }, tile)
-		local name = UIKit.label(tile, { Position = UDim2.fromOffset(4, 4), Size = UDim2.new(1, -8, 0, 34), TextWrapped = true, Font = Enum.Font.GothamBold, Text = "" })
-		local odds = UIKit.label(tile, { Position = UDim2.fromOffset(4, 40), Size = UDim2.new(1, -8, 0, 16), Font = Enum.Font.Gotham, Text = "" })
-		self.contentTiles[i] = { frame = tile, bar = bar, name = name, odds = odds }
+		local art = UIKit.new("Frame", { Name = "Art", Position = UDim2.fromOffset(4, 8), Size = UDim2.fromOffset(34, 34), BackgroundTransparency = 1 }, tile)
+		local name = UIKit.label(tile, { Position = UDim2.fromOffset(42, 4), Size = UDim2.fromOffset(66, 38), TextWrapped = true, Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+		local odds = UIKit.label(tile, { Position = UDim2.fromOffset(4, 44), Size = UDim2.new(1, -8, 0, 14), Font = Enum.Font.Gotham, Text = "" })
+		self.contentTiles[i] = { frame = tile, bar = bar, name = name, odds = odds, art = art }
 	end
 	self.openButton = UIKit.Primary(UIKit.button(right, { Name = "OpenCapsule", Position = UDim2.fromOffset(16, 362), Size = UDim2.fromOffset(300, 52), Text = "OPEN" }, palette.Mint))
 	self.maid:Give(self.openButton.Activated:Connect(function()
@@ -262,6 +264,7 @@ function Lab:_renderCapsule()
 		local stroke = tile:FindFirstChildOfClass("UIStroke")
 		if stroke then
 			stroke.Color = id == box.Id and Lab.BoxColors[id] or palette.White
+			stroke.Transparency, stroke.Thickness = id == box.Id and 0 or 1, 2
 		end
 	end
 	self.boxTitle.Text = box.Name
@@ -299,6 +302,13 @@ function Lab:_renderCapsule()
 			tile.name.Text = item and ((box.Mixed and (string.upper(item.Kind == "Marble" and "Skin" or item.Kind) .. ": ") or "") .. item.Name) or entry.id
 			tile.odds.Text = CapsuleOdds.Percent(entry.p) .. (self.owned[entry.id] and "  OWNED" or "")
 			tile.bar.BackgroundColor3 = Catalog.RarityColors[entry.tier] or palette.White
+			if tile.artFor ~= entry.id then
+				tile.artFor = entry.id
+				for _, child in ipairs(tile.art:GetChildren()) do
+					child:Destroy()
+				end
+				ItemSwatch.Draw(tile.art, item or entry.id)
+			end
 		end
 	end
 	self.contents.CanvasSize = UDim2.fromOffset(0, math.ceil(#items / 5) * 72)

@@ -67,16 +67,18 @@ function AbilityController.new(deps)
 			Text = "",
 			ClipsDescendants = true,
 		}, palette.Cyan)
+		UIKit.Glass(b)
 		local fill = UIKit.new("Frame", { Name = "Cooldown", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.fromScale(1, 0), BackgroundColor3 = palette.Ink, BackgroundTransparency = 0.25, BorderSizePixel = 0, ZIndex = 2 }, b)
-		local name = UIKit.label(b, { Position = UDim2.fromScale(0.05, 0.12), Size = UDim2.fromScale(0.9, 0.3), Font = Enum.Font.GothamBlack, ZIndex = 3 })
-		local timer = UIKit.label(b, { Position = UDim2.fromScale(0.1, 0.42), Size = UDim2.fromScale(0.8, 0.3), Font = Enum.Font.GothamBlack, TextColor3 = palette.White, ZIndex = 3 })
-		local key = UIKit.label(b, { Position = UDim2.fromScale(0.1, 0.72), Size = UDim2.fromScale(0.8, 0.2), Font = Enum.Font.Gotham, TextColor3 = palette.White, ZIndex = 3 })
+		local name = UIKit.label(b, { Position = UDim2.fromScale(0.16, 0.2), Size = UDim2.fromScale(0.68, 0.24), Font = Enum.Font.GothamBlack, ZIndex = 3 })
+		local timer = UIKit.label(b, { Position = UDim2.fromScale(0.2, 0.46), Size = UDim2.fromScale(0.6, 0.26), Font = UIKit.Fonts.Display or Enum.Font.GothamBlack, TextColor3 = palette.White, ZIndex = 3 })
+		timer.Font = UIKit.Fonts.Display or timer.Font
+		local key = UIKit.label(b, { Position = UDim2.fromScale(0.25, 0.74), Size = UDim2.fromScale(0.5, 0.14), Font = Enum.Font.Gotham, TextColor3 = UIKit.Colors.Muted, ZIndex = 3 })
 		self.maid:Give(b.Activated:Connect(function()
 			self:RequestAbility(slot)
 		end))
 		self.slots[slot] = { button = b, fill = fill, name = name, timer = timer, key = key }
 	end
-	self.trickButton = UIKit.button(root, { Name = "Trick", AnchorPoint = Vector2.new(1, 1), Size = UDim2.fromOffset(110, 110), Text = "TRICK" }, palette.Mint)
+	self.trickButton = UIKit.Glass(UIKit.button(root, { Name = "Trick", AnchorPoint = Vector2.new(1, 1), Size = UDim2.fromOffset(92, 92), Text = "TRICK" }, palette.Mint))
 	self.maid:Give(self.trickButton.Activated:Connect(function()
 		self:RequestTrick()
 	end))
@@ -95,8 +97,8 @@ function AbilityController.new(deps)
 	self.panel = panel
 
 	-- Skippable hint card
-	local hint = UIKit.panel(root, { Name = "Hint", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 100), Size = UDim2.fromOffset(560, 70), Visible = false })
-	UIKit.new("UIStroke", { Color = palette.Mint, Thickness = 2 }, hint)
+	-- v2: the tip sits low (above the speed readout), clear of the countdown and the race strip
+	local hint = UIKit.panel(root, { Name = "Hint", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -100), Size = UDim2.fromOffset(540, 56), Visible = false })
 	self.hintText = UIKit.label(hint, { Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -120, 1, -16), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, Font = Enum.Font.GothamBold })
 	local ok = UIKit.button(hint, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(90, 44), Text = "OK" }, palette.Mint)
 	self.maid:Give(ok.Activated:Connect(function()
@@ -255,13 +257,20 @@ function AbilityController:SetMode(mode, device, practice)
 	for slot = 1, 2 do
 		local b = self.slots[slot].button
 		b.Visible = race
-		local y = touch and -260 or -24
-		b.Position, b.AnchorPoint = place(24 + (2 - slot) * 116, y)
+		-- v2 thumb cluster on touch: slot 2 right above BRAKE, slot 1 diagonally up-left of it
+		-- (over TRICK); keyboard / gamepad keep the two buttons in a row at the bottom
+		if touch then
+			b.Size = UDim2.fromOffset(86, 86)
+			b.Position, b.AnchorPoint = place(slot == 2 and 40 or 156, slot == 2 and -166 or -140)
+		else
+			b.Size = UDim2.fromOffset(104, 104)
+			b.Position, b.AnchorPoint = place(24 + (2 - slot) * 116, -24)
+		end
 		self.slots[slot].key.Text = (KEYS[device] or KEYS.KeyboardMouse)[slot]
 		self.slots[slot].key.Visible = self.density ~= "Compact"
 	end
 	self.trickButton.Visible = race and touch
-	self.trickButton.Position, self.trickButton.AnchorPoint = place(24 + 120 + 20 + 84 + 20, -24)
+	self.trickButton.Position, self.trickButton.AnchorPoint = place(28 + 120 + 16, -34)
 	-- A5 moved this panel to the right column (clear of the stick), so no phone override is needed.
 	self.panel.Visible = mode == "Hub"
 	self:_renderLoadout()

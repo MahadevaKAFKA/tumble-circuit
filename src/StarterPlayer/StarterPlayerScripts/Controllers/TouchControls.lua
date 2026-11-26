@@ -7,6 +7,10 @@
 	LIST (tap: race standings, A2).
 	Buttons sit inside a UIScale'd frame (>= ~44 px at MinScale). The stick lives in an unscaled
 	frame so touch positions map 1:1 (input positions and AbsolutePosition share one space).
+	Design v2 (owner feedback 2026-11-26): glass controls - dark translucent circles with a thin
+	white ring and white Builder Sans labels (BRAKE keeps its coral label). The right thumb
+	cluster is BRAKE in the corner, TRICK beside it, the two abilities above (AbilityController)
+	and RESET (hold) at the inner edge; CAM / LIST are small chips above the cluster.
 ]]
 
 local Players = game:GetService("Players")
@@ -35,6 +39,14 @@ end
 
 local function round(inst, radius)
 	new("UICorner", { CornerRadius = radius or UDim.new(0.5, 0) }, inst)
+end
+
+local GLASS = Color3.fromHex("#0B1020")
+local function font(name, fallback)
+	local ok, f = pcall(function()
+		return Enum.Font[name]
+	end)
+	return ok and f or fallback
 end
 
 function TouchControls.new(input)
@@ -68,17 +80,17 @@ function TouchControls.new(input)
 	local base = new("Frame", {
 		Name = "StickBase",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = palette.Navy,
-		BackgroundTransparency = 0.35,
+		BackgroundColor3 = GLASS,
+		BackgroundTransparency = 0.45,
 	}, stickLayer)
 	round(base)
-	new("UIStroke", { Color = palette.Cyan, Thickness = 2, Transparency = 0.2 }, base)
+	new("UIStroke", { Color = palette.White, Thickness = 1.5, Transparency = 0.6 }, base)
 	local knob = new("Frame", {
 		Name = "Knob",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		BackgroundColor3 = palette.Cyan,
-		BackgroundTransparency = 0.15,
+		BackgroundColor3 = palette.White,
+		BackgroundTransparency = 0.2,
 	}, base)
 	round(knob)
 	self.base, self.knob = base, knob
@@ -94,23 +106,23 @@ function TouchControls.new(input)
 			AnchorPoint = Vector2.new(1, 1),
 			Size = UDim2.fromOffset(size, size),
 			Position = position,
-			BackgroundColor3 = palette.Navy,
-			BackgroundTransparency = 0.2,
+			BackgroundColor3 = GLASS,
+			BackgroundTransparency = 0.35,
 			Text = "",
 			AutoButtonColor = false,
 			ClipsDescendants = true,
 		}, buttonRoot)
 		round(button)
-		new("UIStroke", { Color = color, Thickness = 3 }, button)
+		new("UIStroke", { Color = palette.White, Thickness = 1.5, Transparency = 0.65 }, button)
 		new("TextLabel", {
 			Name = "Label",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(0.66, 0.36),
+			Size = UDim2.fromScale(0.62, 0.26),
 			BackgroundTransparency = 1,
 			Text = text,
-			TextColor3 = color,
-			Font = Enum.Font.GothamBlack,
+			TextColor3 = color == palette.Coral and palette.Coral or palette.White,
+			Font = font("BuilderSansExtraBold", Enum.Font.GothamBlack),
 			TextScaled = true,
 		}, button)
 		local active = {}
@@ -118,7 +130,7 @@ function TouchControls.new(input)
 		local function refresh()
 			local isDown = next(active) ~= nil
 			self.input:SetVirtual(name, isDown)
-			button.BackgroundTransparency = isDown and 0 or 0.2
+			button.BackgroundTransparency = isDown and 0.05 or 0.35
 		end
 		self.maid:Give(button.InputBegan:Connect(function(io)
 			if io.UserInputType == Enum.UserInputType.Touch or io.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -136,15 +148,17 @@ function TouchControls.new(input)
 		return button
 	end
 
-	local big, small = ui.TouchButtonSize, ui.TouchSmallButtonSize
-	self.brakeButton = holdButton("Brake", "BRAKE", big, UDim2.new(1, -24, 1, -24), palette.Coral)
-	self.recoverButton = holdButton("Recover", "RESET", small, UDim2.new(1, -24 - big - 20, 1, -24), palette.Yellow)
+	local big = ui.TouchButtonSize
+	-- v2 thumb cluster (right-handed; LeftHanded mirrors it): BRAKE in the corner, TRICK
+	-- (AbilityController) to its left, RESET at the inner edge, abilities above
+	self.brakeButton = holdButton("Brake", "BRAKE", big, UDim2.new(1, -28, 1, -28), palette.Coral)
+	self.recoverButton = holdButton("Recover", "RESET", 72, UDim2.new(1, -(28 + big + 16 + 92 + 14), 1, -40), palette.Yellow)
 	local fill = new("Frame", {
 		Name = "HoldFill",
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 0, 1, 0),
 		Size = UDim2.fromScale(0, 0.12),
-		BackgroundColor3 = palette.Yellow,
+		BackgroundColor3 = palette.White,
 		BorderSizePixel = 0,
 		ZIndex = 2,
 	}, self.recoverButton)
@@ -153,17 +167,17 @@ function TouchControls.new(input)
 	local cam = new("TextButton", {
 		Name = "Camera",
 		AnchorPoint = Vector2.new(1, 1),
-		Size = UDim2.fromOffset(small, small * 0.6),
-		Position = UDim2.new(1, -24, 1, -24 - big - 20),
-		BackgroundColor3 = palette.Navy,
-		BackgroundTransparency = 0.2,
+		Size = UDim2.fromOffset(88, 36),
+		Position = UDim2.new(1, -28, 1, -290),
+		BackgroundColor3 = GLASS,
+		BackgroundTransparency = 0.35,
 		Text = "CAM",
-		TextColor3 = palette.Cyan,
-		Font = Enum.Font.GothamBold,
+		TextColor3 = palette.White,
+		Font = font("BuilderSansBold", Enum.Font.GothamBold),
 		TextScaled = true,
 	}, buttonRoot)
-	round(cam, UDim.new(0.3, 0))
-	new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, cam)
+	round(cam, UDim.new(0, 6))
+	new("UIPadding", { PaddingTop = UDim.new(0.22, 0), PaddingBottom = UDim.new(0.22, 0) }, cam)
 	self.maid:Give(cam.Activated:Connect(function()
 		self.input.CameraToggleRequested:Fire()
 	end))
@@ -173,18 +187,18 @@ function TouchControls.new(input)
 	local list = new("TextButton", {
 		Name = "Standings",
 		AnchorPoint = Vector2.new(1, 1),
-		Size = UDim2.fromOffset(small, small * 0.6),
-		Position = UDim2.new(1, -24 - big - 20, 1, -24 - small - 20),
-		BackgroundColor3 = palette.Navy,
-		BackgroundTransparency = 0.2,
+		Size = UDim2.fromOffset(88, 36),
+		Position = UDim2.new(1, -(28 + 88 + 10), 1, -290),
+		BackgroundColor3 = GLASS,
+		BackgroundTransparency = 0.35,
 		Text = "LIST",
-		TextColor3 = palette.Cyan,
-		Font = Enum.Font.GothamBold,
+		TextColor3 = palette.White,
+		Font = font("BuilderSansBold", Enum.Font.GothamBold),
 		TextScaled = true,
 	}, buttonRoot)
-	round(list, UDim.new(0.3, 0))
+	round(list, UDim.new(0, 6))
+	new("UIPadding", { PaddingTop = UDim.new(0.22, 0), PaddingBottom = UDim.new(0.22, 0) }, list)
 	self.listButton = list
-	new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, list)
 	self.maid:Give(list.Activated:Connect(function()
 		self.input.ScoreboardToggleRequested:Fire()
 	end))
@@ -273,7 +287,7 @@ function TouchControls:_restStick()
 		self.base.Position = UDim2.new(0, r * 1.7, 1, -r * 1.7)
 	end
 	self.knob.Position = UDim2.fromScale(0.5, 0.5)
-	self.base.BackgroundTransparency = 0.55
+	self.base.BackgroundTransparency = 0.6
 end
 
 function TouchControls:_toLocal(position)
