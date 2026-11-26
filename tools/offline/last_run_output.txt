@@ -137,7 +137,7 @@ ok    tools/offline/run_tests.lua
 == A1 pure specs ==
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
-PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 122.9 ms
+PRINT	[Track] built 3 maps (5708 parts; active NeonFoundry_A4, 2931 studs, 8 checkpoints) + 3 hubs (730 parts) in 126.9 ms
 PRINT	[TumbleCircuit] server ready (A6.0, protocol v12)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
@@ -799,6 +799,7 @@ PASS  NeonFoundry_A4 Standard: the signature landmark is there
 PASS  NeonFoundry_A4 High: the signature landmark is there
 PASS  NeonFoundry_A4: sizes valid; Low keeps only the signature + hazard tells; more detail = more parts
 PASS  NeonFoundry_A4: backdrop stays clear of the race line (start, lanes, finish stay legible)
+PASS  NeonFoundry_A4: no backdrop part in or over any hub deck or practice lane
 PASS  NeonFoundry_A4: road is a visible midtone (not black, not white)
 PASS  NeonFoundry_A4: road differs from the cobalt marble in brightness or colour
 PASS  NeonFoundry_A4: guide lights are narrow (emission on small surfaces)
@@ -808,6 +809,7 @@ PASS  SkyCarnival_B1 Standard: the signature landmark is there
 PASS  SkyCarnival_B1 High: the signature landmark is there
 PASS  SkyCarnival_B1: sizes valid; Low keeps only the signature + hazard tells; more detail = more parts
 PASS  SkyCarnival_B1: backdrop stays clear of the race line (start, lanes, finish stay legible)
+PASS  SkyCarnival_B1: no backdrop part in or over any hub deck or practice lane
 PASS  SkyCarnival_B1: road is a visible midtone (not black, not white)
 PASS  SkyCarnival_B1: road differs from the cobalt marble in brightness or colour
 PASS  SkyCarnival_B1: guide lights are narrow (emission on small surfaces)
@@ -817,6 +819,7 @@ PASS  VolcanoVault_B1 Standard: the signature landmark is there
 PASS  VolcanoVault_B1 High: the signature landmark is there
 PASS  VolcanoVault_B1: sizes valid; Low keeps only the signature + hazard tells; more detail = more parts
 PASS  VolcanoVault_B1: backdrop stays clear of the race line (start, lanes, finish stay legible)
+PASS  VolcanoVault_B1: no backdrop part in or over any hub deck or practice lane
 PASS  VolcanoVault_B1: road is a visible midtone (not black, not white)
 PASS  VolcanoVault_B1: road differs from the cobalt marble in brightness or colour
 PASS  VolcanoVault_B1: guide lights are narrow (emission on small surfaces)
@@ -832,9 +835,9 @@ PASS  BasaltDeck: practice lane gets its own road colour
 PASS  a map without a profile gets no backdrop (unbuilt maps stay off)
 PASS  same layout -> same backdrop (deterministic on every client)
 PASS  UI 'Follow map' accents match the environment accents
-info  NeonFoundry_A4 backdrop parts: Low 428 / Standard 716 / High 734
-info  SkyCarnival_B1 backdrop parts: Low 3 / Standard 125 / High 225
-info  VolcanoVault_B1 backdrop parts: Low 5 / Standard 70 / High 76
+info  NeonFoundry_A4 backdrop parts: Low 428 / Standard 713 / High 731
+info  SkyCarnival_B1 backdrop parts: Low 3 / Standard 120 / High 220
+info  VolcanoVault_B1 backdrop parts: Low 5 / Standard 64 / High 68
 
 -- A5 persistence specs --
 PASS  defaults are deterministic
@@ -949,4 +952,4 @@ PASS  three preset emotes (GG / Nice Save! / Oops!), 5 s cooldown, distance LOD
 PASS  emote / vote remotes carry only bounded numbers (no free text)
 PASS  chaos banner: lead-time countdown, active countdown, then nothing
 
-726 passed, 0 failed (+ 0 syntax failures)
+729 passed, 0 failed (+ 0 syntax failures)

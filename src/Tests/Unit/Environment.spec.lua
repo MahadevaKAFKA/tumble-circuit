@@ -74,6 +74,22 @@ function Spec.run(m)
 				end
 			end
 			check(map.Id .. ": backdrop stays clear of the race line (start, lanes, finish stay legible)", tooClose == 0, tostring(tooClose))
+			-- owner playtest 2026-11-26: nothing from a course backdrop inside or over any hub
+			local inHub = 0
+			for _, spec in ipairs(E.CourseSpecs(map.Id, layout, "High")) do
+				if spec.Layer ~= "Track" and spec.Layer ~= "TrackDetail" and spec.Layer ~= "Under" then
+					local p = spec.CFrame.Position
+					local half = math.max(spec.Size.X, spec.Size.Y, spec.Size.Z) / 2
+					for _, hub in ipairs(R.Hubs) do
+						local c = hub.Geometry.Center
+						local d = math.sqrt((p.X - c.X) ^ 2 + (p.Z - c.Z) ^ 2) - half
+						if d < hub.Geometry.Radius + 200 and math.abs(p.Y - c.Y) < 300 then
+							inHub = inHub + 1
+						end
+					end
+				end
+			end
+			check(map.Id .. ": no backdrop part in or over any hub deck or practice lane", inHub == 0, tostring(inHub))
 			local road = profile.Road
 			local spread = math.max(road.R, road.G, road.B) - math.min(road.R, road.G, road.B)
 			check(map.Id .. ": road is a visible midtone (not black, not white)", luminance(road) > 0.3 and luminance(road) < 0.8)

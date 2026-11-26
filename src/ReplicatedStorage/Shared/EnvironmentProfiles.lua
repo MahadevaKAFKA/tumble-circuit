@@ -349,6 +349,29 @@ function EnvironmentProfiles.Keep(spec, detail)
 	return true
 end
 
+-- Hub keep-out (owner playtest 2026-11-26: a floating island landed in the middle of Balloon
+-- Terminal). No course backdrop may come within HubClearance studs (horizontally) of any hub
+-- deck or its practice lane, at any height that could be seen from the deck.
+EnvironmentProfiles.HubClearance = 320
+EnvironmentProfiles.HubClearanceHeight = 400
+local MapRegistry = require(script.Parent:WaitForChild("MapRegistry"))
+
+function EnvironmentProfiles.NearHub(position, extent)
+	extent = extent or 0
+	for _, entry in ipairs(MapRegistry.Hubs) do
+		local c = entry.Geometry.Center
+		-- the practice lane leaves toward the chute heading: centre the keep-out between them
+		local psi = math.rad(entry.Geometry.ChuteHeadingDeg or 0)
+		local mid = c + Vector3.new(math.sin(psi), 0, -math.cos(psi)) * 90
+		local dx, dz = position.X - mid.X, position.Z - mid.Z
+		local reach = EnvironmentProfiles.HubClearance + extent
+		if dx * dx + dz * dz < reach * reach and math.abs(position.Y - c.Y) < EnvironmentProfiles.HubClearanceHeight + extent then
+			return true
+		end
+	end
+	return false
+end
+
 function EnvironmentProfiles.CourseSpecs(mapId, layout, detail)
 	local profile = EnvironmentProfiles.Maps[mapId or ""]
 	local out = {}
@@ -356,7 +379,9 @@ function EnvironmentProfiles.CourseSpecs(mapId, layout, detail)
 		return out
 	end
 	profile.Course(layout, detail, function(spec)
-		if EnvironmentProfiles.Keep(spec, detail) then
+		local onCourse = spec.Layer == "Track" or spec.Layer == "TrackDetail" or spec.Layer == "Under"
+		local extent = math.max(spec.Size.X, spec.Size.Y, spec.Size.Z) / 2
+		if EnvironmentProfiles.Keep(spec, detail) and (onCourse or not EnvironmentProfiles.NearHub(spec.CFrame.Position, extent)) then
 			out[#out + 1] = spec
 		end
 	end)
