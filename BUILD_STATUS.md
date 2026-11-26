@@ -11,7 +11,7 @@ The promo pack adds no monetization. Every deploy stays private.
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
 
-## 2026-11-26 — Prompt 02: map + hub registry (v22, private)
+## 2026-11-26 — Prompt 02: map + hub registry (v21, private)
 
 - **`MapRegistry` (Shared).**
   - Three maps (Neon Foundry, Sky Carnival, Volcano Vault) and one hub (Orbital Garage).
@@ -43,7 +43,7 @@ untested** = needs a Roblox runtime · **Blocked** = needs something not availab
   - Runtime: pending. On the phone, check that the Foundry race plays as before and that the
     camera no longer pulls in when a rail or hazard is between it and the marble.
 
-## 2026-11-26 — Prompt 01: baseline audit (v21, private)
+## 2026-11-26 — Prompt 01: baseline audit (shipped inside v21)
 
 - Full write-up: docs/AUDIT_BASELINE.md. It covers:
   - the flow trace, with the file that owns each step;
