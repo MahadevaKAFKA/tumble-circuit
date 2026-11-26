@@ -232,6 +232,23 @@ shim.Color3 = {
 	end,
 }
 
+-- UDim / UDim2 (layout maths in client controllers; values only)
+local function newUDim(scale, offset)
+	return { Scale = scale or 0, Offset = offset or 0 }
+end
+shim.UDim = { new = newUDim }
+shim.UDim2 = {
+	new = function(xs, xo, ys, yo)
+		return { X = newUDim(xs, xo), Y = newUDim(ys, yo) }
+	end,
+	fromOffset = function(x, y)
+		return { X = newUDim(0, x), Y = newUDim(0, y) }
+	end,
+	fromScale = function(x, y)
+		return { X = newUDim(x, 0), Y = newUDim(y, 0) }
+	end,
+}
+
 ---------------------------------------------------------------------------------- globals
 function shim.typeof(v)
 	local mt = getmetatable(v)
@@ -252,6 +269,8 @@ function shim.install(env)
 	env.Vector2 = shim.Vector2
 	env.CFrame = shim.CFrame
 	env.Color3 = shim.Color3
+	env.UDim = shim.UDim
+	env.UDim2 = shim.UDim2
 	env.typeof = shim.typeof
 	env.warn = function(...)
 		print("WARN", ...)

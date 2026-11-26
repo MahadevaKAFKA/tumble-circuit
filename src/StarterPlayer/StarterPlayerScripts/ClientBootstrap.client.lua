@@ -81,6 +81,7 @@ local ModesController = require(Controllers:WaitForChild("ModesController"))
 local HubMenusController = require(Controllers:WaitForChild("HubMenusController"))
 local MapSelectController = require(Controllers:WaitForChild("MapSelectController"))
 local DressingController = require(Controllers:WaitForChild("DressingController"))
+local UIKit = require(Controllers:WaitForChild("UIKit"))
 local LabController = require(Controllers:WaitForChild("LabController"))
 local ShopController = require(Controllers:WaitForChild("ShopController"))
 local Lighting = game:GetService("Lighting")
@@ -359,7 +360,11 @@ maid:Give(abilities.ReducedMotionChanged:Connect(function(value)
 	hazards:SetReducedMotion(value)
 end))
 -- A5 modals, results, dev panel
-local settings = maid:Give(SettingsController.new({ remotes = remote }))
+local function isDeveloper() -- Studio, or an account with the development gate (TC_Features)
+	local text = player:GetAttribute(Protocol.PlayerAttributes.Features)
+	return RunService:IsStudio() or (type(text) == "string" and string.find(text, "NewHubs", 1, true) ~= nil)
+end
+local settings = maid:Give(SettingsController.new({ remotes = remote, showDev = isDeveloper() }))
 local loadout = maid:Give(StarterLoadoutController.new({ remotes = remote }))
 local results = maid:Give(ResultsController.new())
 maid:Give(DevPanelController.new(remotes))
@@ -389,6 +394,13 @@ local modes = maid:Give(ModesController.new({
 maid:Give(social.ModifierChanged:Connect(function(modifier)
 	hazards:SetModifier(modifier) -- A6 voted modifier: same timestamps as the server
 end))
+-- UI overhaul (2026-11-26): hub card + MENU drawer + profile drawer, compact race strip. The
+-- same buttons and handlers as before, re-placed; GameConfig.UI.LegacyHud restores the old HUD.
+if not GameConfig.UI.LegacyHud then
+	matchUi:UseCardLayout({ buttons = { modes.trialButton, modes.partyButton }, emotes = social.emoteBar })
+	modes:SetCardMode(true)
+	raceHud:UseStrip()
+end
 maid:Give(remote.SkillEvent.OnClientEvent:Connect(function(data)
 	if type(data) == "table" and (data.kind == "SlipstreamOn" or data.kind == "SlipstreamOff") then
 		vfx:SetSlipstream(player.UserId, data.kind == "SlipstreamOn")
@@ -717,6 +729,18 @@ local function bindBall(ball)
 	end
 	currentBall = ball
 	currentZone = ball:GetAttribute(BALL.Zone) or ZONES.Hub
+	-- UI overhaul: your own marble keeps a thin outline so it never blends into the floor
+	-- (local only; other players see nothing; one Highlight, far below the engine's limit)
+	pcall(function()
+		local outline = Instance.new("Highlight")
+		outline.Name = "TC_SelfOutline"
+		outline.FillTransparency = 1
+		outline.OutlineColor = Color3.fromRGB(255, 244, 214)
+		outline.OutlineTransparency = 0.25
+		outline.DepthMode = Enum.HighlightDepthMode.Occluded
+		outline.Adornee = ball
+		outline.Parent = ball
+	end)
 	if currentZone == ZONES.Hub then
 		local hubId = ball:GetAttribute(BALL.HubId)
 		currentHubId = hubLayouts[hubId or ""] and hubId or MapRegistry.DefaultHubId
@@ -917,7 +941,26 @@ local function applyGraphics(mode)
 	vfx:SetQuality(low and "Low" or "High")
 	dressing:SetQuality(low) -- prompt 05: no panel breaks / spines / blades on Low
 end
+-- the map whose accent "Follow map" uses: your hub's map in a hub, the race map on the course
+local function accentMapId()
+	if currentZone == ZONES.Hub then
+		local hub = MapRegistry.RawHub(currentHubId)
+		return hub and hub.Map or MapRegistry.DefaultMapId
+	end
+	return activeWorldId
+end
+local function applyDisplay(s)
+	local style = UIKit.StyleFromSettings(s, accentMapId())
+	UIKit.ApplyStyle(style)
+	touch:SetLayout(s.controlLayout, style.scale)
+	abilities:SetLayout(s.controlLayout, s.hudDensity)
+	raceHud:SetDensity(s.hudDensity)
+	matchUi:SetDensity(s.hudDensity)
+	hud:SetDensity(s.hudDensity)
+	hud:SetPerfVisible(s.perfOverlay == true and isDeveloper())
+end
 local function applySettings(s)
+	applyDisplay(s) -- UI overhaul: HUD size / opacity / accent / contrast / layout / density
 	social:SetMuted(s.muteEmotes == true)
 	abilities:SetReducedMotion(s.reducedMotion == true)
 	results:SetReducedMotion(s.reducedMotion == true)
@@ -976,6 +1019,17 @@ maid:Give(hubMenus.CloseRequested:Connect(function()
 end))
 maid:Give(modes.MapsRequested:Connect(function()
 	openModal("MapSelect")
+end))
+maid:Give(matchUi.MapsRequested:Connect(function()
+	openModal("MapSelect")
+end))
+-- EXIT PRACTICE: back to your hub's spawn ring (the same Visit request Map Selection uses)
+maid:Give(matchUi.PracticeExitRequested:Connect(function()
+	for i, entry in ipairs(MapRegistry.Hubs) do
+		if entry.Id == currentHubId then
+			remote.RequestDestination:FireServer(i, 1)
+		end
+	end
 end))
 maid:Give(mapSelect.CloseRequested:Connect(function()
 	if ui:GetModal() == "MapSelect" then
@@ -1283,8 +1337,20 @@ local function whereLabel(zone, index)
 end
 
 loadStage = "starting"
+local lastAccentMap, lastHubName = nil, nil
 RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, function(dt)
-	applyZoneProfile() -- prompt 04: no-op unless your zone / hub / race map changed
+	applyZoneProfile()
+	-- UI overhaul: "Follow map" accent + hub name on the card follow where you are
+	local accentMap = accentMapId()
+	if accentMap ~= lastAccentMap then
+		lastAccentMap = accentMap
+		applyDisplay(settings:Get())
+		raceHud:SetCourseName((MapRegistry.RawMap(activeWorldId) or {}).Meta and MapRegistry.RawMap(activeWorldId).Meta.DisplayName or nil)
+	end
+	if currentHubId ~= lastHubName then
+		lastHubName = currentHubId
+		matchUi:SetHubName((MapRegistry.RawHub(currentHubId) or defaultHub).Meta.DisplayName)
+	end -- prompt 04: no-op unless your zone / hub / race map changed
 	hud:RecordFrame(dt)
 	modes:Step(workspace:GetServerTimeNow()) -- B1: Time Trial timer + PB ghost
 	local ball = currentBall
@@ -1343,6 +1409,7 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 		})
 		if currentZone == ZONES.Race then
 			hazards:Step(ball)
+			matchUi:SetPractice(nil)
 		else
 			hazards:Step(nil) -- keep the bumper's colours in sync while away
 			local practiceHazards = hubHazardsFor(currentHubId) -- prompt 04
@@ -1350,6 +1417,9 @@ RunService:BindToRenderStep(RENDER_STEP, Enum.RenderPriority.Camera.Value + 1, f
 				practiceHazards:Step(ball)
 			end
 			checkSelectorPads(ball.Position)
+			-- UI overhaul: off the deck = on the practice lane -> objective + EXIT PRACTICE
+			local hubEntry = MapRegistry.RawHub(currentHubId)
+			matchUi:SetPractice((not onHubPlatform(ball.Position)) and hubEntry and hubEntry.Meta.PracticeObjective or nil)
 		end
 
 		-- Stuck hint: racing, trying to move, slow, and no route progress for a while.

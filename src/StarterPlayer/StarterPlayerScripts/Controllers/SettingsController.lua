@@ -7,6 +7,10 @@
 	  Sensitivity      50-150% steering strength
 	  Graphics         Auto / Low (no bloom, fewer effects) / High
 	Applied locally at once; the server echo (ProfileState) is the source of truth after a rejoin.
+	UI overhaul (2026-11-26): a second DISPLAY tab - HUD size, panel opacity, HUD density, UI
+	accent, high contrast, control layout, scenery detail (+ the frame-time overlay for
+	developers only) - and RESET DISPLAY, which previews the defaults live with KEEP / UNDO.
+	Closing Settings during a preview undoes it (nothing is saved until KEEP).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -27,14 +31,23 @@ local LABELS = {
 	sensitivity = "STEERING SENSITIVITY",
 	graphicsMode = "GRAPHICS",
 	muteEmotes = "MUTE QUICK EMOTES",
+	hudScale = "HUD SIZE",
+	panelOpacity = "PANEL OPACITY",
+	hudDensity = "HUD DENSITY",
+	uiAccent = "UI ACCENT",
+	highContrast = "HIGH CONTRAST",
+	controlLayout = "CONTROL LAYOUT",
+	sceneryDetail = "SCENERY DETAIL",
+	perfOverlay = "FRAME-TIME OVERLAY (DEV)",
 }
+local VALUE_TEXT = { FollowMap = "FOLLOW MAP", LeftHanded = "LEFT-HANDED" }
 
 local function describe(key, value)
 	local spec = PlayerDataSchema.Settings[key]
 	if spec.kind == "boolean" then
 		return value and "ON" or "OFF"
 	elseif spec.kind == "enum" then
-		return string.upper(tostring(value))
+		return VALUE_TEXT[value] or string.upper(tostring(value))
 	end
 	return string.format("%d%%", math.floor(value * 100 + 0.5))
 end
@@ -68,7 +81,7 @@ function SettingsController.new(deps)
 	local gui, root, maid = UIKit.screen("TumbleSettings", 20)
 	self.gui, self.maid = gui, maid
 	gui.Enabled = false
-	local panel = UIKit.panel(root, { Name = "Settings", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(640, 520), BackgroundTransparency = 0.04 })
+	local panel = UIKit.panel(root, { Name = "Settings", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(680, 580), BackgroundTransparency = 0.04 })
 	UIKit.new("UIStroke", { Color = palette.Cyan, Thickness = 2 }, panel)
 	UIKit.label(panel, { Position = UDim2.fromOffset(24, 14), Size = UDim2.new(1, -150, 0, 44), Font = Enum.Font.GothamBlack, TextColor3 = palette.Cyan, Text = "SETTINGS", TextXAlignment = Enum.TextXAlignment.Left })
 	local close = UIKit.button(panel, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 14), Size = UDim2.fromOffset(110, 48), Text = "CLOSE" }, palette.White)
@@ -76,39 +89,154 @@ function SettingsController.new(deps)
 		self.CloseRequested:Fire()
 	end))
 	self.rows = {}
-	for i, key in ipairs(PlayerDataSchema.SettingOrder) do
-		local y = 70 + (i - 1) * 58
-		UIKit.label(panel, { Position = UDim2.fromOffset(24, y + 6), Size = UDim2.fromOffset(300, 38), Text = LABELS[key], TextXAlignment = Enum.TextXAlignment.Left })
-		local spec = PlayerDataSchema.Settings[key]
-		local value = UIKit.label(panel, { Position = UDim2.fromOffset(410, y + 6), Size = UDim2.fromOffset(120, 38), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow })
-		local function press(direction)
-			local nextValue = SettingsController.Step(key, self.settings[key], direction)
-			self:_set(key, nextValue, true)
-		end
-		if spec.kind == "number" then
-			local minus = UIKit.button(panel, { Position = UDim2.fromOffset(340, y), Size = UDim2.fromOffset(60, 50), Text = "-" }, palette.Cyan)
-			local plus = UIKit.button(panel, { Position = UDim2.fromOffset(540, y), Size = UDim2.fromOffset(60, 50), Text = "+" }, palette.Cyan)
-			maid:Give(minus.Activated:Connect(function()
-				press(-1)
-			end))
-			maid:Give(plus.Activated:Connect(function()
-				press(1)
-			end))
-		else
-			local toggle = UIKit.button(panel, { Position = UDim2.fromOffset(340, y), Size = UDim2.fromOffset(260, 50), Text = "" }, palette.Cyan)
-			self.firstButton = self.firstButton or toggle
-			value.Parent = toggle
-			value.Position = UDim2.fromScale(0, 0)
-			value.Size = UDim2.fromScale(1, 1)
-			maid:Give(toggle.Activated:Connect(function()
-				press(1)
-			end))
-		end
-		self.rows[key] = value
+	self.tabs = {}
+	self.showDev = deps.showDev == true
+	-- tabs: GAME (A5 rows) and DISPLAY (UI overhaul rows)
+	local function tabButton(name, x, text)
+		local b = UIKit.button(panel, { Name = "SettingsTab", Position = UDim2.fromOffset(x, 66), Size = UDim2.fromOffset(150, 42), Text = text }, palette.Cyan)
+		maid:Give(b.Activated:Connect(function()
+			self:ShowTab(name)
+		end))
+		return b
 	end
-	self.note = UIKit.label(panel, { Position = UDim2.fromOffset(24, 480), Size = UDim2.new(1, -48, 0, 28), Font = Enum.Font.Gotham, TextColor3 = palette.White, TextTransparency = 0.25, Text = "This build has no music or sound files yet - your levels are saved for when it does." })
+	self.tabButtons = { Game = tabButton("Game", 24, "GAME"), Display = tabButton("Display", 184, "DISPLAY") }
+	local function buildTab(name, order)
+		local page = UIKit.new("Frame", { Name = name, BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 116), Size = UDim2.new(1, 0, 1, -170) }, panel)
+		self.tabs[name] = page
+		local y = 0
+		for _, key in ipairs(order) do
+			if key ~= "perfOverlay" or self.showDev then
+				self:_row(page, key, y)
+				y = y + 50
+			end
+		end
+	end
+	buildTab("Game", PlayerDataSchema.SettingOrder)
+	buildTab("Display", PlayerDataSchema.DisplaySettingOrder)
+	-- RESET DISPLAY -> live preview of the defaults, then KEEP / UNDO
+	self.resetButton = UIKit.button(panel, { Name = "SettingsReset", Position = UDim2.new(0, 24, 1, -52), Size = UDim2.fromOffset(240, 42), Text = "RESET DISPLAY" }, palette.Yellow)
+	self.keepButton = UIKit.button(panel, { Name = "SettingsReset", Position = UDim2.new(0, 24, 1, -52), Size = UDim2.fromOffset(200, 42), Text = "KEEP DEFAULTS", Visible = false }, palette.Mint)
+	self.undoButton = UIKit.button(panel, { Name = "SettingsReset", Position = UDim2.new(0, 234, 1, -52), Size = UDim2.fromOffset(130, 42), Text = "UNDO", Visible = false }, palette.Coral)
+	maid:Give(self.resetButton.Activated:Connect(function()
+		self:PreviewReset()
+	end))
+	maid:Give(self.keepButton.Activated:Connect(function()
+		self:KeepReset()
+	end))
+	maid:Give(self.undoButton.Activated:Connect(function()
+		self:UndoReset()
+	end))
+	self.note = UIKit.label(panel, { Position = UDim2.new(0, 380, 1, -50), Size = UDim2.new(1, -400, 0, 38), Font = Enum.Font.Gotham, TextColor3 = palette.White, TextTransparency = 0.25, TextWrapped = true, Text = "" })
+	self:ShowTab("Game")
 	self:_render()
 	return self
+end
+
+function SettingsController:_row(page, key, y)
+	local maid = self.maid
+	UIKit.label(page, { Position = UDim2.fromOffset(24, y + 6), Size = UDim2.fromOffset(330, 34), Text = LABELS[key] or key, TextXAlignment = Enum.TextXAlignment.Left })
+	local spec = PlayerDataSchema.Settings[key]
+	local value = UIKit.label(page, { Position = UDim2.fromOffset(430, y + 6), Size = UDim2.fromOffset(120, 34), Font = Enum.Font.GothamBlack, TextColor3 = palette.Yellow })
+	local function press(direction)
+		local nextValue = SettingsController.Step(key, self.settings[key], direction)
+		self:_set(key, nextValue, true)
+	end
+	if spec.kind == "number" then
+		local minus = UIKit.button(page, { Name = "SettingToggle", Position = UDim2.fromOffset(360, y), Size = UDim2.fromOffset(60, 46), Text = "-" }, palette.Cyan)
+		local plus = UIKit.button(page, { Name = "SettingToggle", Position = UDim2.fromOffset(560, y), Size = UDim2.fromOffset(60, 46), Text = "+" }, palette.Cyan)
+		self.firstButton = self.firstButton or minus
+		maid:Give(minus.Activated:Connect(function()
+			press(-1)
+		end))
+		maid:Give(plus.Activated:Connect(function()
+			press(1)
+		end))
+	else
+		local toggle = UIKit.button(page, { Name = "SettingToggle", Position = UDim2.fromOffset(360, y), Size = UDim2.fromOffset(260, 46), Text = "" }, palette.Cyan)
+		self.firstButton = self.firstButton or toggle
+		value.Parent = toggle
+		value.Position = UDim2.fromScale(0, 0)
+		value.Size = UDim2.fromScale(1, 1)
+		maid:Give(toggle.Activated:Connect(function()
+			press(1)
+		end))
+	end
+	self.rows[key] = value
+end
+
+function SettingsController:ShowTab(name)
+	self.tab = name
+	for tabName, page in pairs(self.tabs) do
+		page.Visible = tabName == name
+	end
+	for tabName, button in pairs(self.tabButtons) do
+		button.BackgroundTransparency = tabName == name and 0 or 0.6
+	end
+	self.resetButton.Visible = name == "Display" and self.preview == nil
+	self.note.Text = name == "Game" and "No music or sound files yet - your levels are saved for when they arrive." or "Display settings change only your screen. They are saved to your profile."
+end
+
+-- Pure: which display keys a reset changes (current values that differ from the defaults)
+function SettingsController.ResetPlan(settings)
+	local plan = {}
+	for _, key in ipairs(PlayerDataSchema.DisplaySettingOrder) do
+		local default = PlayerDataSchema.Settings[key].default
+		if settings[key] ~= default then
+			plan[key] = default
+		end
+	end
+	return plan
+end
+
+function SettingsController:PreviewReset()
+	if self.preview then
+		return
+	end
+	local plan = SettingsController.ResetPlan(self.settings)
+	if next(plan) == nil then
+		self.note.Text = "Display settings are already at their defaults."
+		return
+	end
+	local before = {}
+	for key, value in pairs(plan) do
+		before[key] = self.settings[key]
+		self.settings[key] = value -- local preview only: nothing is sent yet
+	end
+	self.preview = before
+	self:_render()
+	self.Changed:Fire(self.settings)
+	self.resetButton.Visible = false
+	self.keepButton.Visible = true
+	self.undoButton.Visible = true
+	self.note.Text = "Previewing the default layout. KEEP saves it, UNDO restores yours."
+end
+
+function SettingsController:KeepReset()
+	local before = self.preview
+	if not before then
+		return
+	end
+	self.preview = nil
+	for key in pairs(before) do
+		self:_queueSend(key)
+	end
+	self.keepButton.Visible, self.undoButton.Visible = false, false
+	self:ShowTab(self.tab or "Display")
+end
+
+function SettingsController:UndoReset()
+	local before = self.preview
+	if not before then
+		return
+	end
+	self.preview = nil
+	for key, value in pairs(before) do
+		self.settings[key] = value
+	end
+	self:_render()
+	self.Changed:Fire(self.settings)
+	self.keepButton.Visible, self.undoButton.Visible = false, false
+	self:ShowTab(self.tab or "Display")
 end
 
 function SettingsController:GetFirstButton()
@@ -116,6 +244,9 @@ function SettingsController:GetFirstButton()
 end
 
 function SettingsController:SetVisible(visible)
+	if not visible and self.preview then
+		self:UndoReset() -- closing during a reset preview keeps the player's own settings
+	end
 	self.gui.Enabled = visible
 end
 
@@ -171,7 +302,8 @@ function SettingsController:ApplyServer(settings)
 	for key in pairs(PlayerDataSchema.Settings) do
 		local clean = PlayerDataSchema.SanitizeSetting(key, settings[key])
 		local recent = self.lastSent[key] and os.clock() - self.lastSent[key] < 0.6
-		if clean ~= nil and clean ~= self.settings[key] and not self.pending[key] and not recent then
+		local previewing = self.preview ~= nil and self.preview[key] ~= nil
+		if clean ~= nil and clean ~= self.settings[key] and not self.pending[key] and not recent and not previewing then
 			self.settings[key] = clean
 			changed = true
 		end

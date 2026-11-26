@@ -53,6 +53,8 @@ function MatchUI.new()
 	self.BoardsRequested = Utility.Signal.new() -- B3
 	self.LabRequested = Utility.Signal.new() -- C: (tab) Capsule Lab / Season
 	self.ShopRequested = Utility.Signal.new() -- D: the optional shop
+	self.MapsRequested = Utility.Signal.new() -- UI overhaul: MAPS on the hub card
+	self.PracticeExitRequested = Utility.Signal.new() -- UI overhaul: EXIT PRACTICE
 
 	-- Lobby layer -------------------------------------------------------------------------
 	local lobby = UIKit.new("Frame", { Name = "Lobby", BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) }, root)
@@ -168,9 +170,10 @@ function MatchUI.new()
 		BackgroundTransparency = 1,
 		Visible = false,
 	}, root)
-	self.spectatePrev = UIKit.button(spectate, { Size = UDim2.fromOffset(60, 48), Text = "<" }, palette.Cyan)
+	-- named target controls (UI overhaul): PREV RACER / EXIT SPECTATE / NEXT RACER
+	self.spectatePrev = UIKit.button(spectate, { Position = UDim2.fromOffset(-60, 0), Size = UDim2.fromOffset(120, 48), Text = "< PREV" }, palette.Cyan)
 	self.spectateMain = UIKit.button(spectate, { Position = UDim2.fromOffset(70, 0), Size = UDim2.fromOffset(220, 48), Text = "EXIT SPECTATE" }, palette.Cyan)
-	self.spectateNext = UIKit.button(spectate, { Position = UDim2.fromOffset(300, 0), Size = UDim2.fromOffset(60, 48), Text = ">" }, palette.Cyan)
+	self.spectateNext = UIKit.button(spectate, { Position = UDim2.fromOffset(300, 0), Size = UDim2.fromOffset(120, 48), Text = "NEXT >" }, palette.Cyan)
 	maid:Give(self.spectateMain.Activated:Connect(function()
 		self.SpectateToggled:Fire()
 	end))
@@ -182,6 +185,155 @@ function MatchUI.new()
 	end))
 	self.spectateFrame = spectate
 	return self
+end
+
+---------------------------------------------------------------------------------------------
+-- UI overhaul (2026-11-26): the hub card layout. The SAME widgets and handlers as the legacy
+-- column (one queue listener, one remote path); they are only re-parented and re-placed:
+--   card (top right): hub name / NEXT RACE + countdown / course + queue line /
+--                     [READY?][JOIN RACE | LEAVE QUEUE] / [MAPS][SETTINGS][MENU]
+--   MENU drawer (left of the card, closed by default): ABILITIES, GARAGE, QUESTS, TIME TRIAL,
+--                     PARTY, LEADERBOARDS, CAPSULE LAB, SEASON, SHOP + the emote bar
+--   profile pill (under the card): LEVEL + COINS; tap opens the profile drawer
+--   practice: card and drawers step aside for a top strip with the objective + EXIT PRACTICE
+-- GameConfig.UI.LegacyHud = true keeps the old column (development flag, parity fallback).
+---------------------------------------------------------------------------------------------
+function MatchUI:UseCardLayout(adopt)
+	adopt = adopt or {}
+	self.cardMode = true
+	local lobby = self.lobby
+	local maid = self.maid
+	local card = UIKit.panel(lobby, { Name = "HubCard", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 8), Size = UDim2.fromOffset(290, 184) })
+	UIKit.TrackAccent(UIKit.new("UIStroke", { Thickness = 2 }, card), "Color")
+	self.card = card
+	self.hubLabel = UIKit.label(card, { Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 18), Font = Enum.Font.GothamBold, TextColor3 = palette.Cyan, TextXAlignment = Enum.TextXAlignment.Left, Text = "ORBITAL GARAGE" })
+	-- status lines move into the card (the old status panel is hidden: one NEXT RACE on screen)
+	local oldStatus = self.statusMain.Parent
+	self.statusMain.Parent = card
+	self.statusMain.Position, self.statusMain.Size = UDim2.fromOffset(12, 26), UDim2.new(1, -24, 0, 30)
+	self.statusMain.TextXAlignment = Enum.TextXAlignment.Left
+	self.statusSub.Parent = card
+	self.statusSub.Position, self.statusSub.Size = UDim2.fromOffset(12, 58), UDim2.new(1, -24, 0, 18)
+	self.statusSub.TextXAlignment = Enum.TextXAlignment.Left
+	self.statusSub.TextColor3 = palette.White
+	oldStatus.Visible = false
+	self.queueButton.Parent = card
+	self.readyButton.Parent = card
+	self.queueButton.AnchorPoint, self.readyButton.AnchorPoint = Vector2.new(0, 0), Vector2.new(0, 0)
+	-- bottom row: MAPS, SETTINGS, MENU
+	local maps = UIKit.button(card, { Name = "Maps", Position = UDim2.fromOffset(10, 136), Size = UDim2.fromOffset(84, 40), Text = "MAPS" }, palette.Cyan)
+	maid:Give(maps.Activated:Connect(function()
+		self.MapsRequested:Fire()
+	end))
+	self.settingsButton.Parent = card
+	self.settingsButton.Position, self.settingsButton.Size = UDim2.fromOffset(100, 136), UDim2.fromOffset(100, 40)
+	local menu = UIKit.button(card, { Name = "HubDrawer", Position = UDim2.fromOffset(206, 136), Size = UDim2.fromOffset(74, 40), Text = "MENU" }, palette.White)
+	self.menuButton = menu
+	-- the drawer: every secondary hub action, closed by default
+	local drawer = UIKit.panel(lobby, { Name = "HubDrawerPanel", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -314, 0, 8), Size = UDim2.fromOffset(268, 296), Visible = false })
+	self.drawer = drawer
+	local items = { self.loadoutButton, self.garageButton, self.questsButton }
+	for _, b in ipairs(adopt.buttons or {}) do
+		items[#items + 1] = b
+	end
+	for _, b in ipairs({ self.boardsButton, self.labButton, self.seasonButton, self.shopButton }) do
+		items[#items + 1] = b
+	end
+	for i, b in ipairs(items) do
+		local col, row = (i - 1) % 2, math.floor((i - 1) / 2)
+		b.Parent = drawer
+		b.AnchorPoint = Vector2.new(0, 0)
+		b.Position = UDim2.fromOffset(8 + col * 128, 8 + row * 50)
+		b.Size = UDim2.fromOffset(124, 44)
+		b.Visible = true
+		maid:Give(b.Activated:Connect(function()
+			drawer.Visible = false -- opening something closes the drawer
+		end))
+	end
+	local rows = math.ceil(#items / 2)
+	if adopt.emotes then
+		adopt.emotes.Parent = drawer
+		adopt.emotes.AnchorPoint = Vector2.new(0, 0)
+		adopt.emotes.Position = UDim2.fromOffset(8, 8 + rows * 50)
+		rows = rows + 1
+	end
+	drawer.Size = UDim2.fromOffset(268, 16 + rows * 50)
+	self.moreButton.Visible = false
+	self.moreMenu.Visible = false
+	maid:Give(menu.Activated:Connect(function()
+		drawer.Visible = not drawer.Visible
+		self.profileOpen = false
+		self:_renderProfileDrawer()
+	end))
+	-- profile pill + drawer (collapsed)
+	local pill = UIKit.button(lobby, { Name = "ProfileDrawer", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 198), Size = UDim2.fromOffset(290, 34), Text = "LEVEL 1" }, palette.Violet)
+	pill.TextXAlignment = Enum.TextXAlignment.Left
+	UIKit.new("UIPadding", { PaddingLeft = UDim.new(0, 12) }, pill)
+	self.profilePill = pill
+	self.profileChip = self.levelLabel.Parent
+	self.profileChip.Position = UDim2.new(1, -14, 0, 238)
+	self.profileChip.Size = UDim2.fromOffset(290, 84)
+	self.profileOpen = false
+	maid:Give(pill.Activated:Connect(function()
+		self.profileOpen = not self.profileOpen
+		drawer.Visible = false
+		self:_renderProfileDrawer()
+	end))
+	self:_renderProfileDrawer()
+	-- practice strip (top centre): objective + EXIT PRACTICE
+	local practice = UIKit.panel(lobby, { Name = "PracticeStrip", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 8), Size = UDim2.fromOffset(560, 56), Visible = false })
+	self.practiceStrip = practice
+	self.practiceText = UIKit.label(practice, { Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -200, 1, -12), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, Text = "" })
+	local exit = UIKit.button(practice, { Name = "ExitPractice", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(176, 42), Text = "EXIT PRACTICE" }, palette.Coral)
+	maid:Give(exit.Activated:Connect(function()
+		self.PracticeExitRequested:Fire()
+	end))
+	self:_renderReady()
+end
+
+function MatchUI:_renderProfileDrawer()
+	if self.profileChip then
+		self.profileChip.Visible = self.profileOpen == true and not self.practicing
+	end
+	if self.profilePill then
+		local p = self.lastProfile or {}
+		UIKit.setText(self.profilePill, string.format("LEVEL %d  -  %d COINS   %s", p.level or 1, p.coins or 0, self.profileOpen and "(close)" or "(profile)"))
+	end
+end
+
+function MatchUI:SetHubName(name)
+	if self.hubLabel then
+		UIKit.setText(self.hubLabel, string.upper(name or ""))
+	end
+end
+
+-- objective text while on a practice lane, nil when back on the deck
+function MatchUI:SetPractice(objective)
+	if not self.cardMode then
+		return
+	end
+	local practicing = objective ~= nil
+	if practicing then
+		UIKit.setText(self.practiceText, "PRACTICE  -  " .. objective)
+	end
+	if practicing == self.practicing then
+		return
+	end
+	self.practicing = practicing
+	self.practiceStrip.Visible = practicing
+	self.card.Visible = not practicing
+	self.profilePill.Visible = not practicing
+	if practicing then
+		self.drawer.Visible = false
+	end
+	self:_renderProfileDrawer()
+end
+
+function MatchUI:SetDensity(density)
+	self.density = density
+	if self.statusSub then
+		self.statusSub.Visible = density ~= "Compact" or not self.cardMode
+	end
 end
 
 -- e.g. "BOOST + SHIELD": the equipped pair, shown on the LOADOUT button itself
@@ -233,6 +385,14 @@ function MatchUI:_renderReady()
 	local snap = self.snapshot
 	local show = snap ~= nil and snap.state == S.Intermission and snap.readyOpen == true and self.queued
 	self.readyButton.Visible = show
+	if self.cardMode then -- one row inside the card: [READY?][LEAVE QUEUE] or one wide button
+		if show then
+			self.readyButton.Position, self.readyButton.Size = UDim2.fromOffset(10, 82), UDim2.fromOffset(131, 46)
+			self.queueButton.Position, self.queueButton.Size = UDim2.fromOffset(149, 82), UDim2.fromOffset(131, 46)
+		else
+			self.queueButton.Position, self.queueButton.Size = UDim2.fromOffset(10, 82), UDim2.fromOffset(270, 46)
+		end
+	end
 	if not show then
 		return
 	end
@@ -256,6 +416,8 @@ function MatchUI:ApplyProfile(p)
 	UIKit.setText(self.xpLabel, (p.xpForNext and p.xpForNext > 0) and string.format("%d / %d XP", p.xpIntoLevel or 0, p.xpForNext) or "MAX LEVEL")
 	UIKit.setText(self.coinLabel, string.format("%d COINS  -  %d races  -  %d wins", p.coins or 0, p.raceCount or 0, p.winCount or 0))
 	UIKit.setText(self.saveLabel, p.statusText or "")
+	self.lastProfile = p
+	self:_renderProfileDrawer()
 	self.saveLabel.TextColor3 = (p.status == "Ready" or p.status == "Mock" or p.status == "Loading") and palette.White or palette.Coral
 end
 
@@ -304,7 +466,11 @@ function MatchUI:Update(ctx)
 	UIKit.setText(self.statusSub, sub)
 	self.queueButton.Visible = not ctx.racing and snap.state ~= S.Results
 	-- Labelled with the action a tap performs, not the current state.
-	UIKit.setText(self.queueButton, self.queued and "SIT OUT" or "JOIN RACE")
+	if self.cardMode then
+		UIKit.setText(self.queueButton, self.queued and "LEAVE QUEUE" or "JOIN RACE")
+	else
+		UIKit.setText(self.queueButton, self.queued and "SIT OUT" or "JOIN RACE")
+	end
 	self.queueButton.TextColor3 = self.queued and palette.White or palette.Mint
 	self.spectateStart.Visible = ctx.raceRunning and not ctx.racing and not ctx.spectating
 end

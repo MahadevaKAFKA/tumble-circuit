@@ -225,11 +225,34 @@ function TouchControls:_releaseButtonInput(io)
 	end
 end
 
+-- UI overhaul: left-handed mode mirrors the stick (right side) and the button group (left
+-- side); HUD size scales the buttons and the stick. Pure position mirror for a UDim2/anchor.
+function TouchControls.Mirror(position, anchor)
+	return UDim2.new(1 - position.X.Scale, -position.X.Offset, position.Y.Scale, position.Y.Offset), Vector2.new(1 - anchor.X, anchor.Y)
+end
+
+function TouchControls:SetLayout(layout, scaleMultiplier)
+	local mirrored = layout == "LeftHanded"
+	self.scaleMultiplier = scaleMultiplier or self.scaleMultiplier or 1
+	if mirrored ~= (self.mirrored == true) then
+		self.mirrored = mirrored
+		for _, child in ipairs(self.buttonRoot:GetChildren()) do
+			if child:IsA("GuiObject") then
+				child.Position, child.AnchorPoint = TouchControls.Mirror(child.Position, child.AnchorPoint)
+			end
+		end
+		if self.stickTouch then
+			self:_releaseStick() -- a layout change mid-gesture releases the stick cleanly
+		end
+	end
+	self:_layout()
+end
+
 function TouchControls:_layout()
 	local ui = GameConfig.UI
 	local viewport = workspace.CurrentCamera.ViewportSize
 	local scale = math.min(viewport.X / ui.ReferenceWidth, viewport.Y / ui.ReferenceHeight)
-	scale = Utility.clamp(scale, ui.MinScale, ui.MaxScale)
+	scale = Utility.clamp(scale, ui.MinScale, ui.MaxScale) * (self.scaleMultiplier or 1)
 	self.scale = scale
 	self.uiScale.Scale = scale
 	self.buttonRoot.Size = UDim2.fromScale(1 / scale, 1 / scale)
@@ -244,7 +267,11 @@ end
 
 function TouchControls:_restStick()
 	local r = self.radius or 70
-	self.base.Position = UDim2.new(0, r * 1.7, 1, -r * 1.7)
+	if self.mirrored then
+		self.base.Position = UDim2.new(1, -r * 1.7, 1, -r * 1.7)
+	else
+		self.base.Position = UDim2.new(0, r * 1.7, 1, -r * 1.7)
+	end
 	self.knob.Position = UDim2.fromScale(0.5, 0.5)
 	self.base.BackgroundTransparency = 0.55
 end
@@ -262,6 +289,9 @@ function TouchControls:IsStickZone(position)
 	end
 	local size = self.stickLayer.AbsoluteSize
 	local p = self:_toLocal(position)
+	if self.mirrored then
+		return p.X >= size.X * (1 - STICK_ZONE_MAX_X) and p.Y >= size.Y * STICK_ZONE_MIN_Y
+	end
 	return p.X <= size.X * STICK_ZONE_MAX_X and p.Y >= size.Y * STICK_ZONE_MIN_Y
 end
 

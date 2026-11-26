@@ -197,6 +197,33 @@ end
 
 -- ctx = { now = serverTime, device, queued, spectatingName, stuck, progress (0..1 or nil),
 --         rivals = { fraction, ... } (other racers' progress, computed locally from their marbles) }
+-- UI overhaul (2026-11-26): the compact race strip. The placement badge becomes one bar at the
+-- top centre - PLACE | TIME | CHECKPOINT - with the course progress line under it; the big
+-- status line is only used for countdown / results / spectating. Same labels, same data.
+function RaceHUD:UseStrip()
+	self.stripMode = true
+	local strip = self.badge
+	strip.AnchorPoint = Vector2.new(0.5, 0)
+	strip.Position = UDim2.new(0.5, 0, 0, 8)
+	strip.Size = UDim2.fromOffset(440, 46)
+	self.place.Position, self.place.Size = UDim2.fromOffset(12, 4), UDim2.new(0.26, -12, 1, -8)
+	self.placeOf.Position, self.placeOf.Size = UDim2.new(0.26, -6, 0, 8), UDim2.new(0.14, 0, 1, -16)
+	self.placeOf.TextXAlignment = Enum.TextXAlignment.Left
+	self.stripTime = UIKit.label(strip, { Name = "Time", Position = UDim2.new(0.4, 0, 0, 4), Size = UDim2.new(0.32, 0, 1, -8), Font = Enum.Font.GothamBlack, TextColor3 = palette.White, Text = "" })
+	self.checkpoint.Position, self.checkpoint.Size = UDim2.new(0.72, 0, 0, 8), UDim2.new(0.28, -12, 1, -16)
+	self.progressBar.Position = UDim2.new(0.5, 0, 0, 60)
+	self.progressBar.Size = UDim2.fromOffset(440, 8)
+end
+
+function RaceHUD:SetDensity(density)
+	self.density = density
+end
+
+-- the course being raced (countdown cue says which one)
+function RaceHUD:SetCourseName(name)
+	self.courseName = name
+end
+
 function RaceHUD:Update(ctx)
 	local snap = self.snapshot
 	if not snap then
@@ -225,8 +252,14 @@ function RaceHUD:Update(ctx)
 		end
 	elseif snap.state == S.Preparing then
 		status, sub = "GET READY", me and "To the start grid!" or "Racers to the grid"
+		if self.stripMode and self.courseName then
+			status = string.upper(self.courseName) -- one cue: the course actually selected
+		end
 	elseif snap.state == S.Countdown then
 		status, sub = "GET READY", me and "Wait for GO" or "Race starting"
+		if self.stripMode and self.courseName then
+			status = string.upper(self.courseName)
+		end
 	elseif snap.state == S.Racing then
 		local elapsed = snap.raceStartedAt and (now - snap.raceStartedAt) or 0
 		if me and me.finished then
@@ -245,16 +278,27 @@ function RaceHUD:Update(ctx)
 		status, sub = "NEXT RACE SOON", ""
 	end
 	if ctx.spectatingName then
-		sub = "SPECTATING  " .. ctx.spectatingName .. "   (Q / E to switch)"
+		sub = "SPECTATING  " .. ctx.spectatingName .. "   (PREV / NEXT to switch)"
+	end
+	local stripRacing = self.stripMode and snap.state == S.Racing and me ~= nil and not me.finished
+	if stripRacing then
+		-- the strip carries place / time / checkpoint; the big status line stays clear of the track
+		UIKit.setText(self.stripTime, status)
+		status = ""
+		sub = self.density == "Compact" and "" or sub
 	end
 	UIKit.setText(self.status, status)
 	UIKit.setText(self.sub, sub)
+	self.sub.Visible = not (self.density == "Compact" and snap.state == S.Racing and me ~= nil)
 
 	-- placement + checkpoint chip
 	self.badge.Visible = racing and snap.state == S.Racing and me ~= nil
 	if self.badge.Visible then
 		UIKit.setText(self.place, me.finished and UIKit.ordinal(me.place) or UIKit.ordinal(me.place))
-		UIKit.setText(self.placeOf, "of " .. #snap.racers)
+		UIKit.setText(self.placeOf, (self.stripMode and "/ " or "of ") .. #snap.racers)
+		if self.stripMode and me.finished then
+			UIKit.setText(self.stripTime, me.seconds and Utility.formatTime(me.seconds) or "")
+		end
 		UIKit.setText(self.checkpoint, me.finished and "FINISHED" or string.format("CP %d / %d", me.checkpoint, snap.checkpointTotal))
 	end
 
@@ -265,7 +309,7 @@ function RaceHUD:Update(ctx)
 		self.youDot.Position = UDim2.fromScale(f, 0.5)
 		for i, dot in ipairs(self.rivalDots) do
 			local rf = ctx.rivals and ctx.rivals[i]
-			dot.Visible = rf ~= nil
+			dot.Visible = rf ~= nil and self.density ~= "Compact"
 			if rf then
 				dot.Position = UDim2.fromScale(math.clamp(rf, 0, 1), 0.5)
 			end

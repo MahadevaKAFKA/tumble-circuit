@@ -108,6 +108,8 @@ H.stubServices = { RunService = {} }
 modules.FeatureGates = H.module("ServerScriptService/Services/FeatureGates")
 H.stubServices = { Players = {}, RunService = {}, TweenService = {}, UserInputService = {} }
 modules.MapSelectPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/MapSelectController")
+modules.UIKitPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/UIKit")
+modules.TouchControlsPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/TouchControls")
 H.stubServices = {}
 
 -- A5 UI text scan: every string literal in client code (comments stripped).
@@ -291,6 +293,7 @@ local suites = {
 	{ "Prompts 04/07 hub lifecycle specs", root .. "/src/Tests/Unit/HubLifecycle.spec.lua" },
 	{ "Prompts 05/06 dressing specs", root .. "/src/Tests/Unit/Dressing.spec.lua" },
 	{ "Protocol key specs", root .. "/src/Tests/Unit/ProtocolKeys.spec.lua" },
+	{ "UI overhaul specs", root .. "/src/Tests/Unit/UIOverhaul.spec.lua" },
 	{ "A5 persistence specs", root .. "/src/Tests/Unit/Persistence.spec.lua" },
 	{ "A5 reward idempotence specs", root .. "/src/Tests/Unit/RewardIdempotence.spec.lua" },
 	{ "A5 UI state specs", root .. "/src/Tests/Unit/UIState.spec.lua" },

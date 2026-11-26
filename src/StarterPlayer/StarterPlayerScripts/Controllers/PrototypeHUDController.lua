@@ -125,7 +125,8 @@ function HUD.new(input)
 	self.hudRoot = root
 	self.hudScale = new("UIScale", {}, root)
 
-	local speedFrame = new("Frame", {
+	local speedFrame
+	speedFrame = new("Frame", {
 		Name = "Speed",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -14),
@@ -133,6 +134,7 @@ function HUD.new(input)
 		BackgroundColor3 = palette.Navy,
 		BackgroundTransparency = 0.25,
 	}, root)
+	self.speedFrame = speedFrame
 	corner(speedFrame, 0.3)
 	self.speedValue = label(speedFrame, {
 		Size = UDim2.new(1, 0, 0.66, 0),
@@ -443,6 +445,19 @@ end
 function HUD:TogglePerf()
 	self.perfVisible = not self.perfVisible
 	self.perfLabel.Visible = self.perfVisible
+end
+
+-- UI overhaul: the developer frame-time overlay (Settings, developers only) and HUD density
+function HUD:SetPerfVisible(visible)
+	self.perfVisible = visible == true
+	self.perfLabel.Visible = self.perfVisible
+end
+
+function HUD:SetDensity(density)
+	self.density = density
+	if self.speedFrame then
+		self.speedFrame.Visible = density ~= "Compact" and self.speedAllowed ~= false
+	end
 end
 
 -- A frame longer than GameConfig.Debug.HitchThresholdSeconds. `where` says where the marble was.

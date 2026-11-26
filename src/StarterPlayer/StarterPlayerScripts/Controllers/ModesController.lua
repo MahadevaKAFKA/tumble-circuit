@@ -120,6 +120,16 @@ function ModesController.new(deps)
 	return self
 end
 
+-- UI overhaul: the hub card carries MAPS and the next race; TIME TRIAL / PARTY live in its MENU
+-- drawer, and the party card opens where the drawer was.
+function ModesController:SetCardMode(on)
+	self.cardMode = on == true
+	self.mapsButton.Visible = not self.cardMode
+	if self.cardMode then
+		self.partyCard.Position = UDim2.new(1, -314, 0, 8)
+	end
+end
+
 function ModesController:RegisterLayers(ui)
 	ui:Register("Modes", function(visible)
 		self.modes.Visible = visible
@@ -280,6 +290,7 @@ function ModesController:_renderVote()
 	local ballot = snap and snap.ballot
 	local lead = snap and snap.nextWorldId and worldName(snap.nextWorldId)
 	self.mapsButton.Text = lead and ("MAPS   |   NEXT: " .. string.upper(lead)) or "MAPS"
+	self.mapsButton.Visible = not self.cardMode
 	local queued = snap and snap.queued and snap.queued[tostring(self.localUserId)]
 	local open = ballot ~= nil and #ballot.maps > 1 and snap.state == "Intermission" and queued == true
 	self.votePanel.Visible = open

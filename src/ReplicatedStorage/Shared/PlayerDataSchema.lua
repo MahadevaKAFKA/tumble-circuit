@@ -8,7 +8,9 @@
 	  schemaVersion = 1, coins, xp, level, raceCount, winCount, podiumCount,
 	  bestTimes = { ["worldId|layoutVersion|hazardSeedClass|mode"] = seconds },
 	  equippedAbilityIds = { "Boost", "Shield" },
-	  settings = { reducedMotion, cameraMode, music, sfx, sensitivity, graphicsMode, muteEmotes (A6) },
+	  settings = { reducedMotion, cameraMode, music, sfx, sensitivity, graphicsMode, muteEmotes (A6),
+	               hudScale, panelOpacity, hudDensity, uiAccent, highContrast, controlLayout,
+	               sceneryDetail, perfOverlay (UI overhaul) },
 	  rewardLedger = { raceId, ... }   bounded (newest last), duplicate-award protection
 	  botPractice = { day = UTC day number, races = count }
 	}
@@ -44,8 +46,20 @@ PlayerDataSchema.Settings = {
 	sensitivity = { kind = "number", default = 1.0, min = 0.5, max = 1.5, step = 0.1 },
 	graphicsMode = { kind = "enum", default = "Auto", values = { "Auto", "Low", "High" } },
 	muteEmotes = { kind = "boolean", default = false }, -- A6: hide other players' quick emotes
+	-- UI overhaul (2026-11-26): presentation-only preferences, same save path, same sanitizer.
+	-- Keys stay <= 16 characters (RequestSettings limit). Old profiles get the defaults.
+	hudScale = { kind = "number", default = 1.0, min = 0.85, max = 1.25, step = 0.05 },
+	panelOpacity = { kind = "number", default = 0.95, min = 0.75, max = 1.0, step = 0.05 },
+	hudDensity = { kind = "enum", default = "Standard", values = { "Standard", "Compact" } },
+	uiAccent = { kind = "enum", default = "FollowMap", values = { "FollowMap", "Cyan", "Amber", "Violet", "Neutral" } },
+	highContrast = { kind = "boolean", default = false },
+	controlLayout = { kind = "enum", default = "Default", values = { "Default", "LeftHanded" } },
+	sceneryDetail = { kind = "enum", default = "Standard", values = { "Standard", "Low", "High" } },
+	perfOverlay = { kind = "boolean", default = false }, -- developer frame-time overlay (off for players)
 }
 PlayerDataSchema.SettingOrder = { "reducedMotion", "cameraMode", "music", "sfx", "sensitivity", "graphicsMode", "muteEmotes" }
+-- the Settings view's second tab (UI overhaul); perfOverlay is listed only for developers
+PlayerDataSchema.DisplaySettingOrder = { "hudScale", "panelOpacity", "hudDensity", "uiAccent", "highContrast", "controlLayout", "sceneryDetail", "perfOverlay" }
 
 PlayerDataSchema.StarterAbilities = { "Boost", "Shield", "Pulse" }
 -- B2: every ability id a profile may reference (mirrors AbilityConfig.Order; a spec checks)

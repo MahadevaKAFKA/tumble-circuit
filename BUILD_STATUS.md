@@ -13,6 +13,48 @@ The promo pack adds no monetization. Every deploy stays private.
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
 
+## 2026-11-26 — UI overhaul, part 1: hub card, race strip, display settings (v28, private)
+
+Source: docs/UI_OVERHAUL_HANDOFF.md (owner handoff). Nothing here has run in Roblox yet.
+
+- **Hub card** (top right), replacing the old column. The same buttons and handlers are
+  re-parented, so there is still one queue path. The card holds:
+  - the hub name;
+  - NEXT RACE with its countdown;
+  - the course and queue line;
+  - `[READY?][JOIN RACE | LEAVE QUEUE]`;
+  - `[MAPS][SETTINGS][MENU]`.
+- **MENU drawer**, closed by default: ABILITIES, GARAGE, QUESTS, TIME TRIAL, PARTY,
+  LEADERBOARDS, CAPSULE LAB, SEASON, SHOP, plus the emote bar.
+- **Profile pill** (LEVEL and COINS). It opens the profile drawer.
+- **Next race shown once.** The MAPS pill no longer repeats it; the in-world board stays.
+- **Practice.** Off the deck, the card steps aside for a strip with the hub's objective and
+  EXIT PRACTICE, which sends the same Visit request Map Selection uses.
+- **Race strip.** PLACE / TIME / CHECKPOINT in one bar at the top centre, with the progress
+  line under it. The countdown names the course actually selected. Spectate buttons are now
+  named PREV / NEXT.
+- **Your marble** gets a thin local outline (a Highlight) so it never blends into the floor.
+- **Settings → DISPLAY tab** (saved in the profile through the same RequestSettings path and
+  sanitizer; old saves get defaults):
+  - HUD size 85–125%;
+  - panel opacity 75–100%;
+  - HUD density (Standard / Compact);
+  - UI accent (Follow map / Cyan / Amber / Violet / Neutral; only the primary accent changes,
+    warnings keep their colours);
+  - high contrast;
+  - control layout (Default / Left-handed, which mirrors the stick and the action buttons);
+  - scenery detail (applied in part 2);
+  - the frame-time overlay, developers only. It is now off in the player view.
+
+  RESET DISPLAY previews the defaults live with KEEP / UNDO, and closing Settings undoes the
+  preview.
+- **Development flag:** `GameConfig.UI.LegacyHud = true` brings the old HUD back.
+- **Results.**
+  - Offline: 686 passing, including UIOverhaul.spec (23). Boot smoke passes with the card
+    layout: snapshots, destinations and render frames.
+  - Runtime: **pending.** Phone screenshots are needed of the hub, practice, countdown, race,
+    spectate and results, at HUD size 85% and 125%, Compact, left-handed and high contrast.
+
 ## 2026-11-26 — Fix: loading hang in v22–v26 (v27, private)
 
 - **Owner report:** stuck on "Building the hub and race tracks...". The v26 loading screen

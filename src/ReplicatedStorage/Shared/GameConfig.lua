@@ -13,7 +13,7 @@ GameConfig.Debug = {
 	VerboseLogging = false,
 	-- Frame-time overlay (top left). ON for the private phone playtests so stalls can be read on a
 	-- phone with no F2 key; turn it off before anyone else plays. F2 toggles it in game.
-	PerfOverlayDefault = true,
+	PerfOverlayDefault = false, -- UI overhaul: off in the player view; developers turn it on in Settings (F2 still toggles)
 	HitchThresholdSeconds = 0.25, -- frames longer than this are logged with where the marble was
 	SoakMinutes = 0, -- A6: set to 15 for the repeated-round soak test (TestRunner timeline)
 }
@@ -108,6 +108,9 @@ GameConfig.UI = {
 	TouchStickRadius = 70, -- reference px
 	TouchButtonSize = 120,
 	TouchSmallButtonSize = 84,
+	-- UI overhaul (2026-11-26): true = the previous lobby column / race badge (development
+	-- fallback until the new hub card + race strip reach parity on the owner's phone)
+	LegacyHud = false,
 }
 
 GameConfig.Tutorial = {

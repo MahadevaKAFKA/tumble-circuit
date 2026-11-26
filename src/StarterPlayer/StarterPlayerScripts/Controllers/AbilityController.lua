@@ -226,6 +226,17 @@ function AbilityController:_renderLoadout()
 	end
 end
 
+-- UI overhaul settings: "Default" | "LeftHanded", "Standard" | "Compact"
+function AbilityController:SetLayout(layout, density)
+	if layout == self.layout and density == self.density then
+		return
+	end
+	self.layout, self.density = layout, density
+	if self.visibleMode then
+		self:SetMode(self.visibleMode, self.device, self.practiceMode)
+	end
+end
+
 -- mode: "Hidden" | "Race" | "Hub"
 function AbilityController:SetMode(mode, device, practice)
 	self.visibleMode = mode
@@ -233,15 +244,24 @@ function AbilityController:SetMode(mode, device, practice)
 	self.practiceMode = practice == true -- B2: hub try-it buttons
 	local touch = device == "Touch"
 	local race = mode == "Race"
+	-- UI overhaul: left-handed layout mirrors the action group to the left edge
+	local left = self.layout == "LeftHanded"
+	local function place(xFromEdge, y)
+		if left then
+			return UDim2.new(0, xFromEdge, 1, y), Vector2.new(0, 1)
+		end
+		return UDim2.new(1, -xFromEdge, 1, y), Vector2.new(1, 1)
+	end
 	for slot = 1, 2 do
 		local b = self.slots[slot].button
 		b.Visible = race
 		local y = touch and -260 or -24
-		b.Position = UDim2.new(1, -24 - (2 - slot) * 116, 1, y)
+		b.Position, b.AnchorPoint = place(24 + (2 - slot) * 116, y)
 		self.slots[slot].key.Text = (KEYS[device] or KEYS.KeyboardMouse)[slot]
+		self.slots[slot].key.Visible = self.density ~= "Compact"
 	end
 	self.trickButton.Visible = race and touch
-	self.trickButton.Position = UDim2.new(1, -24 - 120 - 20 - 84 - 20, 1, -24)
+	self.trickButton.Position, self.trickButton.AnchorPoint = place(24 + 120 + 20 + 84 + 20, -24)
 	-- A5 moved this panel to the right column (clear of the stick), so no phone override is needed.
 	self.panel.Visible = mode == "Hub"
 	self:_renderLoadout()

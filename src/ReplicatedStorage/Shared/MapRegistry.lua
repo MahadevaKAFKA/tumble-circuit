@@ -95,6 +95,7 @@ MapRegistry.Hubs = {
 			DisplayName = "Orbital Garage",
 			Blurb = "The spawn hub above the Neon Foundry.",
 			BoardTitle = "ORBITAL GARAGE",
+			PracticeObjective = "Steer through the bends and brake into the basin.",
 		},
 	},
 	{
@@ -111,6 +112,7 @@ MapRegistry.Hubs = {
 			DisplayName = "Balloon Terminal",
 			Blurb = "A canvas boarding deck in the clouds below the Sky Carnival.",
 			BoardTitle = "BALLOON TERMINAL",
+			PracticeObjective = "Bounce on the drum and land on the target rings.",
 		},
 	},
 	{
@@ -127,6 +129,7 @@ MapRegistry.Hubs = {
 			DisplayName = "Basalt Inspection Deck",
 			Blurb = "A furnace-lit inspection deck above the Volcano Vault.",
 			BoardTitle = "BASALT INSPECTION DECK",
+			PracticeObjective = "Time the slow piston, then brake before the drop.",
 		},
 	},
 }
