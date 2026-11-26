@@ -32,6 +32,12 @@ untested** = needs a Roblox runtime · **Blocked** = needs something not availab
   - **Boot smoke** (`tools/offline/boot_smoke.lua`): runs the server and client bootstrap
     main chunks end to end against proxy Roblox APIs that reject nil arguments the way Roblox
     does. It reproduces the exact v26 error on the old code.
+    - Client: it then replays a lobby and an intermission snapshot with ballots, two
+      destination results and three render frames, in Orbital Garage, Balloon Terminal, Basalt
+      and the race zone.
+    - Server: it casts a ballot, checks that a stale one is refused, picks Practice in
+      Balloon Terminal, checks the practice and return spawns, and walks the round from
+      Intermission to Preparing (the ballot box rolls over).
   - **ProtocolKeys.spec**: every `ATTR` / `BALL` / `REASONS` / `ZONES` / workspace-attribute
     key used in code exists, and no Protocol table is defined twice. Both checks fail on the
     old code.

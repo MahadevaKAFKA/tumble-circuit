@@ -60,6 +60,19 @@ for _, m in ipairs({ "GetAttributeChangedSignal", "GetPropertyChangedSignal", "F
   end
 end
 SPECIAL.IsA = function() return function(_, a) needArg("IsA", a); return false end end
+-- event replay: remember handlers so the client run can fire a round snapshot and render frames
+local handlers = {}
+SPECIAL.Connect = function(t) return function(_, fn)
+  needArg("Connect", fn)
+  local key = rawget(t, "__name")
+  handlers[#handlers + 1] = { key = key, fn = fn }
+  return proxy(key .. ":Connect()")
+end end
+local renderSteps = {}
+SPECIAL.BindToRenderStep = function() return function(_, name, priority, fn)
+  needArg("BindToRenderStep", name)
+  renderSteps[#renderSteps + 1] = fn
+end end
 SPECIAL.GetChildren = function() return function() return {} end end
 SPECIAL.GetDescendants = function() return function() return {} end end
 SPECIAL.GetPlayers = function() return function() return {} end end
@@ -70,6 +83,12 @@ SPECIAL.UserId = function() return 1 end
 SPECIAL.Position = function() return Vector3.new(0, 302, 320) end
 SPECIAL.AssemblyLinearVelocity = function() return Vector3.new(0, 0, 0) end
 SPECIAL.Anchored = function() return false end
+SPECIAL.AssemblyMass = function() return 10 end
+SPECIAL.Mass = function() return 10 end
+SPECIAL.Gravity = function() return 196.2 end
+SPECIAL.AssemblyAngularVelocity = function() return Vector3.new(0, 0, 0) end
+SPECIAL.Size = function() return Vector3.new(4, 4, 4) end
+SPECIAL.Magnitude = function() return 0 end
 SPECIAL.IsStudio = function() return function() return false end end
 SPECIAL.TouchEnabled = function() return true end
 SPECIAL.KeyboardEnabled = function() return false end
@@ -139,7 +158,66 @@ local function req(inst)
 end
 local path = root .. "/src/" .. target
   local ok, err = xpcall(function() req(filed(path, path:match("([^/]+)$"))) end, debug.traceback)
-  return ok, err
+  if ok and target:find("ServerBootstrap", 1, true) then
+    -- server glue: ballots, destinations, spawns and a round transition through the real services
+    return xpcall(function()
+      local S = _G.TumbleCircuitServer
+      assert(S and S.round and S.hubs and S.track, "server services table missing")
+      local player = proxy("Players.Tester")
+      rawget(player, "__store").UserId = 77
+      rawget(player, "__store").Parent = proxy("Players")
+      local okB, why = S.round:TryBallot(player, 2, 1, 1)
+      assert(okB, "ballot refused: " .. tostring(why))
+      local stale = select(2, S.round:TryBallot(player, 3, 99, 2))
+      assert(stale == "stale", "stale ballot not refused: " .. tostring(stale))
+      S.hubs.features[player] = { NewHubs = true }
+      S.hubs.chosen[player] = "OrbitalGarage"
+      local d = S.hubs:TryDestination(player, 2, 2)
+      assert(d.ok, "destination refused: " .. tostring(d.reason))
+      local spot = S.round:ResolveSpawn(player, "Practice")
+      assert(spot and spot.Hub == "BalloonTerminal" and spot.Zone == "Hub", "practice spawn not in Balloon Terminal")
+      local ring = S.round:ResolveSpawn(player, "ToHub")
+      assert(ring.Hub == "BalloonTerminal", "hub return not to the chosen hub")
+      S.round.queued[player] = true
+      S.round:TryJoin(player, true)
+      S.round:_transition("Intermission")
+      S.round:_transition("Preparing")
+      assert(S.track:GetActiveWorldId() ~= nil, "no active world after Preparing")
+      local snap = S.round:GetSnapshot()
+      assert(snap.ballot and snap.ballot.epoch == 2, "ballot box did not roll over")
+    end, debug.traceback)
+  end
+  if not ok or not target:find("ClientBootstrap", 1, true) then
+    return ok, err
+  end
+  -- client only: a lobby snapshot, then an intermission snapshot with ballots, then frames
+  local maps = { "NeonFoundry_A4", "SkyCarnival_B1", "VolcanoVault_B1" }
+  local function snapshot(state, extra)
+    local snap = { v = ATTRS.ProtocolVersion, roundId = 0, state = state, stateSeq = 1, stateStartedAt = os.time(), stateEndsAt = os.time() + 15,
+      trackId = "NeonFoundry_A4", checkpointTotal = 8, racers = {}, queued = { ["1"] = true }, humanCount = 1, queuedCount = 1, raceCapacity = 16,
+      readyOpen = false, readyCount = 0, ready = {}, hazardSeed = 1, hazardEpoch = os.time(), worldId = "NeonFoundry_A4", nextWorldId = "SkyCarnival_B1",
+      ballot = { epoch = 1, maps = maps, counts = { 0, 1, 0 }, counted = 1, choices = { ["1"] = 2 } } }
+    for k, v in pairs(extra or {}) do snap[k] = v end
+    return snap
+  end
+  local function fire(pattern, ...)
+    local args = { ... }
+    for _, h in ipairs(handlers) do
+      if h.key:find(pattern, 1, true) then
+        local okH, errH = xpcall(function() h.fn(table.unpack(args)) end, debug.traceback)
+        if not okH then error("handler " .. h.key .. ": " .. tostring(errH), 0) end
+      end
+    end
+  end
+  return xpcall(function()
+    fire("RoundSnapshot", snapshot("Lobby"))
+    fire("RoundSnapshot", snapshot("Intermission"))
+    fire("DestinationResult", { ok = true, reason = "ok", hubIndex = 1, mode = 1 })
+    fire("DestinationResult", { ok = false, reason = "gated", hubIndex = 2, mode = 1 })
+    for _, fn in ipairs(renderSteps) do
+      for _ = 1, 3 do fn(1 / 60) end
+    end
+  end, debug.traceback)
 end
 
 if BOOT_SMOKE_AS_MODULE then
