@@ -453,6 +453,7 @@
     "SeasonState",
     "RequestBallot",
     "RequestDestination",
-    "DestinationResult"
+    "DestinationResult",
+    "TC_Atmosphere"
   ]
 }
