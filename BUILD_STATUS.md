@@ -18,6 +18,24 @@ The promo pack adds no monetization. Every deploy stays private.
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
 
+## 2026-11-27 — Owner clip fixes: ability buttons, boost-lane lines, gap/rival clutter (v41, private)
+
+From the owner's Sky Carnival clip + screenshot:
+- **Ability cooldown:** the square black panel (a plain rectangle under the round button, plus
+  a thin line from the text padding) is replaced by a **round shade that drains downward**
+  inside the circle (UIGradient step); BOOST / SHIELD and the countdown stay readable (text
+  outline), READY turns mint. **TRICK** now fits inside its circle.
+- **Boost-lane arrows outside the lines:** each lane's two edge lines were one straight chord
+  from start to end, so on the helix and banked climbs they drifted up to ~5 studs off the
+  lane while the chevrons followed the road. The lines now follow the road in 6-stud segments
+  (worst drift 0.10 stud on all 37 boost lanes; every chevron tip inside the lines).
+- **Race clutter from v40:** the gate-gap chip moves under the CHECKPOINT banner on its own
+  pill (they overlapped); the RIVAL tag is smaller and no longer drawn through walls and signs.
+
+**Verified here:** 947 offline checks (new: boost-lane geometry on every circuit – the old
+chords fail it; cooldown gradient keypoints valid at every fraction). **Not verified:** the
+look on the phone.
+
 ## 2026-11-26 — Challenges/Cups/Creator brief: the Drop Shaft loop, mastery, rival gap, race story (v40, private)
 
 Brief: Tumble-Circuit-Challenges-Cups-and-Creator-Tools-Master-Prompt. Details: docs/CHALLENGES.md.

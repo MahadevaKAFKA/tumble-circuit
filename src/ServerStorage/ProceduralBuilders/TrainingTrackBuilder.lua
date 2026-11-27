@@ -151,6 +151,44 @@ end
 
 -- B1: a world's Theme overrides palette keys (floor, rails, accents) and materials; every other
 -- colour comes from GameConfig.Palette. Hazard warning colours (Coral / Yellow) never change.
+-- v41: a boost lane's decor, all inside the lane: forward chevrons every 9 studs and two edge
+-- lines that follow the road in segments of at most EdgeStep studs (so curves and banks keep
+-- the chevrons between the lines). Pure; returns part specs (no Folder).
+Builder.BoostEdgeStep = 6
+function Builder.BoostLaneSpecs(layout, hz, laneWidth, palette)
+	local specs = {}
+	local offset = hz.Offset or 0
+	local halfW = laneWidth / 2
+	local w = math.min(halfW - 1, 4)
+	local at = 2
+	while at <= hz.Length - 2 do
+		local zf = TrackDefinitions.SampleAtH(layout, hz.FromFrame.H + at)
+		local base = frameCFrame(zf, 0.08) * CFrame.new(offset, 0, 0)
+		for _, sideSign in ipairs({ -1, 1 }) do
+			local c = Vector3.new(sideSign * w / 2, 0, 0)
+			local dir = Vector3.new(sideSign * w, 0, 3.2)
+			specs[#specs + 1] = { Class = "Part", Name = "BoostChevron", Size = Vector3.new(0.8, 0.12, 4.2), CFrame = base * CFrame.lookAt(c, c + dir), Color = palette.Mint, Material = "Neon", Collide = false, Attributes = { HazardId = hz.Id, Role = "Boost" } }
+		end
+		at = at + 9
+	end
+	local steps = math.max(1, math.ceil(hz.Length / Builder.BoostEdgeStep))
+	for _, sideSign in ipairs({ -1, 1 }) do
+		local lateral = offset + sideSign * (halfW - 0.3) -- just inside the lane edge
+		for k = 0, steps - 1 do
+			local a = TrackDefinitions.SampleAtH(layout, hz.FromFrame.H + hz.Length * k / steps)
+			local b = TrackDefinitions.SampleAtH(layout, hz.FromFrame.H + hz.Length * (k + 1) / steps)
+			local p0 = a.Position + a.Right * lateral + a.Up * 0.07
+			local p1 = b.Position + b.Right * lateral + b.Up * 0.07
+			local len = (p1 - p0).Magnitude
+			if len > 0.2 then
+				-- +0.3 overlap hides the seam between segments on curves
+				specs[#specs + 1] = { Class = "Part", Name = "BoostEdge", Size = Vector3.new(0.4, 0.1, len + 0.3), CFrame = CFrame.lookAt((p0 + p1) / 2, p1, (a.Up + b.Up).Unit), Color = palette.Mint, Material = "Neon", Transparency = 0.35, Collide = false }
+			end
+		end
+	end
+	return specs
+end
+
 function Builder.ThemePalette(theme)
 	local base = GameConfig.Palette
 	if not theme then
@@ -640,29 +678,12 @@ function Builder.ComputeSpecs(layout)
 				end
 			end
 		elseif hz.Kind == "Boost" then
-			-- assisted ascent / conveyor carry: forward chevrons on the boost lane (static decor)
-			local at = 2
-			while at <= hz.Length - 2 do
-				local zf = TrackDefinitions.SampleAtH(layout, hz.FromFrame.H + at)
-				local base = frameCFrame(zf, 0.08) * CFrame.new(hz.Offset or 0, 0, 0)
-				local w = math.min((d.Width or 10) / 2 - 1, 4)
-				for _, sideSign in ipairs({ -1, 1 }) do
-					local c = Vector3.new(sideSign * w / 2, 0, 0)
-					local dir = Vector3.new(sideSign * w, 0, 3.2)
-					add({ Class = "Part", Name = "BoostChevron", Folder = folder, Size = Vector3.new(0.8, 0.12, 4.2), CFrame = base * CFrame.lookAt(c, c + dir), Color = palette.Mint, Material = "Neon", Collide = false, Attributes = { HazardId = hz.Id, Role = "Boost" } })
-				end
-				at = at + 9
-			end
-			-- lane edge strips so the boost lane reads as a lane from a distance
-			for _, sideSign in ipairs({ -1, 1 }) do
-				local a0 = TrackDefinitions.SampleAtH(layout, hz.FromFrame.H)
-				local a1 = TrackDefinitions.SampleAtH(layout, hz.ToFrame.H)
-				local p0 = a0.Position + a0.Right * ((hz.Offset or 0) + sideSign * (d.Width or 10) / 2) + a0.Up * 0.07
-				local p1 = a1.Position + a1.Right * ((hz.Offset or 0) + sideSign * (d.Width or 10) / 2) + a1.Up * 0.07
-				local len = (p1 - p0).Magnitude
-				if len > 1 then
-					add({ Class = "Part", Name = "BoostEdge", Folder = "Decor", Size = Vector3.new(0.4, 0.1, len), CFrame = CFrame.lookAt((p0 + p1) / 2, p1, a0.Up), Color = palette.Mint, Material = "Neon", Transparency = 0.35, Collide = false })
-				end
+			-- assisted ascent / conveyor carry: chevrons + lane edge lines (static decor). v41: the
+			-- edge lines follow the curve in short segments (they were one straight chord per lane,
+			-- which on the helix / banked climbs left the chevrons outside the lines)
+			for _, spec in ipairs(Builder.BoostLaneSpecs(layout, hz, d.Width or 10, palette)) do
+				spec.Folder = spec.Name == "BoostChevron" and folder or "Decor"
+				add(spec)
 			end
 		elseif hz.Kind == "Fan" or hz.Kind == "Conveyor" then
 			local at = 0

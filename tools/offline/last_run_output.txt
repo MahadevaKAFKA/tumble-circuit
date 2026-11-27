@@ -162,7 +162,7 @@ ok    tools/offline/run_tests.lua
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
 PRINT	[Track] challenge drop_shaft built (785 studs, 3 gates)
-PRINT	[Track] built 3 maps (8947 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 367.2 ms
+PRINT	[Track] built 3 maps (9587 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 296.2 ms
 PRINT	[TumbleCircuit] server ready (A6.0, protocol v16)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
@@ -474,9 +474,9 @@ PASS  no world comes within 150 studs of the hub
 info  Neon Foundry: 2931 studs, 16 modules, drop 184, 1-D model clean run 64 s (a model, not a measurement)
 info  Sky Carnival: 2530 studs, 14 modules, drop 162, 1-D model clean run 54 s (a model, not a measurement)
 info  Volcano Vault: 2300 studs, 14 modules, drop 158, 1-D model clean run 49 s (a model, not a measurement)
-info  Neon Foundry: 2842 parts, 1129 collidable
-info  Sky Carnival: 3518 parts, 1527 collidable
-info  Volcano Vault: 2587 parts, 916 collidable
+info  Neon Foundry: 3012 parts, 1129 collidable
+info  Sky Carnival: 3822 parts, 1527 collidable
+info  Volcano Vault: 2753 parts, 916 collidable
 
 -- B1 rules specs --
 PASS  rotation: nothing raced -> world 1, then 2, 3, back to 1
@@ -1137,11 +1137,16 @@ PASS  race stats: a launch on plain road is flagged, a kicker jump is not; reset
 PASS  race stats: sectors are per lap (lap 2 gate 3 = sector 3)
 PASS  name tags: never the stacked row - none closer than 16 studs, overlaps hidden, at most 3
 PASS  name tags: none at all on the start grid
+PASS  boost-lane edge lines follow the road (drift under 0.6 stud) on every circuit
+PASS  boost-lane chevrons sit inside the edge lines
+PASS  cooldown shade: valid gradient keypoints at every fraction (0..1)
+PASS  cooldown shade: clear when ready, full at the start, lower half shaded at 50%
 PASS  case opening: pops in, shakes harder, the lid flies off with a flash
 PASS  Reduced Motion: the case opens without any shake
 info  Neon Foundry circuit: lap 2963 studs, model standing 71.0 s / flying 69.8 s / race 211 s (MODEL, not a measurement)
 info  Sky Carnival circuit: lap 3305 studs, model flying lap 76.9 s, race 232 s (MODEL)
 info  Volcano Vault circuit: lap 2723 studs, model flying lap 64.4 s, race 194 s (MODEL)
+info  boost lanes: 37, worst edge-line drift 0.10 studs, chevron tips outside the lines 0
 
 -- Ranked test specs --
 PASS  equal 4-player field: winner gains, last loses, the field is ~zero-sum
@@ -1213,4 +1218,4 @@ PASS  challenge card: medal targets, no-time line, mastery 2/3, weekly window
 info  Drop Shaft: 785 studs start->finish, qualifying line at S 418
 info  mock gold run: 15.94 s
 
-943 passed, 0 failed (+ 0 syntax failures)
+947 passed, 0 failed (+ 0 syntax failures)

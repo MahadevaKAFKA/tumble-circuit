@@ -68,17 +68,38 @@ function AbilityController.new(deps)
 			ClipsDescendants = true,
 		}, palette.Cyan)
 		UIKit.Glass(b)
-		local fill = UIKit.new("Frame", { Name = "Cooldown", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.fromScale(1, 0), BackgroundColor3 = palette.Ink, BackgroundTransparency = 0.25, BorderSizePixel = 0, ZIndex = 2 }, b)
-		local name = UIKit.label(b, { Position = UDim2.fromScale(0.16, 0.2), Size = UDim2.fromScale(0.68, 0.24), Font = Enum.Font.GothamBlack, ZIndex = 3 })
-		local timer = UIKit.label(b, { Position = UDim2.fromScale(0.2, 0.46), Size = UDim2.fromScale(0.6, 0.26), Font = UIKit.Fonts.Display or Enum.Font.GothamBlack, TextColor3 = palette.White, ZIndex = 3 })
+		-- v41 (owner clip): the cooldown is a round shade inside the circle that drains downward
+		-- (a UIGradient step on a circular frame) instead of a square black panel. The button's
+		-- text padding is removed so the shade and the labels use the whole circle.
+		local padding = b:FindFirstChildOfClass("UIPadding")
+		if padding then
+			padding:Destroy()
+		end
+		local fill = UIKit.new("Frame", { Name = "Cooldown", Size = UDim2.fromScale(1, 1), BackgroundColor3 = palette.Ink, BackgroundTransparency = 0, BorderSizePixel = 0, Visible = false, ZIndex = 2 }, b)
+		UIKit.corner(fill, 0.5)
+		local shade = UIKit.new("UIGradient", { Name = "Drain", Rotation = 90, Transparency = AbilityController.CooldownShade(0) }, fill)
+		local name = UIKit.label(b, { Position = UDim2.fromScale(0.15, 0.2), Size = UDim2.fromScale(0.7, 0.2), Font = Enum.Font.GothamBlack, ZIndex = 3 })
+		local timer = UIKit.label(b, { Position = UDim2.fromScale(0.22, 0.41), Size = UDim2.fromScale(0.56, 0.3), Font = UIKit.Fonts.Display or Enum.Font.GothamBlack, TextColor3 = palette.White, ZIndex = 3 })
 		timer.Font = UIKit.Fonts.Display or timer.Font
-		local key = UIKit.label(b, { Position = UDim2.fromScale(0.25, 0.74), Size = UDim2.fromScale(0.5, 0.14), Font = Enum.Font.Gotham, TextColor3 = UIKit.Colors.Muted, ZIndex = 3 })
+		local key = UIKit.label(b, { Position = UDim2.fromScale(0.3, 0.72), Size = UDim2.fromScale(0.4, 0.12), Font = Enum.Font.Gotham, TextColor3 = UIKit.Colors.Muted, ZIndex = 3 })
+		for _, label in ipairs({ name, timer, key }) do
+			label.TextStrokeTransparency = 0.6 -- readable over the shade and a bright sky
+		end
 		self.maid:Give(b.Activated:Connect(function()
 			self:RequestAbility(slot)
 		end))
-		self.slots[slot] = { button = b, fill = fill, name = name, timer = timer, key = key }
+		self.slots[slot] = { button = b, fill = fill, shade = shade, name = name, timer = timer, key = key }
 	end
 	self.trickButton = UIKit.Glass(UIKit.button(root, { Name = "Trick", AnchorPoint = Vector2.new(1, 1), Size = UDim2.fromOffset(92, 92), Text = "TRICK" }, palette.Mint))
+	-- v41: TRICK fits inside its circle (on the phone it ran past both edges)
+	do
+		local padding = self.trickButton:FindFirstChildOfClass("UIPadding")
+		if padding then
+			padding.PaddingLeft, padding.PaddingRight = UDim.new(0.17, 0), UDim.new(0.17, 0)
+			padding.PaddingTop, padding.PaddingBottom = UDim.new(0.3, 0), UDim.new(0.3, 0)
+		end
+		UIKit.new("UITextSizeConstraint", { MaxTextSize = 22 }, self.trickButton)
+	end
 	self.maid:Give(self.trickButton.Activated:Connect(function()
 		self:RequestTrick()
 	end))
@@ -284,9 +305,36 @@ function AbilityController:Update()
 		local def = AbilityConfig.Abilities[self:_current()[slot]]
 		local left = math.max(0, finish - now)
 		local fraction = def and math.clamp(left / def.Cooldown, 0, 1) or 0
-		self.slots[slot].fill.Size = UDim2.fromScale(1, fraction)
-		UIKit.setText(self.slots[slot].timer, left > 0 and string.format("%d", math.ceil(left)) or "READY")
+		local ui = self.slots[slot]
+		ui.fill.Visible = fraction > 0
+		local step = math.floor(fraction * 100)
+		if fraction > 0 and ui.lastStep ~= step then
+			ui.lastStep = step
+			ui.shade.Transparency = AbilityController.CooldownShade(fraction)
+		end
+		UIKit.setText(ui.timer, left > 0 and string.format("%d", math.ceil(left)) or "READY")
+		ui.timer.TextColor3 = left > 0 and palette.White or palette.Mint
 	end
+end
+
+-- v41 (pure): the cooldown shade down the circle: clear above, a soft dark band for the
+-- remaining fraction at the bottom, with a hard edge, so it drains toward the bottom
+AbilityController.ShadeAlpha = 0.45
+function AbilityController.CooldownShade(fraction)
+	local f = math.clamp(fraction or 0, 0, 1)
+	local a = AbilityController.ShadeAlpha
+	if f < 0.01 then
+		return NumberSequence.new(1)
+	elseif f > 0.99 then
+		return NumberSequence.new(a)
+	end
+	local edge = 1 - f -- in [0.01, 0.99], so the keypoints below always increase
+	return NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(edge - 0.004, 1),
+		NumberSequenceKeypoint.new(edge, a),
+		NumberSequenceKeypoint.new(1, a),
+	})
 end
 
 function AbilityController:Destroy()

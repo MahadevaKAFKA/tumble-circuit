@@ -327,7 +327,10 @@ end
 
 function RaceHUD:ShowGap(text, tone)
 	if not self.gapChip then
-		self.gapChip = UIKit.label(self.root, { Name = "GateGap", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 92), Size = UDim2.fromOffset(320, 26), TextScaled = false, TextSize = 18, Font = Enum.Font.GothamBlack, TextStrokeTransparency = 0.45, Visible = false })
+		-- v41 (owner clip): directly under the callout lane (CHECKPOINT n / N sits at 112-156),
+		-- on its own pill, so the two never overlap
+		self.gapChip = UIKit.label(self.root, { Name = "GateGap", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 162), Size = UDim2.fromOffset(300, 28), TextScaled = false, TextSize = 18, Font = Enum.Font.GothamBlack, TextStrokeTransparency = 1, BackgroundColor3 = UIKit.Colors.Surface, BackgroundTransparency = 0.3, Visible = false })
+		UIKit.corner(self.gapChip, 0.5)
 	end
 	self.gapChip.Text = text
 	self.gapChip.TextColor3 = tone == "behind" and palette.Coral or (tone == "ahead" and palette.Mint or palette.Yellow)
@@ -346,19 +349,20 @@ function RaceHUD:SetRival(ball, text)
 	end
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "TC_RivalTag"
-	tag.Size = UDim2.fromOffset(120, 26)
+	-- v41: smaller and no longer drawn through walls and signs
+	tag.Size = UDim2.fromOffset(86, 20)
 	tag.StudsOffsetWorldSpace = Vector3.new(0, 4.2, 0)
-	tag.AlwaysOnTop = true
-	tag.MaxDistance = 260
+	tag.AlwaysOnTop = false
+	tag.MaxDistance = 180
 	tag.LightInfluence = 0
 	tag.Adornee = ball
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
 	label.TextScaled = true
-	label.Font = Enum.Font.GothamBlack
+	label.Font = Enum.Font.GothamBold
 	label.TextColor3 = palette.Coral
-	label.TextStrokeTransparency = 0.3
+	label.TextStrokeTransparency = 0.4
 	label.Text = text or "RIVAL"
 	label.Parent = tag
 	tag.Parent = self.gui.Parent or self.gui

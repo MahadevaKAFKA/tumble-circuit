@@ -346,6 +346,84 @@ function Spec.run(m)
 		check("name tags: never the stacked row - none closer than 16 studs, overlaps hidden, at most 3", n <= 3 and not shown.b1 and n >= 1)
 		check("name tags: none at all on the start grid", next(NP.Decide(c, { hideAll = true })) == nil)
 	end
+	-- v41 (owner screenshot): boost-lane chevrons must sit between the lane's edge lines on
+	-- curves and banks - the lines follow the road in short segments instead of one chord
+	local Bld = m.Builder
+	if Bld and Bld.BoostLaneSpecs then
+		local worst, lanes, outside = 0, 0, 0
+		local radius = m.PhysicsConfig and m.PhysicsConfig.Ball.Radius or 2
+		local white = Color3.new(1, 1, 1)
+		for _, id in ipairs({ "NeonFoundryCircuit", "SkyCarnivalCircuit", "VolcanoVaultCircuit" }) do
+			local def = TD[id]
+			local okL, lay = pcall(TD.Generate, def, radius)
+			for _, hz in ipairs(okL and lay.Hazards or {}) do
+				if hz.Kind == "Boost" then
+					lanes = lanes + 1
+					local halfW = (hz.Definition and hz.Definition.Width or 10) / 2
+					for _, spec in ipairs(Bld.BoostLaneSpecs(lay, hz, halfW * 2, { Mint = white })) do
+						if spec.Name == "BoostEdge" then
+							-- the segment's middle must sit on the lane edge at that point of the road
+							local mid = spec.CFrame.Position
+							local best = math.huge
+							for k = 0, 20 do
+								local f = TD.SampleAtH(lay, hz.FromFrame.H + hz.Length * k / 20)
+								local lateral = (mid - f.Position):Dot(f.Right)
+								local along = math.abs((mid - f.Position):Dot(f.Forward))
+								if along < 4 then
+									best = math.min(best, math.abs(math.abs(lateral - (hz.Offset or 0)) - (halfW - 0.3)))
+								end
+							end
+							if best < math.huge then
+								worst = math.max(worst, best)
+							end
+						else
+							-- both chevron tips stay inside the lane
+							local cf = spec.CFrame
+							for _, tip in ipairs({ cf * Vector3.new(0, 0, 2.1), cf * Vector3.new(0, 0, -2.1) }) do
+								local f = TD.SampleAtH(lay, hz.FromFrame.H)
+								local nearest, nd = f, math.huge
+								for k = 0, 40 do
+									local g = TD.SampleAtH(lay, hz.FromFrame.H + hz.Length * k / 40)
+									local dd = (g.Position - tip).Magnitude
+									if dd < nd then
+										nearest, nd = g, dd
+									end
+								end
+								local lateral = (tip - nearest.Position):Dot(nearest.Right) - (hz.Offset or 0)
+								if math.abs(lateral) > halfW - 0.3 then
+									outside = outside + 1
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+		table.insert(results.info, string.format("boost lanes: %d, worst edge-line drift %.2f studs, chevron tips outside the lines %d", lanes, worst, outside))
+		check("boost-lane edge lines follow the road (drift under 0.6 stud) on every circuit", lanes > 0 and worst < 0.6, string.format("%.2f", worst))
+		check("boost-lane chevrons sit inside the edge lines", lanes > 0 and outside == 0, outside)
+	end
+	-- v41 (owner clip): the ability cooldown is a round shade that drains, never a square panel
+	local AB = m.AbilityPure
+	if AB and AB.CooldownShade then
+		local function ordered(seq)
+			local last = -1
+			for _, k in ipairs(seq.Keypoints) do
+				if k.Time < last or k.Time < 0 or k.Time > 1 then
+					return false
+				end
+				last = k.Time
+			end
+			return seq.Keypoints[1].Time == 0 and seq.Keypoints[#seq.Keypoints].Time == 1
+		end
+		local ok = true
+		for i = 0, 1000 do
+			ok = ok and ordered(AB.CooldownShade(i / 1000))
+		end
+		local half = AB.CooldownShade(0.5).Keypoints
+		check("cooldown shade: valid gradient keypoints at every fraction (0..1)", ok)
+		check("cooldown shade: clear when ready, full at the start, lower half shaded at 50%", AB.CooldownShade(0).Keypoints[1].Value == 1 and AB.CooldownShade(1).Keypoints[1].Value == AB.ShadeAlpha and half[2].Value == 1 and half[3].Value == AB.ShadeAlpha and math.abs(half[3].Time - 0.5) < 1e-9)
+	end
 	local RV = m.RevealPure
 	if RV and RV.ChestPose then
 		local pop, shake, burst = RV.ChestPose(0.1), RV.ChestPose(0.8), RV.ChestPose(1.2)

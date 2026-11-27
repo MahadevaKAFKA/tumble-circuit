@@ -133,6 +133,7 @@ modules.ChallengeService = H.module("ServerScriptService/Services/ChallengeServi
 H.stubServices = { Players = {}, RunService = {}, TweenService = {}, UserInputService = {} }
 modules.ChallengePure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/ChallengeController")
 modules.RaceHUDPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/RaceHUDController")
+modules.AbilityPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/AbilityController")
 H.stubServices = {}
 
 -- A5 UI text scan: every string literal in client code (comments stripped).

@@ -257,6 +257,17 @@ shim.UDim2 = {
 	end,
 }
 
+-- v41: NumberSequence (UIGradient transparency) as plain keypoint lists
+shim.NumberSequenceKeypoint = { new = function(time, value)
+	return { Time = time, Value = value }
+end }
+shim.NumberSequence = { new = function(a, b)
+	if type(a) == "table" then
+		return { Keypoints = a }
+	end
+	return { Keypoints = { { Time = 0, Value = a }, { Time = 1, Value = b or a } } }
+end }
+
 ---------------------------------------------------------------------------------- globals
 function shim.typeof(v)
 	local mt = getmetatable(v)
@@ -279,6 +290,8 @@ function shim.install(env)
 	env.Color3 = shim.Color3
 	env.UDim = shim.UDim
 	env.UDim2 = shim.UDim2
+	env.NumberSequence = shim.NumberSequence
+	env.NumberSequenceKeypoint = shim.NumberSequenceKeypoint
 	env.typeof = shim.typeof
 	env.warn = function(...)
 		print("WARN", ...)
