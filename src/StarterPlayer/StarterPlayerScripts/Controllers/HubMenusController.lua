@@ -28,8 +28,8 @@ local palette = UIKit.Palette
 local HubMenus = {}
 HubMenus.__index = HubMenus
 
-HubMenus.Tabs = { "Marble", "Trail", "Launch", "Burst", "Emote" }
-HubMenus.TabLabels = { Marble = "SKINS", Trail = "TRAILS", Burst = "BURSTS", Emote = "EMOTES", Launch = "LAUNCH" }
+HubMenus.Tabs = { "Marble", "Trail", "Launch", "Burst", "Emote", "Plate", "Podium" }
+HubMenus.TabLabels = { Marble = "SKINS", Trail = "TRAILS", Burst = "BURSTS", Emote = "EMOTES", Launch = "LAUNCH", Plate = "PLATES", Podium = "PODIUM" }
 HubMenus.Filters = { "All", "Owned", "Favorites", "Common", "Rare", "Epic", "Legendary", "Mythic" }
 
 -- Pure: items for a tab + filter (+ optional search text), catalog order.
@@ -172,14 +172,16 @@ function HubMenus:_buildGarage(root)
 	-- category rail (icon + label)
 	self.tabButtons = {}
 	for i, kind in ipairs(HubMenus.Tabs) do
-		local b = UIKit.button(panel, { Name = "GarageTab", Position = UDim2.fromOffset(16, 60 + (i - 1) * 100), Size = UDim2.fromOffset(120, 92), Text = "" }, palette.White)
-		UIKit.Icon(b, kind, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 4), Size = UDim2.fromOffset(30, 30) })
-		UIKit.label(b, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, 0), Size = UDim2.new(1, -8, 0, 22), Font = Enum.Font.GothamBold, Text = HubMenus.TabLabels[kind] })
+		-- shop brief: 7 categories (+ PLATES, PODIUM) -> a tighter rail (72 px per tab)
+		local b = UIKit.button(panel, { Name = "GarageTab", Position = UDim2.fromOffset(16, 60 + (i - 1) * 72), Size = UDim2.fromOffset(120, 66), Text = "" }, palette.White)
+		UIKit.Icon(b, kind, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 4), Size = UDim2.fromOffset(26, 26) })
+		UIKit.label(b, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -2), Size = UDim2.new(1, -8, 0, 20), Font = Enum.Font.GothamBold, Text = HubMenus.TabLabels[kind] })
 		self.maid:Give(b.Activated:Connect(function()
 			self.tab = kind
 			local first = Catalog.ByKind[kind][1]
 			local eq = self.cosmetics.equipped
-			self.selected = (kind == "Marble" and eq.marble) or (kind == "Trail" and eq.trail) or (kind == "Burst" and eq.burst) or (kind == "Launch" and eq.launch) or (first and first.Id)
+			local key = Catalog.EquipKey[kind]
+			self.selected = (key and key ~= "emotes" and eq[key]) or (first and first.Id)
 			self:_renderGarage()
 		end))
 		self.tabButtons[kind] = b
@@ -217,6 +219,12 @@ function HubMenus:_buildGarage(root)
 	self.detailRarity = UIKit.label(side, { Position = UDim2.fromOffset(14, 248), Size = UDim2.fromOffset(260, 22), Font = Enum.Font.GothamBold, Text = "" })
 	self.detailStatus = UIKit.label(side, { Position = UDim2.fromOffset(14, 274), Size = UDim2.fromOffset(260, 44), Font = Enum.Font.Gotham, TextWrapped = true, Text = "" })
 	self.equipButton = UIKit.Primary(UIKit.button(side, { Name = "Equip", Position = UDim2.fromOffset(14, 326), Size = UDim2.fromOffset(260, 46), Text = "EQUIP" }, palette.Mint))
+	-- shop brief: the same storefront opens from the Garage (on the section for this category)
+	self.ShopRequested = Utility.Signal.new()
+	local shopLink = UIKit.button(side, { Name = "GarageShop", Position = UDim2.fromOffset(14, 430), Size = UDim2.fromOffset(260, 34), Text = "SHOP  ·  MORE LOOKS", TextScaled = false, TextSize = 13 }, palette.Yellow)
+	self.maid:Give(shopLink.Activated:Connect(function()
+		self.ShopRequested:Fire(self.tab)
+	end))
 	self.maid:Give(self.equipButton.Activated:Connect(function()
 		self:_equip(0)
 	end))
@@ -382,6 +390,10 @@ function HubMenus:_preview(item)
 		end
 		model.Parent = self.viewport
 		self.previewModel = model
+	elseif item.Kind == "Plate" or item.Kind == "Podium" then
+		self.previewText.Visible = true
+		self.previewText.Text = item.Kind == "Plate" and (item.Accent == "Checkered" and "DRIVER  [#]" or "DRIVER") or (item.Effect == "GoldRing" and "( O )  GOLD RING" or "NO EFFECT")
+		self.previewText.TextColor3 = Catalog.RarityColors[item.Rarity]
 	else
 		self.previewText.Visible = true
 		self.previewText.Text = item.Kind == "Emote" and ((item.Icon or "") .. " " .. item.Name) or ("* " .. string.upper(item.Name) .. " *")

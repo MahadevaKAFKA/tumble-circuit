@@ -132,8 +132,10 @@ round.hubs = hubs
 local telemetry = TelemetryService.new()
 round.telemetry = telemetry -- brief 3: per-sector recoveries / seam launches after each race
 local cosmetics = CosmeticService.new({ data = playerData, marbles = marbles, remotes = remotes, telemetry = telemetry })
+round.cosmetics = cosmetics -- shop brief: race-start look snapshots
 marbles.lookResolver = function(player)
-	return cosmetics:LookFor(player)
+	-- shop brief: a racer keeps the look validated at the start of the race (respawns included)
+	return (round.LookSnapshot and round:LookSnapshot(player)) or cosmetics:LookFor(player)
 end
 social.emoteResolver = function(player, slot)
 	return cosmetics:EmoteFor(player, slot)
@@ -147,7 +149,7 @@ local seasons = SeasonService.new({ data = playerData, remotes = remotes, econom
 local anticheat = AntiCheatService.new({ remotes = remotes, physics = physics })
 round.anticheat = anticheat
 capsules.anticheat = anticheat
-local products = ProductService.new({ data = playerData, remotes = remotes, cosmetics = cosmetics, telemetry = telemetry, anticheat = anticheat })
+local products = ProductService.new({ data = playerData, remotes = remotes, cosmetics = cosmetics, telemetry = telemetry, anticheat = anticheat, marbles = marbles })
 playerData.ProfileLoaded:Connect(function(player, profile)
 	abilities:SetLoadout(player, profile.data.equippedAbilityIds) -- saved starter loadout
 end)

@@ -123,8 +123,11 @@ local E = {
 }
 
 Catalog.Items = {} -- [id] = item
-Catalog.ByKind = { Marble = {}, Trail = {}, Burst = {}, Emote = {}, Launch = {} }
-Catalog.Kinds = { "Marble", "Trail", "Burst", "Emote", "Launch" }
+-- 2026-11-27 shop brief: "Plate" = your results nameplate (driver identity), "Podium" = the
+-- effect that frames you on the podium when you win (celebrations). Kind names stay <= 8 chars
+-- (RequestEquipCosmetic validates the kind as a short string).
+Catalog.ByKind = { Marble = {}, Trail = {}, Burst = {}, Emote = {}, Launch = {}, Plate = {}, Podium = {} }
+Catalog.Kinds = { "Marble", "Trail", "Burst", "Emote", "Launch", "Plate", "Podium" }
 local function add(kind, id, name, rarity, extra)
 	assert(Catalog.Items[id] == nil, "duplicate catalog id " .. id)
 	local item = { Id = id, Kind = kind, Name = name, Rarity = rarity }
@@ -154,6 +157,19 @@ end
 Catalog.Items.launch_spring.Exclusive = "Shop"
 Catalog.Items.launch_afterimage.Exclusive = "Shop"
 
+-- 2026-11-27 shop brief: the launch catalog (guaranteed, permanent offers in ShopConfig;
+-- never random, never in cases or the Shard Shop). Visual only like everything else.
+add("Marble", "reactor_glass", "Reactor Glass", "Epic", { Look = { color = rgb(18, 34, 92), material = "Glass", reflectance = 0.22, pattern = "Core", accent = rgb(255, 170, 40), glow = true }, Exclusive = "Shop" })
+add("Trail", "trail_afterburn", "Afterburn Ribbon", "Epic", { Colors = { rgb(255, 150, 40), rgb(255, 80, 20) }, Profile = "Twin", Exclusive = "Shop" })
+-- results nameplates: the free standard plate + Gridline (a checkered corner accent). Earned
+-- looks (rank tiers, Cup placements, mastery) are reserved and never sold; paid plates carry no
+-- rank icons.
+add("Plate", "plate_standard", "Standard Plate", "Common", { Accent = "None", Exclusive = "Starter" })
+add("Plate", "plate_gridline", "Gridline", "Rare", { Accent = "Checkered", Exclusive = "Shop" })
+-- podium effects: none by default; Victory Pulse = a brief gold ring around the winning marble
+add("Podium", "podium_standard", "No podium effect", "Common", { Effect = "None", Exclusive = "Starter" })
+add("Podium", "podium_victory_pulse", "Victory Pulse", "Epic", { Effect = "GoldRing", Exclusive = "Shop" })
+
 -- D: Founder's Style Pack exclusives (a permanent Game Pass). Never in capsules, the Shard
 -- Shop, level rewards or the season; visual only like everything else.
 add("Trail", "trail_founder_gold", "Founder Gold", "Legendary", { Colors = { rgb(255, 230, 150), rgb(255, 170, 40) }, Profile = "Twin", Exclusive = "Founder" })
@@ -172,9 +188,11 @@ Catalog.Defaults = {
 	burst = "burst_confetti",
 	emotes = { "emote_gg", "emote_nice_save", "emote_oops" },
 	launch = "launch_ramp",
+	plate = "plate_standard", -- 2026-11-27
+	podium = "podium_standard",
 }
 -- Owned by everyone from the start
-Catalog.Starters = { "cobalt", "trail_dust", "burst_confetti", "emote_gg", "emote_nice_save", "emote_oops", "launch_ramp" }
+Catalog.Starters = { "cobalt", "trail_dust", "burst_confetti", "emote_gg", "emote_nice_save", "emote_oops", "launch_ramp", "plate_standard", "podium_standard" }
 
 -- Level rewards: every 5 levels (master section 9). Claimed once, server-side.
 Catalog.LevelRewards = {
@@ -199,6 +217,8 @@ function Catalog.HowToEarn(id)
 		return "Founder's Style Pack (optional, in SHOP when on sale)"
 	elseif item and item.Exclusive == "Shop" then
 		return "Direct purchase in SHOP (optional; not on sale yet)"
+	elseif item and item.Exclusive == "Starter" then
+		return "Owned by everyone"
 	elseif item and item.Exclusive then
 		return "Season 1 premium lane (optional, in SHOP when on sale)"
 	end
@@ -212,6 +232,9 @@ function Catalog.HowToEarn(id)
 	end
 	return "Coin capsules in the CAPSULE LAB, or pick it in the Shard Shop"
 end
+
+-- profile.cosmetics.equipped key for each kind (emotes are a 3-slot list)
+Catalog.EquipKey = { Marble = "marble", Trail = "trail", Burst = "burst", Emote = "emotes", Launch = "launch", Plate = "plate", Podium = "podium" }
 
 function Catalog.Get(id)
 	return Catalog.Items[id]

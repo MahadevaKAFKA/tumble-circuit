@@ -71,7 +71,8 @@
 
 local RoundProtocol = {}
 
-RoundProtocol.Version = 16 -- v16 (2026-11-26 ranked/challenges): RequestRankedOptIn/RankState, RequestChallenge/ChallengeState
+RoundProtocol.Version = 17 -- v17 (2026-11-27 shop brief): RequestShopPurchase(sku), RequestShopPreviewReset
+-- v16 (2026-11-26 ranked/challenges): RequestRankedOptIn/RankState, RequestChallenge/ChallengeState
 -- v15: v15 (2026-11-26 economy): Milestone quest claims, RequestOpenCapsule + price seen (v14: RequestCapsuleSeen)
 RoundProtocol.FolderName = "TumbleRemotes"
 
@@ -146,6 +147,11 @@ RoundProtocol.Remotes = {
 	ChallengeState = { Direction = "ServerToClient" },
 	RequestShopState = { Direction = "ClientToServer", Args = {}, MinInterval = 0.5 },
 	RequestPremiumClaim = { Direction = "ClientToServer", Args = { { type = "number", min = 1, max = 30, integer = true } }, MinInterval = 0.3 },
+	-- v17: the client only ASKS to start a purchase; the server checks the offer, ownership and
+	-- flags, then opens Roblox's own prompt (or, for the owner while paid offers are off, a
+	-- labelled no-Robux preview grant). Reset clears the owner's preview grants.
+	RequestShopPurchase = { Direction = "ClientToServer", Args = { { type = "string", maxLength = 40 } }, MinInterval = 0.8 },
+	RequestShopPreviewReset = { Direction = "ClientToServer", Args = {}, MinInterval = 2 },
 }
 
 RoundProtocol.States = {

@@ -460,6 +460,9 @@
     "RequestRankedOptIn",
     "RankState",
     "RequestChallenge",
-    "ChallengeState"
+    "ChallengeState",
+    "RequestShopPurchase",
+    "RequestShopPreviewReset",
+    "Gold"
   ]
 }

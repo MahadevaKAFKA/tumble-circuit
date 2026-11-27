@@ -104,7 +104,9 @@ modules.HubMenusPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/
 modules.LeaderboardService = H.module("ServerScriptService/Services/LeaderboardService")
 H.stubServices = { Players = {}, RunService = {}, HttpService = {} }
 modules.LabPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/LabController")
-H.stubServices = { Players = {}, RunService = {}, HttpService = {}, MarketplaceService = {}, PolicyService = {} }
+-- shop brief: the spec drives Roblox's purchase API through this table (prompts, pass checks)
+modules.ShopMarket = {}
+H.stubServices = { Players = {}, RunService = {}, HttpService = {}, MarketplaceService = modules.ShopMarket, PolicyService = {}, UserInputService = {} }
 modules.ShopPure = H.module("StarterPlayer/StarterPlayerScripts/Controllers/ShopController")
 modules.ProductService = H.module("ServerScriptService/Services/ProductService")
 modules.AntiCheatService = H.module("ServerScriptService/Services/AntiCheatService")
@@ -328,6 +330,7 @@ local suites = {
 	{ "Three-lap circuit specs", root .. "/src/Tests/Unit/Circuits.spec.lua" },
 	{ "Ranked test specs", root .. "/src/Tests/Unit/Ranked.spec.lua" },
 	{ "Challenge specs (Drop Shaft loop, mastery, ghosts)", root .. "/src/Tests/Unit/Challenges.spec.lua" },
+	{ "Shop specs (launch catalog, bundles, checkout, preview, verification)", root .. "/src/Tests/Unit/Shop.spec.lua" },
 }
 local passed, failed = 0, 0
 -- Boot smoke (2026-11-26): both bootstrap main chunks run end to end against proxy Roblox APIs

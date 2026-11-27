@@ -2,7 +2,7 @@
 
 **Active milestone:** owner brief 2026-11-26 "Animation, UI and Economy"
 (docs/ANIMATION_UI_ECONOMY_BRIEF.md, plan + baseline in docs/ANIMATION_UI_ECONOMY_PLAN.md):
-M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34), M5 economy (v35). All five milestones done. v36: visible redesign after the owner's "the UI looks the same" (design system v2). v37: THREE-LAP CIRCUITS (Neon Foundry + Sky Carnival) and the new in-race HUD (docs/THREE_LAP_PLAN.md). v38–v39: Graphics/Gameplay/Ranked brief (Volcano circuit, roadside cues, readability, opt-in Ranked). v40: Challenges/Cups/Creator brief (Drop Shaft loop, mastery, rival gap, race story). Queued next: Shop brief. Before that: CS:GO-style capsules, UI
+M1 baseline done, M2 speed feel + launch ramp (v32), M3 racing-spool case reveal (v33), M4 UI redesign pass (v34), M5 economy (v35). All five milestones done. v36: visible redesign after the owner's "the UI looks the same" (design system v2). v37: THREE-LAP CIRCUITS (Neon Foundry + Sky Carnival) and the new in-race HUD (docs/THREE_LAP_PLAN.md). v38–v39: Graphics/Gameplay/Ranked brief (Volcano circuit, roadside cues, readability, opt-in Ranked). v40: Challenges/Cups/Creator brief (Drop Shaft loop, mastery, rival gap, race story). v41: owner-clip fixes. v42: Shop brief (launch catalog, storefront, owner preview; paid offers off pending approval). Before that: CS:GO-style capsules, UI
 motion and a race-entry drop-in (v31). Before that: hub
 obstruction fix (v30); UI + environment overhaul (docs/UI_OVERHAUL_HANDOFF.md): part 1 HUD +
 settings (v28), part 2 map environments (v29). Before that: Promo/Builder pack (docs/PROMO_BUILDER_PROMPTS.md): 01 audit done,
@@ -17,6 +17,35 @@ The promo pack adds no monetization. Every deploy stays private.
 
 Legend: **Done** = implemented and verified by a test that actually ran · **Implemented,
 untested** = needs a Roblox runtime · **Blocked** = needs something not available here.
+
+## 2026-11-27 — Shop brief: launch catalog, storefront, owner preview, verified grants (v42, private)
+
+Brief: Tumble-Circuit-Shop-and-Microtransactions-Claude-Master-Prompt. Details + the exact owner
+configuration still needed: docs/SHOP.md. **Paid offers OFF; nothing can be bought with Robux.**
+
+- **Catalog:** Reactor Glass (marble), Afterburn Ribbon (trail), Gridline (new **Plate** slot),
+  Victory Pulse (new **Podium** slot), Pit Crew Pack - permanent Game Pass offers with stable
+  skus, sections, availability windows, retired-offer handling and designed-but-unlisted future
+  slots. Free Standard Plate / No podium effect for everyone; old profiles keep everything.
+- **Storefront:** FEATURED / MARBLE / TRAILS / CELEBRATIONS / DRIVER PROFILE + CASES · COINS
+  (separate) + OWNED filter; detail with contents, ownership, price, previews (3D drag-rotate
+  marble, trail loop SLOW/FAST, podium ring, plate; MOTION OFF); bundle partial ownership with the
+  standalone route and only provable savings; every checkout state; receipt with EQUIP; Garage
+  opens the same shop.
+- **Server:** the client only asks; the server checks listing / ownership / pending and opens
+  Roblox's prompt (paid on) or, for the experience owner while paid is off, a labelled no-Robux
+  **preview grant** with a reset that takes back only preview items. Pass ownership re-verified
+  after the prompt (3 tries), when the shop opens and on rejoin; idempotent; overlap-safe.
+- **Races:** a validated cosmetic snapshot at race start (respawns keep it; unowned/unknown ->
+  free default); results podium shows plates (Gridline checkered corner) and the winner's
+  Victory Pulse (Reduced Motion: steady ring). Protocol v17.
+
+**Verified here:** 986 offline checks incl. Shop.spec (39: catalog, sections, windows, bundle
+maths incl. partial / unknown / regional prices, checkout states, preview grant + reset, no
+second prompt, pending, cancel, delayed verification + rejoin, overlap across sessions,
+retired offer, validated looks, legacy profile, results plate / pulse, client text). **Not
+verified:** a real Roblox purchase (needs configured passes + your approval), the shop's look and
+previews on the phone, regional prices from Roblox.
 
 ## 2026-11-27 — Owner clip fixes: ability buttons, boost-lane lines, gap/rival clutter (v41, private)
 

@@ -22,7 +22,7 @@ local Utility = require(Shared:WaitForChild("Utility"))
 local CosmeticService = {}
 CosmeticService.__index = CosmeticService
 
-local KIND_KEY = { Marble = "marble", Trail = "trail", Burst = "burst", Emote = "emotes", Launch = "launch" }
+local KIND_KEY = Catalog.EquipKey -- 2026-11-27: + Plate, Podium
 
 function CosmeticService.new(deps)
 	local self = setmetatable({}, CosmeticService)
@@ -92,12 +92,26 @@ function CosmeticService:_cosmetics(player)
 	return profile and profile.data.cosmetics, profile
 end
 
+-- Pure (shop brief): a validated look - every slot must be an owned item of the right kind,
+-- else the free default (a retired or unknown id never breaks a race)
+function CosmeticService.ValidLook(c)
+	local set = ownedSet(c)
+	local look = {}
+	for kind, key in pairs(KIND_KEY) do
+		if key ~= "emotes" then
+			local id = c.equipped[key]
+			look[key] = (type(id) == "string" and set[id] and Catalog.IsKind(id, kind)) and id or Catalog.Defaults[key]
+		end
+	end
+	return look
+end
+
 function CosmeticService:LookFor(player)
 	local c = self:_cosmetics(player)
 	if not c then
 		return nil
 	end
-	return { marble = c.equipped.marble, trail = c.equipped.trail, burst = c.equipped.burst, launch = c.equipped.launch }
+	return CosmeticService.ValidLook(c)
 end
 
 function CosmeticService:EmoteFor(player, slot)
@@ -192,8 +206,12 @@ function CosmeticService:Equip(player, kind, id, slot)
 	end)
 	if ok then
 		self.data:SaveSoon(player)
-		if kind == "Marble" or kind == "Trail" or kind == "Burst" or kind == "Launch" then
+		if kind == "Marble" or kind == "Trail" or kind == "Burst" or kind == "Launch" or kind == "Plate" or kind == "Podium" then
 			self.marbles:RefreshLook(player)
+		end
+		local item = Catalog.Get(id)
+		if self.telemetry and item and item.Exclusive == "Shop" then
+			self.telemetry:Event(player, "shop_item_equip", { id = id }) -- aggregate "first equip" view
 		end
 	else
 		self:_notice(player, "Denied", reason)

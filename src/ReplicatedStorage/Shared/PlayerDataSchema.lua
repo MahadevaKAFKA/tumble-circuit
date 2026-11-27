@@ -138,7 +138,7 @@ function PlayerDataSchema.DefaultCosmetics()
 		owned[i] = id
 	end
 	local d = Catalog.Defaults
-	return { owned = owned, equipped = { marble = d.marble, trail = d.trail, burst = d.burst, launch = d.launch, emotes = { d.emotes[1], d.emotes[2], d.emotes[3] } }, favorites = {} }
+	return { owned = owned, equipped = { marble = d.marble, trail = d.trail, burst = d.burst, launch = d.launch, plate = d.plate, podium = d.podium, emotes = { d.emotes[1], d.emotes[2], d.emotes[3] } }, favorites = {} }
 end
 
 -- v3: sanitize the cosmetics table (known ids only; starters always owned; equipped must be
@@ -159,7 +159,7 @@ function PlayerDataSchema.SanitizeCosmetics(raw)
 		end
 	end
 	local eq = type(raw.equipped) == "table" and raw.equipped or {}
-	for key, kind in pairs({ marble = "Marble", trail = "Trail", burst = "Burst", launch = "Launch" }) do
+	for key, kind in pairs({ marble = "Marble", trail = "Trail", burst = "Burst", launch = "Launch", plate = "Plate", podium = "Podium" }) do
 		if type(eq[key]) == "string" and set[eq[key]] and Catalog.IsKind(eq[key], kind) then
 			c.equipped[key] = eq[key]
 		end

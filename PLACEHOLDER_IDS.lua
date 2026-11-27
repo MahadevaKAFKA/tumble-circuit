@@ -43,6 +43,13 @@ return {
 	-- D: Founder's Style Pack (a permanent Game Pass)
 	GamePasses = {
 		-- FounderPack = <id>,
+		-- 2026-11-27 launch catalog (permanent passes; create them, paste the ids, then the
+		-- owner switches ShopConfig.Flags.PaidOffers on - see docs/SHOP.md)
+		-- Gridline = <id>,
+		-- ReactorGlass = <id>,
+		-- AfterburnRibbon = <id>,
+		-- VictoryPulse = <id>,
+		-- PitCrewPack = <id>,
 	},
 	-- D2: paid random capsules. OFF. Changing this needs the owner's explicit, informed decision
 	-- AND code that does not exist in this build (there is no paid capsule route at all).

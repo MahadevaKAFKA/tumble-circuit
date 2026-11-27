@@ -388,6 +388,9 @@ function RoundService:_enterPreparing()
 			slot = i,
 			finished = false,
 			dnf = false,
+			-- shop brief: the equipped cosmetics as validated at the start of this race; the
+			-- marble, trail, launch, results plate and podium effect all come from this snapshot
+			look = self.cosmetics and self.cosmetics:LookFor(player) or nil,
 		}
 		self.racers[#self.racers + 1] = racer
 		self.racerByPlayer[player] = racer
@@ -496,6 +499,13 @@ function RoundService:_enterRacing()
 	self.gateLog = {} -- challenges brief: per-target crossing order (rival gap)
 end
 
+-- shop brief: the race-start cosmetic snapshot of a player in this round (nil = not racing);
+-- MarbleCharacterService uses it for respawns so a race never changes look halfway
+function RoundService:LookSnapshot(player)
+	local racer = self.racerByPlayer[player]
+	return racer and racer.look or nil
+end
+
 -- challenges brief: a one-line story for each human racer's results card (from the grid slot,
 -- the server's gate log, recoveries and lap times)
 function RoundService:_attachStories(standings)
@@ -543,6 +553,13 @@ function RoundService:_enterResults()
 	end
 	self.results = self.progress:Standings(self.racers)
 	self:_attachStories(self.results)
+	for _, entry in ipairs(self.results) do
+		for _, r in ipairs(self.racers) do
+			if r.userId == entry.userId and r.look then
+				entry.plate, entry.podium = r.look.plate, r.look.podium
+			end
+		end
+	end
 	if self.rankedRound and self.ranked then
 		self.ranked:Finalize(self.results) -- deltas from the seal snapshot, idempotent per match id
 	end
@@ -1023,6 +1040,8 @@ function RoundService:GetSnapshot()
 			dnf = entry.dnf,
 			isBot = entry.isBot,
 			story = entry.story, -- challenges brief: results only (nil during the race)
+			plate = entry.plate, -- shop brief: results nameplate + podium effect (race snapshot)
+			podium = entry.podium,
 		}
 	end
 	local queued = {}

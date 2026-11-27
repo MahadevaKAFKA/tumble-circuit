@@ -105,6 +105,27 @@ function ItemSwatch.Draw(parent, item)
 			UIKit.corner(dot, 0.5)
 		end
 		disc(holder, palette.White, 0.22, 0.6, 0.4)
+	elseif item.Kind == "Plate" then
+		-- shop brief: a results nameplate (Gridline adds its checkered corner)
+		local pill = frame(holder, { Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.86, 0.36), BackgroundColor3 = palette.NavyFloor })
+		UIKit.corner(pill, 0.3)
+		UIKit.label(pill, { Size = UDim2.fromScale(0.8, 0.7), Position = UDim2.fromScale(0.06, 0.15), Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = "DRIVER" })
+		if item.Accent == "Checkered" then
+			for cx = 0, 2 do
+				for cy = 0, 1 do
+					UIKit.new("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -4 - (2 - cx) * 6, 0, 4 + cy * 6), Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, BackgroundColor3 = ((cx + cy) % 2 == 0) and palette.White or palette.Ink }, pill)
+				end
+			end
+		end
+	elseif item.Kind == "Podium" then
+		-- shop brief: a podium effect (Victory Pulse = a gold ring around the winning marble)
+		frame(holder, { Position = UDim2.fromScale(0.5, 0.82), Size = UDim2.fromScale(0.5, 0.16), BackgroundColor3 = palette.NavyFloor })
+		disc(holder, palette.White, 0.34, 0.5, 0.45)
+		if item.Effect == "GoldRing" then
+			local ring = disc(holder, palette.Yellow, 0.56, 0.5, 0.45)
+			ring.BackgroundTransparency = 1
+			UIKit.new("UIStroke", { Color = palette.Yellow, Thickness = 2 }, ring)
+		end
 	end
 	return holder
 end

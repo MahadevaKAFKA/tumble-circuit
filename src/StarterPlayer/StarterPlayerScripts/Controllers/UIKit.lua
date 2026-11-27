@@ -398,6 +398,16 @@ function UIKit.Icon(parent, kind, props)
 	elseif kind == "Case" then
 		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.55), Size = UDim2.fromScale(0.85, 0.65) }), 0.15)
 		piece({ Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.85, 0.1), BackgroundColor3 = palette.Ink })
+	elseif kind == "Plate" then
+		-- shop brief: a nameplate pill with a checkered corner
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.92, 0.42) }), 0.3)
+		piece({ Position = UDim2.fromScale(0.8, 0.4), Size = UDim2.fromScale(0.14, 0.14), BackgroundColor3 = palette.Ink })
+	elseif kind == "Podium" then
+		-- shop brief: three podium steps under a marble
+		piece({ Position = UDim2.fromScale(0.5, 0.78), Size = UDim2.fromScale(0.3, 0.44) })
+		piece({ Position = UDim2.fromScale(0.2, 0.86), Size = UDim2.fromScale(0.28, 0.28) })
+		piece({ Position = UDim2.fromScale(0.8, 0.9), Size = UDim2.fromScale(0.28, 0.2) })
+		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.3), Size = UDim2.fromScale(0.26, 0.26) }), 0.5)
 	else
 		UIKit.corner(piece({ Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.7, 0.7), Rotation = 45 }), 0.15)
 	end

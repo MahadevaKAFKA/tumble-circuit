@@ -144,6 +144,8 @@ local function createBall(player, cframe, zone, frozen, look, hubId)
 	ball:SetAttribute("TC_Burst", look and look.burst or Catalog.Defaults.burst)
 	ball:SetAttribute("TC_Trail", trailItem and trailItem.Id or Catalog.Defaults.trail)
 	ball:SetAttribute("TC_Launch", look and look.launch or Catalog.Defaults.launch)
+	ball:SetAttribute("TC_Plate", look and look.plate or Catalog.Defaults.plate) -- shop brief
+	ball:SetAttribute("TC_Podium", look and look.podium or Catalog.Defaults.podium)
 	local plate = BotFactory.AddNameplate(ball, player.DisplayName, palette.White)
 	-- Your own name never floats in front of your chase camera. Hidden by the engine for the owner
 	-- (owner playtest 2026-11-25: the client-side hide missed and the name sat mid-screen).
@@ -251,6 +253,8 @@ function MarbleCharacterService:RefreshLook(player)
 	ball:SetAttribute("TC_Burst", look.burst or Catalog.Defaults.burst)
 	ball:SetAttribute("TC_Trail", look.trail and Catalog.Get(look.trail) and look.trail or Catalog.Defaults.trail)
 	ball:SetAttribute("TC_Launch", look.launch or Catalog.Defaults.launch)
+	ball:SetAttribute("TC_Plate", look.plate or Catalog.Defaults.plate)
+	ball:SetAttribute("TC_Podium", look.podium or Catalog.Defaults.podium)
 end
 
 function MarbleCharacterService:SpawnMarble(player, reason)

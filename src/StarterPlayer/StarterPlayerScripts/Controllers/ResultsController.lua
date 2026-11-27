@@ -64,9 +64,25 @@ function Results.new()
 		UIKit.label(block, { Size = UDim2.new(1, 0, 0, 48), Position = UDim2.fromOffset(0, 8), Font = Enum.Font.GothamBlack, TextColor3 = colors[place], Text = tostring(place) })
 		local marble = UIKit.new("Frame", { Name = "Marble", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -heights[place] - 70), Size = UDim2.fromOffset(64, 64), BackgroundColor3 = colors[place] }, column)
 		UIKit.corner(marble, 0.5)
+		-- shop brief: the results nameplate (a pill behind the name; Gridline adds a checkered
+		-- corner accent) and, for the winner, the Victory Pulse ring around the marble
+		local pill = UIKit.new("Frame", { Name = "Plate", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -heights[place] - 36), Size = UDim2.new(1, 14, 0, 32), BackgroundColor3 = palette.NavyFloor, BackgroundTransparency = 0.25 }, column)
+		UIKit.corner(pill, 0.2)
+		local checker = UIKit.new("Frame", { Name = "Checker", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -3, 0, 3), Size = UDim2.fromOffset(15, 10), BackgroundTransparency = 1, Visible = false }, pill)
+		for cx = 0, 2 do
+			for cy = 0, 1 do
+				UIKit.new("Frame", { Position = UDim2.fromOffset(cx * 5, cy * 5), Size = UDim2.fromOffset(5, 5), BorderSizePixel = 0, BackgroundColor3 = ((cx + cy) % 2 == 0) and palette.White or palette.Ink }, checker)
+			end
+		end
 		local name = UIKit.label(column, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -heights[place] - 38), Size = UDim2.new(1, 10, 0, 28), Text = "" })
 		local time = UIKit.label(column, { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -heights[place] - 10), Size = UDim2.new(1, 0, 0, 24), Font = Enum.Font.Gotham, Text = "" })
-		self.podium[place] = { column = column, marble = marble, name = name, time = time }
+		local ring = nil
+		if place == 1 then
+			ring = UIKit.new("Frame", { Name = "VictoryPulse", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(64, 64), BackgroundTransparency = 1, Visible = false }, marble)
+			UIKit.corner(ring, 0.5)
+			UIKit.new("UIStroke", { Name = "Gold", Color = palette.Yellow, Thickness = 3, Transparency = 0 }, ring)
+		end
+		self.podium[place] = { column = column, marble = marble, name = name, time = time, pill = pill, checker = checker, ring = ring }
 	end
 
 	-- your card (right half)
@@ -118,6 +134,25 @@ function Results:SetVisible(visible)
 	self.gui.Enabled = visible
 end
 
+-- Pure (shop brief): the nameplate style for a plate id (unknown / retired -> the free plate)
+function Results.PlateStyle(plateId)
+	return { checkered = plateId == "plate_gridline" }
+end
+
+-- Pure: the Victory Pulse ring at time t (s) after the podium shows: two quick gold rings that
+-- grow from the marble and fade; Reduced Motion shows one steady ring instead.
+Results.PulseSeconds = 1.6
+function Results.PulseRing(t, reduced)
+	if reduced then
+		return t < Results.PulseSeconds and 80 or nil, 0.15
+	end
+	if t < 0 or t >= Results.PulseSeconds then
+		return nil
+	end
+	local phase = (t % (Results.PulseSeconds / 2)) / (Results.PulseSeconds / 2)
+	return 64 + 44 * phase, phase -- size (px), stroke transparency
+end
+
 function Results:ApplySnapshot(snap, localUserId)
 	self.snapshot = snap
 	self.localUserId = localUserId
@@ -140,6 +175,19 @@ function Results:ApplySnapshot(snap, localUserId)
 			-- DNF shows how far they got (owner report 2026-11-25: every bot DNF, no clue why)
 			UIKit.setText(p.time, entry.dnf and string.format("DNF CP %d/%d", entry.checkpoint or 0, snap.checkpointTotal or 0) or (entry.seconds and Utility.formatTime(entry.seconds) or ""))
 			p.marble.BackgroundColor3 = entry.userId == localUserId and palette.Mint or (entry.isBot and palette.Coral or p.marble.BackgroundColor3)
+			p.checker.Visible = Results.PlateStyle(entry.plate).checkered
+		end
+	end
+	-- Victory Pulse: only on the winner, only in results (never during a race)
+	local winner = snap.racers[1]
+	local pulse = winner ~= nil and winner.finished and winner.podium == "podium_victory_pulse"
+	if pulse and self.pulseRound ~= snap.roundId then
+		self.pulseRound = snap.roundId
+		self.pulseStart = os.clock() + 0.5 -- after the podium has risen
+	elseif not pulse then
+		self.pulseStart = nil
+		if self.podium[1].ring then
+			self.podium[1].ring.Visible = false
 		end
 	end
 	local mine
@@ -311,6 +359,18 @@ end
 
 function Results:Update(now)
 	local snap = self.snapshot
+	local ring = self.podium[1] and self.podium[1].ring
+	if ring and self.pulseStart then
+		local size, alpha = Results.PulseRing(os.clock() - self.pulseStart, self.reducedMotion)
+		ring.Visible = size ~= nil and self.gui.Enabled
+		if size then
+			ring.Size = UDim2.fromOffset(size, size)
+			local stroke = ring:FindFirstChild("Gold")
+			if stroke then
+				stroke.Transparency = alpha
+			end
+		end
+	end
 	if self.gui.Enabled and snap and snap.stateEndsAt then
 		local left = math.max(0, math.ceil(snap.stateEndsAt - now))
 		UIKit.setText(self.timer, string.format("Next race in about %d s", left + RaceConfig.Timers.CleanupSeconds + RaceConfig.Timers.IntermissionSeconds))

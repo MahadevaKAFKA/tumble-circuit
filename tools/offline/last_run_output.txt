@@ -145,6 +145,7 @@ ok    src/Tests/Unit/Ranked.spec.lua
 ok    src/Tests/Unit/ReadyVote.spec.lua
 ok    src/Tests/Unit/RewardIdempotence.spec.lua
 ok    src/Tests/Unit/RoundState.spec.lua
+ok    src/Tests/Unit/Shop.spec.lua
 ok    src/Tests/Unit/Social.spec.lua
 ok    src/Tests/Unit/TrackValidation.spec.lua
 ok    src/Tests/Unit/UIOverhaul.spec.lua
@@ -162,8 +163,8 @@ ok    tools/offline/run_tests.lua
 
 -- Boot smoke (main chunks, proxy Roblox APIs) --
 PRINT	[Track] challenge drop_shaft built (785 studs, 3 gates)
-PRINT	[Track] built 3 maps (9587 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 296.2 ms
-PRINT	[TumbleCircuit] server ready (A6.0, protocol v16)
+PRINT	[Track] built 3 maps (9587 parts; active NeonFoundry_A4, 2963 studs, 10 checkpoints) + 3 hubs (748 parts) in 331.4 ms
+PRINT	[TumbleCircuit] server ready (A6.0, protocol v17)
 PASS  ServerScriptService/ServerBootstrap.server main chunk completes
 PRINT	[TumbleCircuit] client ready (A6.0)
 PASS  StarterPlayer/StarterPlayerScripts/ClientBootstrap.client main chunk completes
@@ -541,7 +542,7 @@ PASS  Bounce Burst: one bounded upward bounce on the next hit, only once
 -- B3 progression specs --
 PASS  35 marbles: 12 Common / 10 Rare / 7 Epic / 4 Legendary / 2 Mythic
 PASS  12 trails, 8 finish bursts, 8 emotes
-PASS  D exclusives: 3 Founder + 3 Season 1 premium + 2 direct-purchase launch animations + 1 mastery reward, nothing else
+PASS  exclusives: 3 Founder + 3 Season 1 premium + 2 launch animations + 1 mastery reward + the shop brief's 4 launch-catalog items + 2 free starter plate/podium, nothing else
 PASS  ids are stable lowercase slugs (not display names), <= 40 chars
 PASS  starters and defaults exist (Cobalt, Dust, Confetti, 3 emotes)
 PASS  level rewards every 5 levels (5..50), all real items
@@ -1218,4 +1219,45 @@ PASS  challenge card: medal targets, no-time line, mastery 2/3, weekly window
 info  Drop Shaft: 785 studs start->finish, qualifying line at S 418
 info  mock gold run: 15.94 s
 
-947 passed, 0 failed (+ 0 syntax failures)
+-- Shop specs (launch catalog, bundles, checkout, preview, verification) --
+PASS  the five launch offers: permanent passes granting real shop-only items
+PASS  Pit Crew Pack = Reactor Glass + Afterburn Ribbon + Gridline (fixed contents)
+PASS  paid offers are OFF as shipped; no pass id configured; preview prices are the brief's proposals
+PASS  sections: Featured shows the launch catalog; each offer sits in its section (D1 offers mapped too)
+PASS  listing windows and retirement: future / ended / retired offers are not listed
+PASS  future slots are designed but never listed
+PASS  nothing owned: missing items separately 197, pack 149 -> savings 48 (from the shown prices)
+PASS  partial (2 of 3 owned): Gridline alone 39 < pack 149 -> standalone route made prominent, no savings claim
+PASS  everything owned: no purchase action
+PASS  unknown standalone prices: no combined price and no savings claim
+PASS  a regional price where the pack costs more than the parts: no savings, separately is cheaper
+PASS  checkout: owned / pending / unlisted always disabled
+PASS  checkout: live price -> Buy; failed lookup -> Price unavailable (disabled); loading disabled
+PASS  checkout: paid off -> owner Preview (no Robux) or Not on sale yet
+PASS  owner preview: Studio or the experience's owning user only, and only while paid offers are off
+PASS  paid off: the owner's purchase is a labelled preview grant (receipt with EQUIP), no prompt
+PASS  the preview flags only what it added (Gridline was already owned)
+PASS  owning everything: no second purchase of a durable offer
+PASS  RESET PREVIEW takes back only preview items; earned Gridline stays; an equipped preview look falls back to the default
+PASS  a guest can't preview or buy while paid offers are off
+PASS  paid on + configured: the server opens Roblox's pass prompt (the client only asked)
+PASS  no second prompt while that purchase is pending
+PASS  prompt closed without buying: cancelled, nothing granted, pending cleared
+PASS  bought but not yet visible: stays pending (VERIFYING), nothing granted early
+PASS  on the next check (or rejoin) the pass grants once
+PASS  repeated checks never grant twice
+PASS  overlap: the pack grants the missing two, keeps Reactor Glass once, and sends a receipt
+PASS  after owning the pack, its parts can't be prompted again
+PASS  a retired offer can't be bought
+PASS  shop state reports ownership counts per offer
+PASS  server purchase flows ran to the end
+PASS  race snapshot look: owned items kept, unowned / unknown fall back to the free default
+PASS  equipping needs ownership and the right slot (new Plate / Podium slots)
+PASS  an older profile keeps coins, items, equipped look and purchase history; gains the free plate / podium
+PASS  results plate: Gridline shows the checkered corner; unknown plates are plain
+PASS  Victory Pulse: two quick growing gold rings, then gone; Reduced Motion = one steady ring
+PASS  button text: BUY · price / EQUIP / EQUIPPED / PREVIEW BUY / PRICE UNAVAILABLE
+PASS  price line: PREVIEW · proposed 79 while off; the live (regional) price once on sale
+PASS  trail preview: FAST draws a longer trail than SLOW
+
+986 passed, 0 failed (+ 0 syntax failures)

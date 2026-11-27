@@ -173,7 +173,7 @@ function Spec.run(m)
 	end
 	if m.ReadFile then
 		local shop = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/Controllers/ShopController.lua")
-		check("Shop is a storefront: case cards (VIEW ODDS) and item cards drawn in the item's own colours", shop:find('Name = "ShopCase"', 1, true) and shop:find("ItemSwatch.Draw(art, offer.grants[1])", 1, true) and shop:find("ItemSwatch.Draw(self.detailArt", 1, true))
+		check("Shop is a storefront: case cards (VIEW ODDS) and item cards drawn in the item's own colours", shop:find('Name = "ShopCase"', 1, true) and shop:find("ItemSwatch.Draw(art, offer.grants[1])", 1, true) and shop:find("ItemSwatch.Draw(self.flat, item)", 1, true)) -- shop brief: the detail preview (3D marble / trail loop / podium ring / swatch)
 		local lab = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/Controllers/LabController.lua")
 		check("case contents show each item's swatch, not only its name", lab:find("ItemSwatch.Draw(tile.art", 1, true) ~= nil)
 		local match = m.ReadFile("src/StarterPlayer/StarterPlayerScripts/Controllers/MatchUIController.lua")
