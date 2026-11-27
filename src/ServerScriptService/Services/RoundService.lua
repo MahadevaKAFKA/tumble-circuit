@@ -502,8 +502,9 @@ end
 -- shop brief: the race-start cosmetic snapshot of a player in this round (nil = not racing);
 -- MarbleCharacterService uses it for respawns so a race never changes look halfway
 function RoundService:LookSnapshot(player)
-	local racer = self.racerByPlayer[player]
-	return racer and racer.look or nil
+	local live = self.state == S.Preparing or self.state == S.Countdown or self.state == S.Racing
+	local racer = live and self.racerByPlayer[player] or nil
+	return racer and racer.look or nil -- after the race (Results / hub) your current equips apply again
 end
 
 -- challenges brief: a one-line story for each human racer's results card (from the grid slot,
